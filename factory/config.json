@@ -30,5 +30,6 @@
     "night_end_hour": 7,
     "timezone": "Europe/London",
     "model_weekly_max": 0.8
-  }
+  },
+  "permission_mode": "auto"
 }
