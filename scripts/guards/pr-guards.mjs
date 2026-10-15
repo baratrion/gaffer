@@ -27,7 +27,7 @@ const PROTECTED = [
 ];
 // Append-only: merged story scenarios may never be modified, renamed or deleted.
 const APPEND_ONLY = /^tests\/protected\//;
-const MAX_CHANGED_LINES = 600;
+const MAX_CHANGED_LINES = 1200; // a resumable /nw-deliver tick, tests included
 const DIFF_SIZE_IGNORE = [/^(pnpm-lock\.yaml|bun\.lockb?|yarn\.lock|package-lock\.json)$/, /^docs\//];
 
 const failures = [];

@@ -31,11 +31,12 @@ const requirements = {
     ["DESIGN (/nw-design or an nWave architect)", usedAny(["nw-design"], ["nw-solution-architect", "nw-system-designer", "nw-ddd-architect"])],
     ["product-owner review (nw-product-owner-reviewer)", agents.has("nw-product-owner-reviewer")],
     ["architect review (nw-solution-architect-reviewer)", agents.has("nw-solution-architect-reviewer")],
+    ["DEVOPS (/nw-devops or nw-platform-architect)", usedAny(["nw-devops"], ["nw-platform-architect"])],
   ],
   deliver: [
     [
-      "a DISTILL/DELIVER command or agent (/nw-distill, /nw-roadmap, /nw-execute, acceptance-designer, crafter)",
-      usedAny(["nw-distill", "nw-roadmap", "nw-execute"], ["nw-acceptance-designer", "nw-software-crafter", "nw-functional-software-crafter"]),
+      "/nw-distill or /nw-deliver (or their agents: acceptance-designer, crafter)",
+      usedAny(["nw-distill", "nw-deliver"], ["nw-acceptance-designer", "nw-software-crafter", "nw-functional-software-crafter"]),
     ],
   ],
   fix: [],

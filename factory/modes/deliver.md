@@ -1,18 +1,25 @@
 ## Mode: deliver (story {{STORY_ID}}: {{STORY_TITLE}})
 
-Advance story {{STORY_ID}} through nWave's documented flow, **using nWave's commands, not your own approximation of them**. CI reads this session's transcript and blocks a PR that didn't invoke the required nWave skills or agents.
-The story is an nWave feature with feature-id **`{{STORY_ID}}`**: every artifact lives in `docs/feature/{{STORY_ID}}/`. Check what exists there, then do as many of these steps as fit in one run, in order:
+Advance story {{STORY_ID}} through nWave's documented flow, **DISCUSS → DESIGN → DEVOPS → DISTILL → DELIVER**, using nWave's commands, not your own approximation of them. CI reads this session's transcript and blocks a PR that didn't invoke the required nWave skills.
+The story is an nWave feature with feature-id **`{{STORY_ID}}`**: everything lives in `docs/feature/{{STORY_ID}}/` (`feature-delta.md`, `slices/`, `deliver/`). Look at what exists, then continue from the first wave that is missing:
 
-0. **No DISCUSS/DESIGN for this feature** (`docs/feature/{{STORY_ID}}/feature-delta.md` is missing, or has no `## Wave: DISCUSS` or `## Wave: DESIGN` section). This applies to older stories planned before the factory used nWave properly. Run `/nw-discuss {{STORY_ID}} --interactive=moderate`, then `/nw-design {{STORY_ID}}`, with the plan-mode pre-answers below. Keep both lean: the story outcome below is already decided, so don't re-scope it.
-1. **No DISTILL** (`feature-delta.md` has no `## Wave: DISTILL` section): run `/nw-distill {{STORY_ID}}`. Pre-answered: every port classification and the soft-gate table are approved as proposed. Driving ports come from the "For Acceptance Designer" section of `docs/product/architecture/brief.md`. Choose in-memory or real adapters per the accepted ADRs, and record the choice. Its mandatory reviewers must run, in the foreground.
-2. **No build plan** (`docs/feature/{{STORY_ID}}/deliver/roadmap.json` missing): run `/nw-roadmap @nw-solution-architect "{{STORY_ID}}: {{STORY_TITLE}}"` and state that the feature-id is `{{STORY_ID}}`. The skill derives a folder from the goal text, so if it wrote anywhere other than `docs/feature/{{STORY_ID}}/deliver/roadmap.json`, move the file there and re-run `des-roadmap validate`. Make **one step per DISTILL scenario**, each with its `test_file` and `scenario_name`. UI wiring belongs inside the steps (port-to-port), not after them. Then, if `docs/feature/{{STORY_ID}}/deliver/execution-log.json` is missing, run `des-init-log --project-dir docs/feature/{{STORY_ID}}/deliver --feature-id {{STORY_ID}}`.
-3. **Build:** for the next pending step, run `/nw-execute @<crafter> {{STORY_ID}} <step-id>` (RED → GREEN → COMMIT). `/nw-execute` does **not** review, so after each step run `/nw-review @nw-software-crafter implementation "docs/feature/{{STORY_ID}}/deliver/execution-log.json" step_id=<step-id>` and fold in its findings (at most 2 revision cycles). Then take the next step if it still fits under the diff cap.
-4. **All steps done:** run `des-verify-integrity docs/feature/{{STORY_ID}}/deliver/` and fix any violation by re-running `/nw-execute` for that step. Open the app in the Playwright browser on a phone viewport and walk the outcome. Extend `tests/e2e/`. The protected scenarios then judge the story.
+1. **DISCUSS, DESIGN or DEVOPS missing** (`feature-delta.md` lacks a `## Wave: DISCUSS`, `## Wave: DESIGN` or `## Wave: DEVOPS` section). This happens for stories planned before the factory used nWave properly. Run whichever is missing, in order: `/nw-discuss {{STORY_ID}} --interactive=moderate`, `/nw-design {{STORY_ID}}`, `/nw-devops {{STORY_ID}}`, with the pre-answers below. Keep them lean: the story outcome is already decided, so don't re-scope it.
+2. **DISTILL missing** (no `## Wave: DISTILL` section): run `/nw-distill {{STORY_ID}}`. Every port classification and the soft-gate table are approved as proposed. Driving ports come from the "For Acceptance Designer" section of `docs/product/architecture/brief.md`. Its mandatory reviewers run in the foreground.
+3. **DELIVER:** run `/nw-deliver {{STORY_ID}}`. It creates or reuses the roadmap and the audit log, then executes steps in **resume mode**, picking up where the last tick stopped.
+   - Respect the rigor profile in `.nwave/des-config.json`.
+   - Mutation testing strategy is `nightly-delta` (see `CLAUDE.md`), so Phase 5 is skipped.
+   - **Phase 7 (Finalize):** archive and commit, but **do not push**; the workflow publishes the branch.
+   - If you are running low on turns or approaching the diff cap (~1200 lines), finish the current step green, commit, and stop. The next tick resumes.
+4. Before your final commit, open the app in the Playwright browser on a phone viewport and walk the outcome so far. The protected scenarios judge the story once DELIVER is complete.
 
-`<crafter>` is `@nw-functional-software-crafter` when the accepted ADRs choose a functional paradigm (ADR-0003 does), otherwise `@nw-software-crafter`.
-Plan-mode pre-answers, for step 0: design scope (Decision 0) is Application, in propose mode. The team is one solo developer plus this factory. Don't write the paradigm into `CLAUDE.md`, which is locked; the ADR records it. The project brief is `docs/product/brief.md`. Expansion menus: always skip.
-**Every tick must leave the branch fully green.** Never commit a failing, skipped or `.todo` test. Commit after each green step.
-Follow the accepted ADRs. If one is wrong, write a superseding ADR through `/nw-design`; never deviate silently.
+**Pre-answers** (for any wave you run):
+- DISCUSS: the project brief is `docs/product/brief.md`, and scope is in `docs/product/scope.md`. JTBD is on.
+- DESIGN: Decision 0 (scope) is Application, in propose mode, with one solo team. Don't write the paradigm into `CLAUDE.md`; the ADR records it.
+- `/nw-devops {{STORY_ID}}`, with all nine decisions fixed by the platform. Deployment target: static site on GitHub Pages. Container orchestration: none. CI/CD: the existing GitHub Actions workflows (`ci`, `deploy`, `nightly`, factory). These are owner-locked, so record any change you need under "Open questions" in `feature-delta.md` rather than editing `.github/`. Existing infrastructure: yes, as above. Observability: browser console and Playwright smoke tests on the deployed URL only. Deployment strategy: recreate (deploy on merge to main). Continuous learning: no. Branching: trunk-based, short-lived `claude/*` branches, squash merge. Mutation testing: `nightly-delta`.
+- Expansion menus: always skip.
+
+**Every tick must leave the branch fully green.** Never commit a failing, skipped or `.todo` test.
+Follow the accepted ADRs in `docs/product/architecture/`. If one is wrong, supersede it through `/nw-design`; never deviate silently.
 
 Story outcome: {{STORY_OUTCOME}}
 Commit messages: `{{STORY_ID}}: <imperative summary>`.

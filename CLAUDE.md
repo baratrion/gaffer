@@ -38,5 +38,8 @@ Changing what a `ci:*` script checks needs an ADR, and the AI reviewer blocks it
 - Architecture SSOT: `docs/product/architecture/brief.md` (with the "For Acceptance Designer" driving-ports section) and `docs/product/architecture/adr-NNNN-title.md`.
 - Unattended runs follow `factory/PROMPT.md`, which pre-answers every interactive gate.
 
+## Mutation Testing Strategy
+nightly-delta. The nightly workflow runs mutation testing; `/nw-deliver` Phase 5 is skipped.
+
 ## Reference only
 `salvage/` holds code from earlier attempts (seeded RNG, formation coordinates). `docs/archive/owner-drafts/` holds the owner's early story drafts; nWave may use them as input or ignore them. Neither folder is built.
