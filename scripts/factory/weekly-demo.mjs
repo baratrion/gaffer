@@ -16,11 +16,7 @@ const issues = ghJson("issue", "list", "--state", "open", "--label", "needs-huma
 const runs = ghJson("api", `repos/${REPO}/actions/workflows/factory-tick.yml/runs?created=>=${since}&per_page=100`).workflow_runs ?? [];
 const config = JSON.parse(readFileSync("factory/config.json", "utf8"));
 
-const week = (() => {
-  const d = new Date();
-  const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return `${d.getUTCFullYear()}-W${String(Math.ceil(((d - jan1) / 864e5 + jan1.getUTCDay() + 1) / 7)).padStart(2, "0")}`;
-})();
+const week = process.env.WEEK ?? new Date().toISOString().slice(0, 10);
 
 const body = `## Play it: https://${owner}.github.io/${name}/
 

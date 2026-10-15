@@ -23,7 +23,7 @@ jobs:
         with:
           playwright: "true"
       - run: node scripts/factory/stories.mjs > /dev/null
-      - run: node scripts/factory/weekly-demo.mjs
+      - run: WEEK="$(date -u +%G-W%V)" node scripts/factory/weekly-demo.mjs
       - name: Tag the week
         run: |
           tag="demo-$(date -u +%G-W%V)"
