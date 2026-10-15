@@ -77,8 +77,8 @@ jobs:
             --mcp-config ${{ runner.temp }}/mcp.json
             --model ${{ steps.ctx.outputs.model }}
             --max-turns ${{ steps.ctx.outputs.turns }}
-            --allowedTools "Read,Glob,Grep,LS,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*),mcp__context7"
-            --disallowedTools "Edit,MultiEdit,WebFetch,WebSearch,Bash(gh:*),Bash(curl:*)"
+            --allowedTools "Read,Glob,Grep,LS,Write,Skill,Task,Agent,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(git rev-parse:*),Bash(git status:*),mcp__context7"
+            --disallowedTools "Edit,MultiEdit,NotebookEdit,WebFetch,WebSearch,Bash(gh:*),Bash(curl:*),Bash(git push:*),Bash(git commit:*),Bash(git checkout:*),Bash(git reset:*)"
 
       - name: Publish verdict
         if: always()
