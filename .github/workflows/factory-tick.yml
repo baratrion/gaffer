@@ -220,10 +220,12 @@ jobs:
           TITLE: ${{ needs.preflight.outputs.story_title }}
         run: |
           echo "claude step: ${{ steps.claude.outcome }}"
-          # Safety net: if the session ended with uncommitted work, commit it. CI + AI review still gate the merge.
-          if [ -n "$(git status --porcelain -- . ':!factory-out')" ]; then
-            git add -A -- . ':!factory-out'
-            git commit -m "$STORY: uncommitted work left by tick #$GITHUB_RUN_NUMBER" -m "Committed by the publish step; see factory-out summary."
+          # Leftovers never block publishing. Commits exist -> push them and ignore scratch files.
+          # No commits at all -> best-effort commit of leftovers (CI + AI review still gate the merge).
+          git status --porcelain || true
+          if [ "$(git rev-parse HEAD)" = "$START" ] && [ -n "$(git status --porcelain)" ]; then
+            { git add -A && git commit -q -m "$STORY: uncommitted work left by tick #$GITHUB_RUN_NUMBER" \
+                -m "Committed by the publish step; see the factory-out summary."; } || echo "::warning::could not commit leftovers"
           fi
           if [ "$(git rev-parse HEAD)" = "$START" ]; then
             echo "::error::Agent produced no commits"; echo "outcome=no-commits" >> "$GITHUB_OUTPUT"; exit 1
