@@ -100,6 +100,8 @@ jobs:
           uv tool install "nwave-ai==$(jq -r .nwave_version factory/config.json)"
           nwave-ai install < /dev/null
           nwave-ai project enable
+          # nWave 3.22.x bug: its pre-bash hook blocks nWave's own des-* commands (incl. des-commit). Widen the allow pattern.
+          python3 scripts/factory/patch-des-hook.py || echo "::warning::DES pre-bash hook not found or format changed (nWave version?)"
           # Unattended: never show expansion menus (documented value for unattended work)
           cfg="$HOME/.nwave/global-config.json"; [ -f "$cfg" ] || echo '{}' > "$cfg"
           jq '.documentation.expansion_prompt = "always-skip"' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
