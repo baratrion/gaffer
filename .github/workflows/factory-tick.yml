@@ -55,7 +55,7 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
     permissions:
       contents: write
       pull-requests: write
@@ -176,8 +176,10 @@ jobs:
 
       - name: Claude (one nWave step)
         id: claude
-        # Hitting the turn cap still leaves useful commits; CI + AI review decide whether they merge.
+        # Hitting the turn cap or this step timeout still leaves useful commits; CI + AI review decide whether they merge.
+        # The step timeout is below the job timeout so the publish steps always get to run.
         continue-on-error: true
+        timeout-minutes: 60
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
