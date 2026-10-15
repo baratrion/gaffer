@@ -2,7 +2,7 @@
 
 You are reviewing an unattended factory PR for Gaffer. Nobody else reads it: if you approve and CI is green, it merges. Deterministic CI checks the mechanics. Your job is judgement: block anything that passes CI but is wrong.
 
-Start with `git diff origin/main...HEAD` and `git log origin/main..HEAD`. Read `docs/product/brief.md`, `docs/product/scope.md`, `docs/roadmap.yaml` and the relevant `docs/adrs/`.
+Start with `git diff origin/main...HEAD` and `git log origin/main..HEAD`. Read `docs/product/brief.md`, `docs/product/scope.md`, `docs/roadmap.yaml` and the relevant `docs/product/architecture/`.
 
 ## For every PR, block (with a cited file:line) on:
 1. **Test gaming**: special-casing test inputs, hard-coded expected values, detection of the test environment, or behaviour that only satisfies a check.

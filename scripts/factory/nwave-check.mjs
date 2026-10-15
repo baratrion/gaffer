@@ -29,7 +29,8 @@ const requirements = {
   plan: [
     ["DISCUSS (/nw-discuss or nw-product-owner)", usedAny(["nw-discuss"], ["nw-product-owner"])],
     ["DESIGN (/nw-design or an nWave architect)", usedAny(["nw-design"], ["nw-solution-architect", "nw-system-designer", "nw-ddd-architect"])],
-    ["peer review (/nw-review or an nw-*-reviewer)", reviewerUsed],
+    ["product-owner review (nw-product-owner-reviewer)", agents.has("nw-product-owner-reviewer")],
+    ["architect review (nw-solution-architect-reviewer)", agents.has("nw-solution-architect-reviewer")],
   ],
   deliver: [
     [
@@ -39,9 +40,10 @@ const requirements = {
   ],
   fix: [],
 };
+// /nw-execute doesn't review by itself; the deliver prompt requires /nw-review after each executed step.
+if (mode === "deliver" && skills.has("nw-execute")) requirements.deliver.push(["/nw-review after /nw-execute", reviewerUsed]);
 
 const missing = (requirements[mode] ?? []).filter(([, ok]) => !ok).map(([name]) => name);
-// Reviewer use inside /nw-execute may happen inside the crafter subagent (invisible here), so for deliver it's a warning only.
-const warnings = mode === "deliver" && !reviewerUsed ? ["no nWave reviewer visible at top level (may have run inside the crafter)"] : [];
+const warnings = mode === "deliver" && !reviewerUsed && !skills.has("nw-execute") ? ["no nWave reviewer visible at top level"] : [];
 const result = { ok: missing.length === 0, mode, skills: [...skills].sort(), agents: [...agents].sort(), missing, warnings };
 console.log(JSON.stringify(result));

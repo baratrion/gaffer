@@ -2,7 +2,8 @@
 # tests/protected/ is append-only, which the guard enforces (not CODEOWNERS).
 /.github/       @baratrion
 /factory/       @baratrion
-/docs/product/  @baratrion
+/docs/product/brief.md  @baratrion
+/docs/product/scope.md  @baratrion
 /scripts/       @baratrion
 /.nwave/        @baratrion
 /CLAUDE.md      @baratrion

@@ -1,15 +1,33 @@
 ## Mode: plan (nWave decides what to build next, and how)
 
-No story in `docs/roadmap.yaml` is ready for delivery, so plan the next slice, **using nWave's commands, not your own approximation of them**. CI reads this session's transcript and blocks a plan PR that didn't invoke the required nWave skills or agents: `/nw-discuss`, `/nw-design`, and `/nw-review` with the product-owner and solution-architect reviewers. There is no human to ask. The plan merges automatically if CI and the AI reviewer accept it, so make it good.
+No story in `docs/roadmap.yaml` is ready for delivery, so plan **exactly one** next story through nWave's DISCUSS and DESIGN waves, **using nWave's commands, not your own approximation of them**. CI reads this session's transcript and blocks a plan PR that didn't invoke `/nw-discuss`, `/nw-design` and the nWave reviewer agents. There is no human to ask. The plan merges automatically if CI and the AI reviewer accept it, so make it good.
 
-Pre-answered nWave questions: `/nw-discuss --interactive=moderate`, with every confirmation approved as proposed. `/nw-design` uses application scope and propose mode; team structure is one solo developer plus this factory, one team, no Conway constraints. Paradigm follows the accepted ADRs.
+**Feature-id:** the next free story id, `S-NNN` (one more than the highest in `docs/roadmap.yaml`). Use it as the nWave feature-id everywhere, so DISTILL, roadmap and execute in later deliver runs find these artifacts in `docs/feature/S-NNN/`.
 
-Inputs, in precedence order: `docs/product/brief.md` (vision, north star, principles), `docs/product/scope.md` (IN/OUT; OUT is absolute), `docs/adrs/` (accepted decisions), `docs/roadmap.yaml` (what exists), and the current code.
+Pre-answered nWave questions:
+- `/nw-discuss S-NNN --interactive=moderate`. Every confirmation is approved as proposed. The project brief is `docs/product/brief.md`; scope and precedence are in `docs/product/scope.md`. JTBD is on: add or extend jobs in `docs/product/jobs.yaml`, and trace the story to a `job_id`.
+- `/nw-design S-NNN`: design scope (Decision 0) is **Application**, in **propose** mode. The team is one solo developer plus this factory, as one team with no Conway constraints. Paradigm follows the accepted ADRs; don't write it into `CLAUDE.md`, which is locked.
+- Expansion menus: always skip.
 
-1. **DISCUSS** via `/nw-discuss` (nw-product-owner, lean): work out the smallest next increment that moves the player toward the north star and gives a visible, playable change on a phone this week. Write 1–3 stories into `docs/roadmap.yaml` (append; keep existing stories and IDs unchanged; IDs follow the highest existing `S-NNN`). Each story needs a phone-observable `outcome`. Never use the out-of-scope tags: {{OUT_OF_SCOPE_TAGS}}. Put the journey and JTBD notes in `docs/feature/<story-id>/discuss/`.
-2. **DESIGN** via `/nw-design` (`interaction_mode=propose`): make the technical decisions these stories need, for example rendering approach and libraries (pixi.js or not), UI framework or none, state and domain architecture (ECS, functional pipeline, plain modules), persistence, and the package manager and test tooling. Record each decision as a numbered ADR in `docs/adrs/NNNN-title.md` (Context, Options with trade-offs, Decision, Consequences). Prefer reversible, boring, small-dependency choices. To change an accepted ADR, write a new one that supersedes it and says why. If an ADR changes tooling, implement the switch in this same PR only if it stays within the diff cap and keeps every `ci:*` script working. The `ci:*` script contract is in `CLAUDE.md`.
-3. Run `/nw-review @nw-product-owner` on the new stories and `/nw-review @nw-solution-architect` on the new ADRs, and fold in their findings. Record unresolved disagreements in the ADR.
-4. **Protected scenarios** for every new story: `tests/protected/<story-id>/*.spec.ts`, 2–5 black-box Playwright scenarios per story. Use only what a player sees (roles, accessible names, visible text) on a phone viewport; prefer properties that hold for any seed over hard-coded values. **They must fail on the current app.** CI verifies this, and they become permanent and unchangeable once merged, so write them as the player's real expectations, not as easy targets.
-5. Do not implement features in this run; the deliver runs do that. Tooling or architecture scaffolding that an ADR requires is allowed.
+Inputs, in precedence order:
+1. `docs/product/brief.md` (vision, north star, principles)
+2. `docs/product/scope.md` (IN/OUT; OUT is absolute)
+3. `docs/product/architecture/` (`brief.md` and the accepted `adr-*.md`)
+4. `docs/roadmap.yaml` (what exists)
+5. the current code
 
-Commit messages: `plan: <summary>`.
+Steps:
+1. **DISCUSS** via `/nw-discuss S-NNN`. Find the smallest next increment that moves the player toward the north star and gives a visible, playable change on a phone this week. nWave writes `docs/feature/S-NNN/feature-delta.md`, plus slices, jobs, journeys and personas under `docs/product/`. Append the story to `docs/roadmap.yaml` (`id`, `week`, `title`, `tags`, `outcome`), keeping existing stories and ids unchanged. The `outcome` must be phone-observable and must spell out every label, role, range and format the scenarios will check. Never use the out-of-scope tags: {{OUT_OF_SCOPE_TAGS}}.
+2. **DESIGN** via `/nw-design S-NNN`. Make the technical decisions this story needs, such as rendering approach and libraries (pixi.js or not), UI framework or none, state and domain architecture (ECS, functional pipeline, plain modules), persistence, package manager and test tooling.
+   - Keep `docs/product/architecture/brief.md` current, including its **"For Acceptance Designer" driving-ports section**, which DISTILL depends on.
+   - Record each new decision as `docs/product/architecture/adr-NNNN-title.md` (Context, Options with trade-offs, Decision, Consequences). Prefer reversible, boring, small-dependency choices.
+   - To change an accepted ADR, write a new one that supersedes it and says why.
+   - If an ADR changes tooling, implement the switch in this PR only if it stays within the diff cap and keeps every `ci:*` script (see `CLAUDE.md`) working.
+3. **Peer review.** In the foreground, dispatch the `nw-product-owner-reviewer` agent on the DISCUSS sections of `feature-delta.md`, and the `nw-solution-architect-reviewer` agent on the DESIGN sections, `architecture/brief.md` and any new ADRs. Ask each for a YAML `approval_status`, fold in their findings (at most 2 revision cycles), and record unresolved disagreements in the ADR. `/nw-review` only accepts roadmap, step, task, implementation and baseline artifacts, so dispatch these reviewers directly.
+4. **Protected scenarios** for the story: `tests/protected/S-NNN/*.spec.ts`, 2–5 black-box Playwright scenarios.
+   - Use only what a player sees (roles, accessible names, visible text) on a phone viewport.
+   - Prefer properties that hold for any seed over hard-coded values.
+   - **They must fail on the current app.** CI checks this. Once merged they're permanent and can't be changed, so write the player's real expectations, not easy targets.
+5. Don't implement features in this run; deliver runs do that (DISTILL, then roadmap and execute). Tooling or architecture scaffolding that an ADR requires is allowed.
+
+Commit messages: `plan: S-NNN <summary>`.

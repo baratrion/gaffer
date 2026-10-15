@@ -14,7 +14,7 @@ const base = git("merge-base", baseRef, "HEAD").trim();
 const PROTECTED = [
   /^\.github\//,
   /^factory\//,
-  /^docs\/product\//,
+  /^docs\/product\/(brief|scope)\.md$/, // the owner's; the rest of docs/product/ is nWave's SSOT
   /^scripts\//,
   /^\.nwave\//,
   /^CLAUDE\.md$/,

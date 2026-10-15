@@ -33,7 +33,7 @@ Tick workflow runs this week: ${runs.length} (agent cap ${config.max_ticks_per_w
 
 ### Your 10-minute check-in
 1. Play the build on your phone.
-2. Skim new ADRs in \`docs/adrs/\` and new stories in \`docs/roadmap.yaml\`. nWave decided them; you only intervene if something's off.
+2. Skim new ADRs in \`docs/product/architecture/\` and new stories in \`docs/roadmap.yaml\`. nWave decided them; you only intervene if something's off.
 3. Steer by editing \`docs/product/scope.md\` or \`docs/product/brief.md\`. **Comments are never read by the factory.**
 4. To pause: add the label \`factory:stop\` to this issue.`;
 

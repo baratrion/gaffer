@@ -5,7 +5,7 @@ Gaffer is a mobile-first football management game for the browser, built by an u
 ## Read first
 - `docs/product/brief.md`: the vision, the player and the principles.
 - `docs/product/scope.md`: IN/OUT and precedence rules. It wins every conflict; the narrower scope wins.
-- `docs/adrs/`: accepted technical decisions. Follow them, and supersede them only with a new ADR.
+- `docs/product/architecture/`: accepted technical decisions. Follow them, and supersede them only with a new ADR.
 - `docs/roadmap.yaml`: the nWave-owned story queue. A story is done only when `tests/protected/<id>/` passes on main.
 - `docs/CONVENTIONS.md` (once nWave creates it): the coding conventions the architecture implies. Put conventions there, not here.
 
@@ -25,7 +25,7 @@ The package manager is detected from the lockfile (bun, pnpm, yarn or npm). CI o
 Changing what a `ci:*` script checks needs an ADR, and the AI reviewer blocks it when it weakens checking.
 
 ## Locked by design (CI rejects edits)
-`.github/`, `factory/`, `docs/product/`, `scripts/`, `.nwave/`, `CLAUDE.md`. `tests/protected/` is append-only: new scenario files are fine, existing ones are permanent.
+`.github/`, `factory/`, `docs/product/brief.md`, `docs/product/scope.md`, `scripts/`, `.nwave/`, `CLAUDE.md`. The rest of `docs/product/` is nWave's SSOT (architecture brief, ADRs, jobs, journeys, personas, outcomes). `tests/protected/` is append-only: new scenario files are fine, existing ones are permanent.
 
 ## Principles that are not up for an ADR
 - **Deterministic game logic:** same seed, same season. No ambient randomness or wall-clock time in game rules; inject them. (CI checks `src/domain/` if it exists.)
@@ -34,7 +34,8 @@ Changing what a `ci:*` script checks needs an ADR, and the AI reviewer blocks it
 
 ## nWave
 - The rigor profile is in `.nwave/des-config.json` (crafter on sonnet, reviewer on haiku, RED→GREEN→COMMIT, refactor pass; mutation testing runs nightly).
-- Feature artifacts go in `docs/feature/<story-id>/`; ADRs go in `docs/adrs/NNNN-title.md`.
+- Each roadmap story is an nWave feature: feature-id = story id (`S-NNN`). Its artifacts live in `docs/feature/S-NNN/` (`feature-delta.md`, `slices/`, `deliver/roadmap.json`, `deliver/execution-log.json`).
+- Architecture SSOT: `docs/product/architecture/brief.md` (with the "For Acceptance Designer" driving-ports section) and `docs/product/architecture/adr-NNNN-title.md`.
 - Unattended runs follow `factory/PROMPT.md`, which pre-answers every interactive gate.
 
 ## Reference only

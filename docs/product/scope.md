@@ -27,7 +27,7 @@
 | `real-data` | Real clubs, players, leagues, logos |
 
 ## Technical decisions
-Not decided here. nWave's DESIGN wave makes them and records each one as an ADR in `docs/adrs/`: language and framework, rendering (for example pixi.js), architecture patterns (for example ECS or a functional pipeline), package manager, and test tooling. The only fixed constraints come from the product:
+Not decided here. nWave's DESIGN wave makes them and records each one as an ADR in `docs/product/architecture/`: language and framework, rendering (for example pixi.js), architecture patterns (for example ECS or a functional pipeline), package manager, and test tooling. The only fixed constraints come from the product:
 - It must be a static site deployable to GitHub Pages under `/gaffer/`, with no backend (see OUT).
 - Same seed, same season: game logic must be deterministic and replayable.
 - It must run well on a mid-range phone browser.
