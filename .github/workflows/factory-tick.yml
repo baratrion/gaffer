@@ -165,7 +165,7 @@ jobs:
             --mcp-config ${{ runner.temp }}/mcp.json
             --model ${{ steps.prompt.outputs.model }}
             --max-turns ${{ steps.prompt.outputs.turns }}
-            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(bunx:*),Bash(yarn:*),Bash(corepack:*),Bash(node:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(rm:*),Bash(mv:*),Bash(cp:*),Bash(touch:*),Bash(nwave-ai:*),mcp__context7,mcp__playwright"
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(bunx:*),Bash(yarn:*),Bash(corepack:*),Bash(node:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(rm:*),Bash(mv:*),Bash(cp:*),Bash(touch:*),Bash(cd:*),Bash(sed:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(find:*),Bash(wc:*),Bash(sort:*),Bash(uniq:*),Bash(diff:*),Bash(echo:*),Bash(printf:*),Bash(jq:*),Bash(readlink:*),Bash(dirname:*),Bash(basename:*),Bash(python3:*),Bash(sleep:*),Bash(kill:*),Bash(lsof:*),Bash(test:*),Bash(true:*),Bash(xargs:*),Bash(nwave-ai:*),mcp__context7,mcp__playwright"
             --disallowedTools "WebFetch,WebSearch,Bash(git push:*),Bash(gh:*),Bash(curl:*),Bash(wget:*)"
 
       - name: Keep Claude transcript
@@ -181,6 +181,11 @@ jobs:
           TITLE: ${{ needs.preflight.outputs.story_title }}
         run: |
           echo "claude step: ${{ steps.claude.outcome }}"
+          # Safety net: if the session ended with uncommitted work, commit it. CI + AI review still gate the merge.
+          if [ -n "$(git status --porcelain -- . ':!factory-out')" ]; then
+            git add -A -- . ':!factory-out'
+            git commit -m "$STORY: uncommitted work left by tick #$GITHUB_RUN_NUMBER" -m "Committed by the publish step; see factory-out summary."
+          fi
           if [ "$(git rev-parse HEAD)" = "$START" ]; then
             echo "::error::Agent produced no commits"; echo "outcome=no-commits" >> "$GITHUB_OUTPUT"; exit 1
           fi
