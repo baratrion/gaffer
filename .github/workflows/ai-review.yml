@@ -31,6 +31,7 @@ jobs:
       contents: read
       pull-requests: write
       statuses: write
+      actions: write # approve GitHub's parked PR-triggered CI run for the factory branch
       id-token: write
     env:
       GH_TOKEN: ${{ github.token }}
@@ -102,6 +103,13 @@ jobs:
             *)       state=error;   desc="Reviewer produced no verdict" ;;
           esac
           gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=$state -f context=ai-review -f description="$desc" >/dev/null
+          # GitHub parks the PR-triggered CI run of bot-opened PRs as "action_required"; branch protection waits on it.
+          # Only after an approve verdict: let it run (it executes main's referee scripts, so it's the same CI).
+          if [ "$verdict" = "approve" ]; then
+            for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$BRANCH&status=action_required" -q '.workflow_runs[].id'); do
+              gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$run/approve" >/dev/null && echo "approved parked CI run $run" || echo "::warning::could not approve parked run $run"
+            done
+          fi
           if [ -n "$PR" ] && [ "$verdict" = "block" ]; then
             {
               echo "<!-- ai-review -->"

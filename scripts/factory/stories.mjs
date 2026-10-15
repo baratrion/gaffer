@@ -3,7 +3,8 @@
 // Prints JSON: { stories: [{id, title, status: done|failing|no-scenarios}], doneCount, next }
 // "doneCount" is the length of the contiguous done prefix: stories are delivered strictly in order.
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 import { loadRoadmap, protectedSpecs } from "./roadmap.mjs";
 
 const withoutSecrets = (env) =>
@@ -11,10 +12,12 @@ const withoutSecrets = (env) =>
 
 const out = process.argv[2] ?? "test-results/stories.json";
 mkdirSync("test-results", { recursive: true });
-const report = "test-results/protected.json";
+// Absolute: Playwright resolves a relative PLAYWRIGHT_JSON_OUTPUT_NAME against the config file's folder (scripts/factory/).
+const report = resolve("test-results/protected.json");
 
 const roadmap = loadRoadmap();
 const anySpecs = roadmap.stories.some((s) => protectedSpecs(s.id).length > 0);
+rmSync(report, { force: true }); // never read a stale report
 if (anySpecs) {
   try {
     const [bin, ...pre] = (process.env.PMX ?? "pnpm exec").split(" ");
