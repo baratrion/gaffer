@@ -210,6 +210,16 @@ jobs:
           echo "line=$line" >> "$GITHUB_OUTPUT"
           echo "### $line" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Did this run use nWave?
+        id: nwave
+        if: always()
+        run: |
+          t="$RUNNER_TEMP/claude-execution-output.json"
+          if [ -f "$t" ]; then r=$(node scripts/factory/nwave-check.mjs "$MODE" "$t"); else r='{"ok":false,"missing":["no transcript"]}'; fi
+          echo "$r" | tee factory-out/nwave-check.json
+          echo "ok=$(echo "$r" | jq -r .ok)" >> "$GITHUB_OUTPUT"
+          echo "line=nWave: $(echo "$r" | jq -r '"skills " + (.skills|join(",")) + " · agents " + (.agents|join(",")) + (if (.missing|length)>0 then " · MISSING " + (.missing|join("; ")) else "" end)')" >> "$GITHUB_OUTPUT"
+
       - name: Keep Claude transcript (encrypted to the owner's age key; artifacts are public)
         if: always()
         run: |
@@ -247,6 +257,10 @@ jobs:
             PR=$(gh pr create --base main --head "$BRANCH" --title "$STORY: $TITLE ($MODE)" --body "$body" --label factory | grep -o '[0-9]*$')
             gh pr merge "$PR" --auto --squash
           fi
+          # nWave governance: a PR whose session didn't invoke the required nWave commands is blocked by ai-review.
+          if [ "${{ steps.nwave.outputs.ok }}" != "true" ] && [ "$MODE" != "fix" ]; then
+            gh pr edit "$PR" --add-label nwave-skipped
+          fi
           gh workflow run ci.yml --ref "$BRANCH"
           echo "pr=$PR" >> "$GITHUB_OUTPUT"
           echo "outcome=pushed" >> "$GITHUB_OUTPUT"
@@ -259,12 +273,14 @@ jobs:
           OUTCOME: ${{ steps.publish.outputs.outcome || 'failed' }}
           OUT_PR: ${{ steps.publish.outputs.pr }}
           COST: ${{ steps.cost.outputs.line }}
+          NWAVE: ${{ steps.nwave.outputs.line }}
         run: |
           issue=$(gh issue list --label factory-log --state open --json number -q '.[0].number')
           [ -n "$issue" ] || issue=$(gh issue create --title "Factory log" --label factory-log --body "Append-only tick journal (written by workflows)." | grep -o '[0-9]*$')
           gh issue comment "$issue" --body "**Tick #$GITHUB_RUN_NUMBER** · $MODE · $STORY · outcome: \`$OUTCOME\` ${OUT_PR:+· PR #$OUT_PR}
           $REASON · [run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)
-          $COST"
+          $COST
+          $NWAVE"
 
       - uses: actions/upload-artifact@v4
         if: always()

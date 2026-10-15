@@ -42,7 +42,11 @@ jobs:
           CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=pending -f context=ai-review -f description="Reviewing" >/dev/null
-          echo "pr=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')" >> "$GITHUB_OUTPUT"
+          pr=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          skipped=false
+          [ -n "$pr" ] && gh pr view "$pr" --json labels -q '[.labels[].name] | join(",")' | grep -q nwave-skipped && skipped=true
+          echo "nwave_skipped=$skipped" >> "$GITHUB_OUTPUT"
           echo "model=$(jq -r .reviewer_model factory/config.json)" >> "$GITHUB_OUTPUT"
           echo "turns=$(jq -r .reviewer_max_turns factory/config.json)" >> "$GITHUB_OUTPUT"
           mkdir -p factory-out
@@ -63,6 +67,7 @@ jobs:
           { echo "text<<PROMPT_EOF"; cat factory/review-prompt.md; echo "PROMPT_EOF"; } >> "$GITHUB_OUTPUT"
 
       - name: Claude reviewer (different tier from crafter)
+        if: steps.ctx.outputs.nwave_skipped != 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -81,7 +86,9 @@ jobs:
           PR: ${{ steps.ctx.outputs.pr }}
         run: |
           verdict=$(jq -r '.verdict // "missing"' factory-out/review.json 2>/dev/null || echo missing)
+          if [ "${{ steps.ctx.outputs.nwave_skipped }}" = "true" ]; then verdict=nwave; fi
           case "$verdict" in
+            nwave)   state=failure; desc="Blocked: this run skipped the required nWave commands" ;;
             approve) state=success; desc="No blocking findings" ;;
             block)   state=failure; desc="Blocking findings - see PR comment" ;;
             *)       state=error;   desc="Reviewer produced no verdict" ;;
