@@ -18,10 +18,21 @@
       "rules": {
         "no-restricted-imports": ["error", {
           "patterns": [
-            { "group": ["**/ui/**"], "message": "Domain must not depend on UI (architectural boundary)" }
+            { "group": ["**/ui/**"], "message": "Domain must not depend on UI (architectural boundary)" },
+            { "group": ["**/app/**"], "message": "Domain must not depend on the app shell (ADR-0003)" }
           ]
         }],
-        "no-restricted-globals": ["error", "document", "window", "localStorage"]
+        "no-restricted-globals": ["error", "document", "window", "localStorage", "location", "Date", "performance", "crypto", "setTimeout", "setInterval"]
+      }
+    },
+    {
+      "files": ["src/app/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["**/ui/**"], "message": "App shell state must not depend on UI (ADR-0003)" }
+          ]
+        }]
       }
     },
     {
