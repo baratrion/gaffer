@@ -1,5 +1,5 @@
 {
-  "paused": false,
+  "paused": true,
   "nwave_version": "3.22.1",
   "max_ticks_per_week": 60,
   "max_fix_cycles": 2,
