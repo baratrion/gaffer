@@ -124,16 +124,34 @@ jobs:
           echo "model=$(jq -r ".${role}_model" factory/config.json)" >> "$GITHUB_OUTPUT"
           echo "turns=$(jq -r ".${role}_max_turns" factory/config.json)" >> "$GITHUB_OUTPUT"
 
+      - name: MCP servers (Context7 docs, Playwright browser restricted to localhost)
+        env:
+          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+        run: |
+          headers='{}'
+          [ -n "$CONTEXT7_API_KEY" ] && headers=$(jq -n --arg k "$CONTEXT7_API_KEY" '{Authorization: ("Bearer " + $k)}')
+          jq -n --argjson h "$headers" --arg out "$GITHUB_WORKSPACE/factory-out/screens" '{mcpServers: {
+            context7:   {type: "http", url: "https://mcp.context7.com/mcp", headers: $h},
+            playwright: {command: "npx", args: ["-y", "@playwright/mcp@0.0.83", "--headless", "--isolated",
+                         "--allowed-hosts", "localhost,127.0.0.1", "--device", "Pixel 7", "--output-dir", $out, "--caps", "vision"]}
+          }}' > "$RUNNER_TEMP/mcp.json"
+          mkdir -p factory-out/screens
+          # Playwright MCP 0.0.83 bundles playwright 1.64.0-alpha-1790635538000; install the matching Chromium build.
+          npx -y playwright-core@1.64.0-alpha-1790635538000 install chromium
+
       - name: Claude (one nWave step)
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
           prompt: ${{ steps.prompt.outputs.text }}
+          plugin_marketplaces: https://github.com/anthropics/claude-plugins-official.git
+          plugins: frontend-design@claude-plugins-official
           claude_args: >-
+            --mcp-config ${{ runner.temp }}/mcp.json
             --model ${{ steps.prompt.outputs.model }}
             --max-turns ${{ steps.prompt.outputs.turns }}
-            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(bunx:*),Bash(yarn:*),Bash(corepack:*),Bash(node:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(nwave-ai:*)"
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(bunx:*),Bash(yarn:*),Bash(corepack:*),Bash(node:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(nwave-ai:*),mcp__context7,mcp__playwright"
             --disallowedTools "WebFetch,WebSearch,Bash(git push:*),Bash(gh:*),Bash(curl:*),Bash(wget:*)"
 
       - name: Publish branch and PR

@@ -38,12 +38,17 @@ jobs:
           fetch-depth: 0
       - name: Mark pending
         id: ctx
+        env:
+          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=pending -f context=ai-review -f description="Reviewing" >/dev/null
           echo "pr=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')" >> "$GITHUB_OUTPUT"
           echo "model=$(jq -r .reviewer_model factory/config.json)" >> "$GITHUB_OUTPUT"
           echo "turns=$(jq -r .reviewer_max_turns factory/config.json)" >> "$GITHUB_OUTPUT"
           mkdir -p factory-out
+          headers='{}'
+          [ -n "$CONTEXT7_API_KEY" ] && headers=$(jq -n --arg k "$CONTEXT7_API_KEY" '{Authorization: ("Bearer " + $k)}')
+          jq -n --argjson h "$headers" '{mcpServers: {context7: {type: "http", url: "https://mcp.context7.com/mcp", headers: $h}}}' > "$RUNNER_TEMP/mcp.json"
           { echo "text<<PROMPT_EOF"; cat factory/review-prompt.md; echo "PROMPT_EOF"; } >> "$GITHUB_OUTPUT"
 
       - name: Claude reviewer (different tier from crafter)
@@ -53,9 +58,10 @@ jobs:
           github_token: ${{ github.token }}
           prompt: ${{ steps.ctx.outputs.text }}
           claude_args: >-
+            --mcp-config ${{ runner.temp }}/mcp.json
             --model ${{ steps.ctx.outputs.model }}
             --max-turns ${{ steps.ctx.outputs.turns }}
-            --allowedTools "Read,Glob,Grep,LS,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
+            --allowedTools "Read,Glob,Grep,LS,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*),mcp__context7"
             --disallowedTools "Edit,MultiEdit,WebFetch,WebSearch,Bash(gh:*),Bash(curl:*)"
 
       - name: Publish verdict
