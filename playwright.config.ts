@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 30_000,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
-  use: { baseURL, ...devices["Pixel 7"], trace: "retain-on-failure", screenshot: "only-on-failure" },
+  use: { baseURL, ...devices["Pixel 7"], viewport: { width: 390, height: 844 }, trace: "retain-on-failure", screenshot: "only-on-failure" },
   ...(process.env.BASE_URL
     ? {}
     : { webServer: { command: "pnpm run ci:serve", url: baseURL, reuseExistingServer: !process.env.CI } }),

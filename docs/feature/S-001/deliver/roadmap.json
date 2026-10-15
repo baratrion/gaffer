@@ -1,0 +1,105 @@
+{
+  "roadmap": {
+    "project_id": "S-001",
+    "created_at": "2026-10-15T00:00:00Z",
+    "total_steps": 4
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Start a new game and pick a club",
+      "description": "Deliver the pure league generator, seed parsing, navigation state and the three phone-first screens so Sam reaches a chosen club in two taps.",
+      "default_agent": "nw-functional-software-crafter",
+      "default_deps_strategy": "sequential",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Generate a deterministic eight-club league",
+          "agent": "nw-functional-software-crafter",
+          "deps": [],
+          "criteria": [
+            "For any 32-bit seed the league holds exactly 8 clubs with non-empty unique names, unique ids and two distinct colours",
+            "The same seed yields a deep-equal league; seeds 1 and 4242 yield different leagues; boundary seeds 0, -1, max and min succeed",
+            "Generation uses only the seeded rng, with no ambient randomness or wall-clock time",
+            "No generated club name equals a real club name from the denylist unit test"
+          ],
+          "test_file": "tests/acceptance/S-001/league-generation.test.ts",
+          "scenario_name": "S-001 a league is generated from a seed > Given any 32-bit seed, when the league is generated > then it holds exactly 8 clubs @property @driving_port",
+          "files_to_modify": [
+            "src/domain/league.ts",
+            "src/domain/names.ts",
+            "tests/unit/domain/real-club-denylist.test.ts"
+          ],
+          "implementation_notes": "Functional core: pure generateLeague(seed) => League, towns drawn without replacement for name uniqueness (ADR-0004), colours drawn from a palette as two distinct entries. Contract shape: pure-function, return-only. Remove the __SCAFFOLD__ marker and the throw. Add a unit test asserting no generated name (across many seeds) matches a real-club denylist (ADR-0004). Remaining league-generation.test.ts scenarios must pass too. deriveSeed is optional (needed by S-002)."
+        },
+        {
+          "id": "01-02",
+          "name": "Parse seed from the web address",
+          "agent": "nw-functional-software-crafter",
+          "deps": [],
+          "criteria": [
+            "A valid 32-bit integer search value such as ?seed=007 parses to that number",
+            "Missing, empty, non-numeric, fractional or out-of-range seeds return DEFAULT_SEED",
+            "Parsing never throws for any input string"
+          ],
+          "test_file": "tests/acceptance/S-001/seed-parsing.test.ts",
+          "scenario_name": "S-001 the seed comes from the web address > Given an invalid or missing seed > then any non-numeric seed falls back to the default seed @property @error",
+          "files_to_modify": [
+            "src/app/seed.ts"
+          ],
+          "implementation_notes": "Pure parseSeed(search: string) => number; location.search is read only in main.ts. Choose a fixed DEFAULT_SEED. Contract shape: pure-function. Remove the __SCAFFOLD__ marker. Also pass the valid-seed property in the same file."
+        },
+        {
+          "id": "01-03",
+          "name": "Navigate from title to club home",
+          "agent": "nw-functional-software-crafter",
+          "deps": ["01-01"],
+          "criteria": [
+            "NewGame moves the title screen to pickClub",
+            "ChooseClub with a known id in pickClub moves to clubHome with that club chosen, league unchanged",
+            "ChooseClub outside pickClub or with an unknown id leaves the state unchanged"
+          ],
+          "test_file": "tests/acceptance/S-001/navigation.test.ts",
+          "scenario_name": "S-001 Sam moves from the title to a chosen club > Given the title, when Sam taps New game, then the club list is shown @walking_skeleton @driving_port",
+          "files_to_modify": [
+            "src/app/state.ts"
+          ],
+          "implementation_notes": "Pure update(state, action) => GameState with Screen, Action (NewGame, ChooseClub) and GameState {league, screen} (ADR-0003). Chosen club held in memory only. Contract shape: pure-function. Remove the __SCAFFOLD__ marker; all five navigation scenarios must pass."
+        },
+        {
+          "id": "01-04",
+          "name": "Render title, pick-club and club-home screens",
+          "agent": "nw-functional-software-crafter",
+          "deps": ["01-02", "01-03"],
+          "criteria": [
+            "Tapping New game shows one h1 and a list named Clubs with 8 items, each holding one button of at least 44px height",
+            "Tapping a club shows an h1 containing that club's name; the colour swatch is aria-hidden",
+            "Same ?seed= gives the same league, different seeds differ, and an invalid seed gives the default league",
+            "No horizontal scroll at 390px and no console errors on title, club list and club home"
+          ],
+          "test_file": "tests/e2e/S-001-pick-club.spec.ts",
+          "scenario_name": "S-001 start a new game and pick a club > @walking_skeleton Sam taps New game, picks a club and lands on its home in 2 taps",
+          "files_to_modify": [
+            "src/ui/dom.ts",
+            "src/ui/screens/title.ts",
+            "src/ui/screens/pick-club.ts",
+            "src/ui/screens/club-home.ts",
+            "src/ui/styles.css",
+            "src/main.ts"
+          ],
+          "implementation_notes": "Imperative shell (ADR-0002/0003): el() helper with no innerHTML of generated text; move src/ui/title-screen.ts to ui/screens/title.ts with a New game click that dispatches; render<Screen>(root, props, dispatch); main.ts is the composition root that reads location.search once, calls parseSeed and generateLeague, runs the update/render loop and moves focus to the new h1. Club = button in a ul named Clubs, first text line is the club name. Keep tests/e2e/shell.spec.ts passing. Integration/e2e tests stay single-example. All other tests in S-001-pick-club.spec.ts must pass."
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": ["src/domain/", "src/app/", "src/ui/", "src/main.ts"],
+    "test_directories": ["tests/acceptance/S-001/", "tests/e2e/", "tests/unit/"],
+    "excluded_patterns": ["tests/protected/**", "salvage/**"]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-solution-architect (self-check)",
+    "approved_at": "2026-10-15T00:00:00Z"
+  }
+}

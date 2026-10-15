@@ -17,7 +17,7 @@ the domain, and the black-box protected scenarios need a way to pin it.
 | C. Seed text input on the title screen | Explicit | Extra UI and friction against the five-minute loop |
 
 ## Decision
-**Option A.** The shell (`src/app/`) parses `new URLSearchParams(location.search).get("seed")`.
+**Option A.** Only the shell (`main.ts`) reads `location.search`, once, and passes the string to the pure `parseSeed(search: string)` in `src/app/`, which parses `new URLSearchParams(search).get("seed")`.
 A value matching `^-?\d{1,10}$` whose number lies in the signed 32-bit range (-2147483648..2147483647)
 is used as is. Leading zeros are allowed, so `007` is 7. Anything else (missing, empty, non-numeric,
 fractional or out of range, such as `9999999999`) silently falls back to `DEFAULT_SEED` (a constant).

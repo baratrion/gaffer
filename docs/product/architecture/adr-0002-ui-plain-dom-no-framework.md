@@ -19,7 +19,7 @@ buttons, one `<h1>` per screen, lists for collections, and accessible names.
 | D. pixi.js canvas | Good for a 2D pitch | That is OUT of scope; canvas content is invisible to role queries |
 
 ## Decision
-**Option A.** Each screen is a DOM-writing shell function `render<Screen>(root, props)` (imperative shell, never in `src/domain`) in `src/ui/screens/`
+**Option A.** Each screen is a DOM-writing shell function `render<Screen>(root, props, dispatch)` (signature per ADR-0003; imperative shell, never in `src/domain`) in `src/ui/screens/`
 that replaces the root's children with freshly built DOM:
 - Build nodes with `document.createElement` and `textContent` through a small `el(tag, attrs, children)`
   helper in `src/ui/dom.ts`. **Never interpolate generated text into `innerHTML`.** Generated names
