@@ -7,8 +7,19 @@
   "crafter_model": "sonnet",
   "planner_model": "opus",
   "reviewer_model": "opus",
-  "crafter_max_turns": 60,
-  "planner_max_turns": 60,
-  "reviewer_max_turns": 20,
-  "out_of_scope_tags": ["match-2d", "utility-ai", "transfers", "finances", "training", "youth", "staff", "multiplayer", "backend", "real-data"]
+  "crafter_max_turns": 120,
+  "planner_max_turns": 150,
+  "reviewer_max_turns": 40,
+  "out_of_scope_tags": [
+    "match-2d",
+    "utility-ai",
+    "transfers",
+    "finances",
+    "training",
+    "youth",
+    "staff",
+    "multiplayer",
+    "backend",
+    "real-data"
+  ]
 }

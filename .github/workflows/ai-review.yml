@@ -46,8 +46,19 @@ jobs:
           echo "model=$(jq -r .reviewer_model factory/config.json)" >> "$GITHUB_OUTPUT"
           echo "turns=$(jq -r .reviewer_max_turns factory/config.json)" >> "$GITHUB_OUTPUT"
           mkdir -p factory-out
+          key=$(printf %s "$CONTEXT7_API_KEY" | tr -d '[:space:]')
           headers='{}'
-          [ -n "$CONTEXT7_API_KEY" ] && headers=$(jq -n --arg k "$CONTEXT7_API_KEY" '{Authorization: ("Bearer " + $k)}')
+          if [ -n "$key" ]; then
+            # Fall back to anonymous access if Context7 rejects the key, rather than breaking the run.
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST https://mcp.context7.com/mcp \
+              -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"gaffer-ci","version":"1"}}}')
+            if [ "$code" = "401" ] || [ "$code" = "403" ]; then
+              echo "::warning::CONTEXT7_API_KEY rejected (HTTP $code); using anonymous Context7"
+            else
+              headers=$(jq -n --arg k "$key" '{Authorization: ("Bearer " + $k)}')
+            fi
+          fi
           jq -n --argjson h "$headers" '{mcpServers: {context7: {type: "http", url: "https://mcp.context7.com/mcp", headers: $h}}}' > "$RUNNER_TEMP/mcp.json"
           { echo "text<<PROMPT_EOF"; cat factory/review-prompt.md; echo "PROMPT_EOF"; } >> "$GITHUB_OUTPUT"
 

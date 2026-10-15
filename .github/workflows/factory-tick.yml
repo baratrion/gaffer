@@ -128,8 +128,19 @@ jobs:
         env:
           CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
         run: |
+          key=$(printf %s "$CONTEXT7_API_KEY" | tr -d '[:space:]')
           headers='{}'
-          [ -n "$CONTEXT7_API_KEY" ] && headers=$(jq -n --arg k "$CONTEXT7_API_KEY" '{Authorization: ("Bearer " + $k)}')
+          if [ -n "$key" ]; then
+            # Fall back to anonymous access if Context7 rejects the key, rather than breaking the run.
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST https://mcp.context7.com/mcp \
+              -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"gaffer-ci","version":"1"}}}')
+            if [ "$code" = "401" ] || [ "$code" = "403" ]; then
+              echo "::warning::CONTEXT7_API_KEY rejected (HTTP $code); using anonymous Context7"
+            else
+              headers=$(jq -n --arg k "$key" '{Authorization: ("Bearer " + $k)}')
+            fi
+          fi
           jq -n --argjson h "$headers" --arg out "$GITHUB_WORKSPACE/factory-out/screens" '{mcpServers: {
             context7:   {type: "http", url: "https://mcp.context7.com/mcp", headers: $h},
             playwright: {command: "npx", args: ["-y", "@playwright/mcp@0.0.83", "--headless", "--isolated",
@@ -140,6 +151,9 @@ jobs:
           npx -y playwright-core@1.64.0-alpha-1790635538000 install chromium
 
       - name: Claude (one nWave step)
+        id: claude
+        # Hitting the turn cap still leaves useful commits; CI + AI review decide whether they merge.
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -151,8 +165,12 @@ jobs:
             --mcp-config ${{ runner.temp }}/mcp.json
             --model ${{ steps.prompt.outputs.model }}
             --max-turns ${{ steps.prompt.outputs.turns }}
-            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(bunx:*),Bash(yarn:*),Bash(corepack:*),Bash(node:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(nwave-ai:*),mcp__context7,mcp__playwright"
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(bunx:*),Bash(yarn:*),Bash(corepack:*),Bash(node:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(rm:*),Bash(mv:*),Bash(cp:*),Bash(touch:*),Bash(nwave-ai:*),mcp__context7,mcp__playwright"
             --disallowedTools "WebFetch,WebSearch,Bash(git push:*),Bash(gh:*),Bash(curl:*),Bash(wget:*)"
+
+      - name: Keep Claude transcript
+        if: always()
+        run: cp "$RUNNER_TEMP/claude-execution-output.json" factory-out/ 2>/dev/null || true
 
       - name: Publish branch and PR
         id: publish
@@ -162,6 +180,7 @@ jobs:
           START: ${{ steps.branch.outputs.start }}
           TITLE: ${{ needs.preflight.outputs.story_title }}
         run: |
+          echo "claude step: ${{ steps.claude.outcome }}"
           if [ "$(git rev-parse HEAD)" = "$START" ]; then
             echo "::error::Agent produced no commits"; echo "outcome=no-commits" >> "$GITHUB_OUTPUT"; exit 1
           fi
