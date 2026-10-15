@@ -7,6 +7,8 @@ const pm = process.env.PM ?? "pnpm";
 
 export default defineConfig({
   testDir: "../../tests/protected",
+  // Own output dir: Playwright wipes its outputDir on every run, which must not touch test-results/*.json.
+  outputDir: "../../test-results/protected-runner",
   // Status check, not a debugging run: a scenario for an unbuilt screen should fail in seconds, not minutes.
   timeout: 20_000,
   expect: { timeout: 2_000 },
