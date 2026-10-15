@@ -213,9 +213,17 @@ jobs:
           echo "line=$line" >> "$GITHUB_OUTPUT"
           echo "### $line" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Keep Claude transcript
+      - name: Keep Claude transcript (encrypted to the owner's age key; artifacts are public)
         if: always()
-        run: cp "$RUNNER_TEMP/claude-execution-output.json" factory-out/ 2>/dev/null || true
+        run: |
+          t="$RUNNER_TEMP/claude-execution-output.json"
+          [ -f "$t" ] || exit 0
+          recipient=$(jq -r '.transcript_recipient // empty' factory/config.json)
+          if [ -z "$recipient" ]; then echo "::warning::no transcript_recipient; transcript not kept"; exit 0; fi
+          command -v age >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq age >/dev/null; }
+          age -r "$recipient" -o factory-out/transcript.json.age "$t"
+          rm -f factory-out/claude-execution-output.json
+          echo "Transcript kept encrypted: factory-out/transcript.json.age"
 
       - name: Publish branch and PR
         id: publish
