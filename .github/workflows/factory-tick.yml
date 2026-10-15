@@ -237,7 +237,7 @@ jobs:
         if: always()
         run: |
           t="$RUNNER_TEMP/claude-execution-output.json"
-          if [ -f "$t" ]; then r=$(node scripts/factory/nwave-check.mjs "$MODE" "$t"); else r='{"ok":false,"missing":["no transcript"]}'; fi
+          if [ -f "$t" ]; then r=$(node scripts/factory/nwave-check.mjs "$MODE" "$t" "$STORY" "${{ steps.branch.outputs.start }}"); else r='{"ok":false,"missing":["no transcript"]}'; fi
           # Hard evidence of DELIVER: code changes for a story must come with nWave's roadmap, DES log and a passing integrity check
           if [ "$MODE" = "deliver" ] && git diff --name-only "${{ steps.branch.outputs.start }}"..HEAD -- src | grep -q .; then
             d="docs/feature/$STORY/deliver"

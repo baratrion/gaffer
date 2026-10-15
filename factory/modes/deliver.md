@@ -10,7 +10,14 @@ The story is an nWave feature with feature-id **`{{STORY_ID}}`**: everything liv
    - Mutation testing strategy is `nightly-delta` (see `CLAUDE.md`), so Phase 5 is skipped.
    - **Phase 7 (Finalize):** archive and commit, but **do not push**; the workflow publishes the branch.
    - If you are running low on turns or approaching the diff cap (~1200 lines), finish the current step green, commit, and stop. The next tick resumes.
-4. Before your final commit, open the app in the Playwright browser on a phone viewport and walk the outcome so far. The protected scenarios judge the story once DELIVER is complete.
+4. **Visual pass (only in the tick where DELIVER completes, i.e. Phase 7 archived the story to `docs/evolution/`, and only if the story's commits touched `src/ui/`, `index.html` or CSS).** nWave's crafters cannot load skills, so you do this yourself, after `/nw-deliver` returns:
+   - Invoke the **frontend-design** skill. The brief is the story outcome plus `docs/product/scope.md`; it counts as the client's confirmation, so don't stop to ask. Keep the visual identity (pitch green, chalk and gold; tokens in the stylesheet) unless an ADR changes it.
+   - Read `docs/product/ui/design-system.md` if it exists and extend it; if not, create it with the tokens, type scale and component patterns you settle on. Later stories build on it, so the game stays one design rather than a redesign per story.
+   - Change presentation only: CSS, class names, wrapper elements, copy styling. Never touch `src/domain/`, game or navigation logic, or tests, and keep every accessible role and name (buttons, headings, list names) exactly as it is.
+   - Serve the build (`ci:serve`), screenshot the story's screens in the Playwright browser, critique them against the plan, and iterate.
+   - Then run `ci:lint`, `ci:typecheck`, `ci:test` and `ci:e2e`. If anything fails, revert the pass (`git restore`) rather than changing a test. Keep it within the story's screens and the shared design system, inside the diff cap.
+   - Commit it on its own as `{{STORY_ID}}: visual pass (frontend-design)` and describe what changed in `factory-out/summary.md`. CI requires the frontend-design skill in this tick's transcript when a finished story touched UI.
+5. Before your final commit, open the app in the Playwright browser on a phone viewport and walk the outcome so far. The protected scenarios judge the story once DELIVER is complete.
 
 **Follow each skill, don't imitate it.** Every nWave command dispatches its own agents:
 - DISCUSS → `nw-product-owner`
@@ -19,7 +26,7 @@ The story is an nWave feature with feature-id **`{{STORY_ID}}`**: everything liv
 - DISTILL → `nw-acceptance-designer` plus reviewers
 - DELIVER → the crafter for every step, plus reviewers, with `roadmap.json`, the DES log and `des-verify-integrity`
 
-Writing a wave's artifacts yourself, or implementing code without the crafter, is a violation. CI checks the transcript and the DELIVER artifacts, and rejects the PR. Lean documentation density is fine; skipping the agents is not.
+Writing a wave's artifacts yourself, or implementing code without the crafter, is a violation. The one exception is the presentation-only visual pass in step 4. CI checks the transcript and the DELIVER artifacts, and rejects the PR. Lean documentation density is fine; skipping the agents is not.
 **DES hook:** nWave 3.22.x's pre-bash hook wrongly blocked its own `des-*` commands. This runner patches it, so `des-commit`, `des-log-phase`, `des-init-log` and `des-verify-integrity` work as the skills describe. **Never obfuscate a command to get past a hook or guard.** If it's still blocked, stop and record it in `docs/feature/{{STORY_ID}}/open-questions.md`.
 
 **Pre-answers** (for any wave you run):
