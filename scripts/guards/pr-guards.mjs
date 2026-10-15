@@ -70,7 +70,8 @@ for (const f of listTests("HEAD")) {
 // 5. Determinism: domain code must not use ambient randomness or time
 const domainFiles = git("ls-files", "src/domain").split("\n").filter((f) => f.endsWith(".ts"));
 for (const f of domainFiles) {
-  if (/Math\.random|Date\.now|new Date\(/.test(readFileSync(f, "utf8"))) {
+  const code = readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  if (/Math\.random|Date\.now|new Date\(/.test(code)) {
     failures.push(`Non-deterministic call in ${f} (use src/domain/rng.ts; pass time in)`);
   }
 }
