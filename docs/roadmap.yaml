@@ -11,4 +11,30 @@
 #     outcome: >         # what the player can do afterwards, observable on a phone
 #       ...
 
-stories: []
+stories:
+  - id: S-001
+    week: 0
+    title: Start a new game and pick a club
+    tags: [onboarding, league]
+    outcome: >
+      From the title screen the player taps "New game" and sees a screen with a heading and a list
+      named "Clubs" holding the 8 clubs of a generated fictional league. Each club appears as one
+      tappable button (44px or taller) whose first line of text is the club's unique name, with the
+      club's two colours shown as a decorative swatch (hidden from screen readers; not
+      black-box tested). Tapping a club lands on that club's home screen, whose
+      heading shows the club's name. The league comes from a seed: opening the game with the same
+      "?seed=" in the address always generates the same league, different seeds generate different
+      leagues, and without a valid seed the game uses a fixed default seed. Each screen has exactly one
+      top-level heading. No horizontal scroll at 390px.
+
+  - id: S-002
+    week: 1
+    title: View my squad
+    tags: [squad]
+    outcome: >
+      From the club home screen the player taps "Squad" and sees a list named "Squad" with the club's
+      18 generated players. Each row shows, in this order, the player's name, position (GK, DF, MF or
+      FW), age (16-40) and overall rating (1-20); age and overall are the first two numbers in the
+      row. Every club's squad has at least 2 goalkeepers and players in every position, and every
+      club has different players. A button named exactly "Back" returns to the club home screen. The squad comes from the same seed as the league, so it is identical on every
+      visit with the same seed. No horizontal scroll at 390px.
