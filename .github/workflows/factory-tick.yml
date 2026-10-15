@@ -97,6 +97,10 @@ jobs:
           nwave-ai project enable
           test -d "$HOME/.claude/skills/nw-deliver" || { echo "::error::nWave skills missing after install"; exit 1; }
           nwave-ai doctor || true
+          # Keep nWave's machine-local files out of commits (they live under locked paths).
+          git status --porcelain
+          git diff --name-only | xargs -r git checkout --
+          git ls-files --others --exclude-standard | grep -E '^\.nwave/|^\.claude/' >> .git/info/exclude || true
 
       - name: Fix-mode context (own workflow output only)
         if: env.MODE == 'fix'
