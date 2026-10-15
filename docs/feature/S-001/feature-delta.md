@@ -202,3 +202,65 @@ Owner-only (locked paths); none block S-001:
 2. No security scanning job (dependency audit, secret scan) in `ci.yml`; consider `pnpm audit` as an advisory step.
 3. Stryker scope excludes `src/app/` (`parseSeed`, `update`); consider adding it once it holds logic worth mutating.
 4. Smoke does not assert deployed commit SHA, so a stale Pages cache could pass; consider a build-stamp check.
+
+## Wave: DISTILL
+
+Lean, unattended. Reconciliation passed, 0 contradictions. Language: TypeScript (vitest + fast-check, Playwright). No cucumber: scenarios are Given/When/Then-named `describe`/`it` files. Failure classification: `distill/red-classification.md`.
+
+### Wave: DISTILL / [REF] Scenario list with tags
+| Scenario | Level | Tags |
+|---|---|---|
+| Tap New game, pick a club, land on its home in 2 taps | e2e | `@walking_skeleton @driving_port` |
+| Club list: 8 clubs, one button each, one heading | e2e | `@driving_port` |
+| Every club button at least 44px tall | e2e | `@driving_port` |
+| Club names non-empty and unique | e2e | `@driving_port` |
+| Tapping each of the 8 clubs shows its name in the heading | e2e | `@driving_port` |
+| No horizontal scroll at 390px (list and club home) | e2e | `@error-boundary` |
+| Same seed, same league across two visits | e2e | `@property`-style |
+| Different seeds, different leagues | e2e | `@driving_port` |
+| Invalid seed (`abc`, empty, `9999999999`) gives the default league | e2e | `@error` |
+| No console errors across the three screens | e2e | `@error` |
+| 8 clubs, unique names, two distinct colours, unique ids for any 32-bit seed | vitest | `@property @driving_port` |
+| Same seed deep-equal | vitest | `@property @determinism` |
+| Seeds 1 and 4242 differ; boundary seeds 0, -1, max, min | vitest | `@driving_port @error-boundary` |
+| Valid seeds parse (`007` is 7, 32-bit limits); any 32-bit integer round-trips | vitest | `@driving_port @property` |
+| Invalid or missing seed falls back to `DEFAULT_SEED` (example list and property over non-numeric strings) | vitest | `@error @property` |
+| New game moves title to pickClub; choosing a club moves to clubHome; league unchanged | vitest | `@walking_skeleton @driving_port` |
+| Choose club before New game, or an unknown club, leaves the screen unchanged | vitest | `@error` |
+
+Error and boundary share is above 40%. Real-club denylist test is a DELIVER unit test (ADR-0004), not a DISTILL scenario. All tests are enabled (no skip), per the green-branch rule; they land with the implementation.
+
+### Wave: DISTILL / [REF] WS strategy
+Walking skeleton = e2e "New game, pick club, home" in the production build at `localhost:4173/gaffer/`, plus its domain-level twin in `navigation.test.ts`. There are no driven adapters, so the Architecture of Reference gives real driving port, nothing to fake. The only environmental input (`location.search`) is exercised for real in the e2e specs.
+
+### Wave: DISTILL / [REF] Adapter coverage
+| Adapter | @real-io scenario | Covered by |
+|---|---|---|
+| None (DESIGN: no storage, clock or network) | n/a | No driven adapters exist. `location.search` is read in the browser by every e2e spec. |
+
+### Wave: DISTILL / [REF] Scaffolds
+All carry an exported `__SCAFFOLD__ = true` and throw `Error("Not yet implemented -- RED scaffold")`. DELIVER removes the marker.
+- `src/domain/league.ts`: types `Colour`, `Club`, `League`; `generateLeague(seed)`.
+- `src/app/seed.ts`: `DEFAULT_SEED` (placeholder value 1, DELIVER may change); `parseSeed(search)`.
+- `src/app/state.ts`: `Screen`, `GameState { league, screen }`, `Action` (`{type:"NewGame"}`, `{type:"ChooseClub", clubId}`); `update(state, action)`.
+
+Shapes the tests rely on: `Club { id, name, colours: [Colour, Colour] }`, `League { seed, clubs }`. Behaviour the tests pin: choosing a club outside `pickClub`, or an unknown club id, leaves the screen unchanged.
+
+### Wave: DISTILL / [REF] Test placement
+- `tests/acceptance/S-001/{league-generation,seed-parsing,navigation}.test.ts`: matched by the existing `vitest.config.ts` include (`tests/acceptance/**`).
+- `tests/e2e/S-001-pick-club.spec.ts`: Playwright, next to the existing `shell.spec.ts`; uses the Pixel 7 config. `tests/protected/` is untouched.
+
+### Wave: DISTILL / [REF] Driving adapter coverage
+| Entry | Scenario |
+|---|---|
+| `generateLeague` | `league-generation.test.ts` |
+| `parseSeed`, `update` | `seed-parsing.test.ts`, `navigation.test.ts` |
+| Browser: "New game" button, "Clubs" list, club buttons, `<h1>` per screen | `S-001-pick-club.spec.ts` (role and accessible-name queries) |
+
+Mandate-12 note: TS vitest tests call the driving ports directly with no step layer, so the step-body and step-reuse criteria are n/a.
+
+### Wave: DISTILL / [REF] Pre-requisites
+- ADR-0002, ADR-0003 and ADR-0004 accepted; the brief's "For Acceptance Designer" section supplies the ports.
+- `ci:serve` on `localhost:4173/gaffer/` (Playwright `webServer` in `playwright.config.ts`); Pixel 7 profile at 390px.
+- `FC_SEED` honoured through `tests/setup/fast-check-seed.ts`.
+- DEVOPS matrix: local-preview for e2e, production through `BASE_URL` for smoke. These specs are URL-relative, so they run against both.
