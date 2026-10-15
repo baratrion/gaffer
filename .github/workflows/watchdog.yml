@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/factory/watchdog.mjs

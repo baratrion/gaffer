@@ -18,6 +18,12 @@ const PROTECTED = [
   /^scripts\//,
   /^\.nwave\//,
   /^CLAUDE\.md$/,
+  // Anything Claude Code auto-loads and executes (hooks, MCP servers, settings) runs with the OAuth token in env.
+  /(^|\/)\.claude\//,
+  /(^|\/)\.mcp\.json$/,
+  /(^|\/)CLAUDE\.local\.md$/,
+  // Package-manager config that could re-enable install scripts or swap registries.
+  /(^|\/)(\.npmrc|\.yarnrc(\.yml)?|bunfig\.toml|\.pnpmfile\.cjs)$/,
 ];
 // Append-only: merged story scenarios may never be modified, renamed or deleted.
 const APPEND_ONLY = /^tests\/protected\//;

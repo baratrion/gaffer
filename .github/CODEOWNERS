@@ -6,3 +6,8 @@
 /scripts/       @baratrion
 /.nwave/        @baratrion
 /CLAUDE.md      @baratrion
+/.claude/       @baratrion
+/.mcp.json      @baratrion
+/.npmrc         @baratrion
+/bunfig.toml    @baratrion
+/.pnpmfile.cjs  @baratrion

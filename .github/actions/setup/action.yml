@@ -33,11 +33,15 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
+        # Dependency install scripts never run (supply-chain guard); set for later steps too.
+        echo "npm_config_ignore_scripts=true" >> "$GITHUB_ENV"
+        echo "YARN_ENABLE_SCRIPTS=false" >> "$GITHUB_ENV"
+        export npm_config_ignore_scripts=true YARN_ENABLE_SCRIPTS=false
         case "$PM" in
-          bun)  bun install --frozen-lockfile ;;
-          pnpm) pnpm install --frozen-lockfile ;;
+          bun)  bun install --frozen-lockfile --ignore-scripts ;;
+          pnpm) pnpm install --frozen-lockfile --ignore-scripts ;;
           yarn) yarn install --immutable ;;
-          npm)  npm ci ;;
+          npm)  npm ci --ignore-scripts ;;
         esac
     - if: inputs.playwright == 'true'
       shell: bash

@@ -6,6 +6,9 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { loadRoadmap, protectedSpecs } from "./roadmap.mjs";
 
+const withoutSecrets = (env) =>
+  Object.fromEntries(Object.entries(env).filter(([k]) => !/^(GH_TOKEN|GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|ACTIONS_ID_TOKEN_REQUEST_TOKEN|CLAUDE_CODE_OAUTH_TOKEN)$/.test(k)));
+
 const out = process.argv[2] ?? "test-results/stories.json";
 mkdirSync("test-results", { recursive: true });
 const report = "test-results/protected.json";
@@ -17,7 +20,8 @@ if (anySpecs) {
     const [bin, ...pre] = (process.env.PMX ?? "pnpm exec").split(" ");
     execFileSync(bin, [...pre, "playwright", "test", "--config=scripts/factory/protected.playwright.config.ts", "--reporter=json"], {
       stdio: ["ignore", "pipe", "inherit"],
-      env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: report },
+      // Agent-authored code builds and runs here: never hand it GitHub credentials.
+      env: { ...withoutSecrets(process.env), PLAYWRIGHT_JSON_OUTPUT_NAME: report },
       maxBuffer: 64 * 1024 * 1024,
     });
   } catch {

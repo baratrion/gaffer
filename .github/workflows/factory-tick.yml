@@ -58,7 +58,6 @@ jobs:
       actions: write
       id-token: write
     env:
-      GH_TOKEN: ${{ github.token }}
       MODE: ${{ needs.preflight.outputs.mode }}
       STORY: ${{ needs.preflight.outputs.story_id }}
       PR: ${{ needs.preflight.outputs.pr }}
@@ -66,15 +65,18 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false # no git credentials on disk while Claude runs
 
       - name: Select branch
         id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "gaffer-factory[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$MODE" = "fix" ]; then
             branch=$(gh pr view "$PR" --json headRefName -q .headRefName)
-            git checkout "$branch"
+            git fetch origin "$branch" && git checkout "$branch"
           else
             branch="claude/${STORY}-${GITHUB_RUN_NUMBER}"
             git checkout -b "$branch"
@@ -99,6 +101,7 @@ jobs:
       - name: Fix-mode context (own workflow output only)
         if: env.MODE == 'fix'
         env:
+          GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.branch.outputs.name }}
         run: |
           mkdir -p factory-out
@@ -136,6 +139,7 @@ jobs:
       - name: Publish branch and PR
         id: publish
         env:
+          GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.branch.outputs.name }}
           START: ${{ steps.branch.outputs.start }}
           TITLE: ${{ needs.preflight.outputs.story_title }}
@@ -143,7 +147,7 @@ jobs:
           if [ "$(git rev-parse HEAD)" = "$START" ]; then
             echo "::error::Agent produced no commits"; echo "outcome=no-commits" >> "$GITHUB_OUTPUT"; exit 1
           fi
-          git push origin "HEAD:refs/heads/$BRANCH"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
           body=$( [ -f factory-out/summary.md ] && head -c 60000 factory-out/summary.md || echo "No summary written." )
           if [ "$MODE" != "fix" ]; then
             PR=$(gh pr create --base main --head "$BRANCH" --title "$STORY: $TITLE ($MODE)" --body "$body" --label factory | grep -o '[0-9]*$')
@@ -156,6 +160,7 @@ jobs:
       - name: Factory log
         if: always()
         env:
+          GH_TOKEN: ${{ github.token }}
           REASON: ${{ needs.preflight.outputs.reason }}
           OUTCOME: ${{ steps.publish.outputs.outcome || 'failed' }}
           OUT_PR: ${{ steps.publish.outputs.pr }}

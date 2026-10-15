@@ -15,6 +15,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - name: Mutation testing (domain core; break threshold in stryker.config.mjs)
         run: $PM run ci:mutation
