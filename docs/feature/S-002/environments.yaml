@@ -1,0 +1,29 @@
+# S-002 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Pure web UI, no backend.
+base_path: /gaffer/
+clients:
+  phone:
+    browser: chromium
+    device: Pixel 7        # Playwright devices["Pixel 7"]
+    viewport_width_px: 390
+    gating: true           # no horizontal scroll, 44px targets, no console errors
+  desktop:
+    browser: chromium
+    viewport_width_px: 1280
+    gating: false          # layout sanity only
+environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+mutation:
+  strategy: nightly-delta
+  target: src/domain/**      # gains squad.ts; deriveSeed in rng.ts; lists in names.ts
+rollback: workflow_dispatch of deploy.yml on a known-good ref (S-001 head is safe: squads are derived, nothing stored); fallback fix-forward
+rollback_owner: owner
