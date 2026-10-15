@@ -67,3 +67,64 @@ No walking skeleton. A title screen exists. This story is the first thin end-to-
 - ADR-0002 (view helper), ADR-0003 (`update`/`Screen`, `deriveSeed`) and ADR-0004 (seed and world) are accepted.
 - The title screen with a "New game" button exists.
 - Open risk: there is no DIVERGE artifact and no `jobs.yaml`. Accepted as lean.
+
+## Wave: DESIGN
+
+Mode: propose. Scope: application. One solo team. Paradigm: functional (functional core / imperative shell, ADR-0003), recorded in the ADR and `docs/product/architecture/brief.md`. No new ADR: ADR-0001..0004 cover every decision. Full architecture: `docs/product/architecture/brief.md` (C4 L1/L2, "For Acceptance Designer").
+
+### Wave: DESIGN / [REF] DDD list
+- One bounded context, "League setup", in a single core domain. Language: Seed, League, Club, Colour.
+- Value objects: `Colour` (palette entry), `Club` (`id`, `name`, `colours[2]`), `League` (`seed`, `clubs[8]`). They are immutable, there are no aggregates with behaviour, and no domain events.
+- Invariants, enforced by construction: 8 clubs, unique names (towns drawn without replacement), 2 distinct colours.
+- No DDD tooling is warranted; the domain is data generation.
+
+### Wave: DESIGN / [REF] Component decomposition
+| Component | Layer | Responsibility |
+|---|---|---|
+| `rng.ts` | domain | Seeded draws (exists) |
+| `deriveSeed` | domain | Pure integer hash of seed and index (ADR-0003/0004). Needed for the squads in S-002; S-001 may skip it. |
+| `names.ts` | domain | Word lists, towns (24 or more), suffixes, palette |
+| `league.ts` (`generateLeague`) | domain | Pure League from a seed |
+| `seed.ts` (`parseSeed`, `DEFAULT_SEED`) | app | `search` string to a number |
+| `state.ts` (`GameState`, `Screen`, `Action`, `update`) | app | Navigation and chosen club |
+| `ui/dom.ts` (`el`) | ui | Safe element builder |
+| `ui/screens/{title,pick-club,club-home}.ts` | ui | `render<Screen>(root, props, dispatch)` |
+| `main.ts` | shell | Composition root and loop; moves focus to the new `<h1>` |
+
+### Wave: DESIGN / [REF] Driving ports
+- `generateLeague(seed: number) => League` (domain, pure).
+- `parseSeed(search: string) => number` (app, pure) and `update(GameState, Action) => GameState`. The actions are `NewGame` and `ChooseClub(clubId)`.
+- Browser: the roles and accessible names listed in the brief's "For Acceptance Designer" section: `button` "New game", `list` "Clubs" (8 items, 1 button each), and an `<h1>` per screen.
+
+### Wave: DESIGN / [REF] Driven ports and adapters
+- None needed for S-001: no storage, clock or network.
+- The only environmental input is `location.search`, read once in `main.ts` and passed as a string to the pure `parseSeed`.
+- Persistence (a later story) will add a storage port, with a `probe()` to prove it is writable.
+- No external integrations, so no contract tests.
+
+### Wave: DESIGN / [REF] Technology choices
+No new technology. Existing: TypeScript strict, Vite, pnpm, Vitest + fast-check, Playwright, oxlint, Stryker (ADR-0001), plain DOM (ADR-0002); all MIT or Apache-2.0. Enforcement: the oxlint boundary rules, the PR guard, and nightly mutation of `src/domain/**`.
+
+### Wave: DESIGN / [REF] Decisions
+| # | Decision | Source |
+|---|---|---|
+| D1 | Functional core / imperative shell; dependencies point inward | ADR-0003 |
+| D2 | Seed from `?seed=` with a default fallback; the parser is in the app layer | ADR-0004 |
+| D3 | Name uniqueness by construction (towns drawn without replacement) | ADR-0004 |
+| D4 | Plain-DOM `el()` views with no `innerHTML` of generated text; focus moves to `<h1>` | ADR-0002/0003 |
+| D5 | Chosen club is kept in `GameState` (memory only) | DISCUSS |
+| D6 | The title screen is migrated to `el()` and given a `dispatch` hook, because it needs a click handler; static `innerHTML` was only valid while it was inert | ADR-0002 |
+
+### Wave: DESIGN / [REF] Reuse Analysis
+| Existing | Action | Contract shape / assertion |
+|---|---|---|
+| `src/domain/rng.ts` (`createRng`, `nextFloat`) | EXTEND (use as is; add `deriveSeed` alongside only if needed) | pure, return-only; deep-equal and property tests |
+| `src/ui/title-screen.ts` | EXTEND (move to `ui/screens/title.ts`, use `el()`, add a "New game" click that dispatches) | bounded-change: writes only `root`'s children; e2e |
+| `src/main.ts` | EXTEND (becomes the loop and composition root) | unbounded shell; e2e |
+| `src/ui/styles.css` | EXTEND (club list, 44px buttons, swatch) | n/a |
+| `tests/e2e/shell.spec.ts` | EXTEND (pick-club and club-home smoke) | black-box |
+| `league.ts`, `names.ts`, `app/*`, `ui/dom.ts`, pick-club and club-home screens | CREATE NEW (no existing alternative) | `generateLeague` pure; `update` and `parseSeed` pure; renderers bounded-change |
+
+### Wave: DESIGN / [REF] Open questions
+- None blocking. Back navigation from club-home is deferred (slice 02 "Out"). Seed variety between new games is deferred (open-questions.md item 4).
+- Handoff note for DISTILL: lean on property tests for the domain and the role-based black-box checks listed in the brief.
