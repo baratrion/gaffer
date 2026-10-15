@@ -25,6 +25,6 @@ A football management game you can play one-handed on a phone browser, on the bu
 
 ## Lessons from the 7 stalled attempts (do not repeat)
 - Building the 2D match engine first (realism rabbit hole) instead of the management loop.
-- Agents declaring work "done" without evidence. Here, a story is done only when the owner's protected scenarios pass.
+- Agents declaring work "done" without evidence. Here, a story is done only when its protected scenarios pass. Those scenarios fail on `main` when written and can never be edited afterwards.
 - Tests blind to visual bugs. Every merge has a phone-viewport smoke test.
-- Switching tools mid-project. The stack and tools are fixed for the POC.
+- Switching tools on a whim. Tool and architecture changes happen only through reviewed ADRs, with a stated reason.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Evidence-based story status: runs the owner-protected Playwright scenarios and maps results to stories.
+// Evidence-based story status: runs the protected Playwright scenarios (locked runner) and maps results to stories.
 // Prints JSON: { stories: [{id, title, status: done|failing|no-scenarios}], doneCount, next }
 // "doneCount" is the length of the contiguous done prefix: stories are delivered strictly in order.
 import { execFileSync } from "node:child_process";
@@ -14,7 +14,8 @@ const roadmap = loadRoadmap();
 const anySpecs = roadmap.stories.some((s) => protectedSpecs(s.id).length > 0);
 if (anySpecs) {
   try {
-    execFileSync("pnpm", ["exec", "playwright", "test", "--project=protected", "--reporter=json"], {
+    const [bin, ...pre] = (process.env.PMX ?? "pnpm exec").split(" ");
+    execFileSync(bin, [...pre, "playwright", "test", "--config=scripts/factory/protected.playwright.config.ts", "--reporter=json"], {
       stdio: ["ignore", "pipe", "inherit"],
       env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: report },
       maxBuffer: 64 * 1024 * 1024,

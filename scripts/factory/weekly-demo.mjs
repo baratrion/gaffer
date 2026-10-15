@@ -31,10 +31,10 @@ ${[...waiting.map((p) => `- PR #${p.number} ${p.title}`), ...issues.map((i) => `
 ### Budget
 Tick workflow runs this week: ${runs.length} (agent cap ${config.max_ticks_per_week}/week). Check claude.ai/settings/usage and adjust \`factory/config.json\` if needed.
 
-### Your 10-minute checklist
+### Your 10-minute check-in
 1. Play the build on your phone.
-2. Approve proposed scenarios: on a \`needs-human\` scenario PR, swap the label to \`human-approved\` (or close it).
-3. Steer by editing \`docs/product/scope.md\` or \`factory/roadmap.yaml\`. **Comments are never read by the factory.**
+2. Skim new ADRs in \`docs/adrs/\` and new stories in \`docs/roadmap.yaml\`. nWave decided them; you only intervene if something's off.
+3. Steer by editing \`docs/product/scope.md\` or \`docs/product/brief.md\`. **Comments are never read by the factory.**
 4. To pause: add the label \`factory:stop\` to this issue.`;
 
 gh("issue", "create", "--title", `Weekly demo ${week}`, "--label", "weekly-demo", "--body", body);

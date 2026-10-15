@@ -1,0 +1,13 @@
+## Mode: plan (nWave decides what to build next, and how)
+
+No story in `docs/roadmap.yaml` is ready for delivery, so plan the next slice. You are the product owner and the architect; there is no human to ask. The plan merges automatically if CI and the AI reviewer accept it, so make it good.
+
+Inputs, in precedence order: `docs/product/brief.md` (vision, north star, principles), `docs/product/scope.md` (IN/OUT; OUT is absolute), `docs/adrs/` (accepted decisions), `docs/roadmap.yaml` (what exists), and the current code.
+
+1. **DISCUSS** (as nw-product-owner, lean): work out the smallest next increment that moves the player toward the north star and gives a visible, playable change on a phone this week. Write 1–3 stories into `docs/roadmap.yaml` (append; keep existing stories and IDs unchanged; IDs follow the highest existing `S-NNN`). Each story needs a phone-observable `outcome`. Never use the out-of-scope tags: {{OUT_OF_SCOPE_TAGS}}. Put the journey and JTBD notes in `docs/feature/<story-id>/discuss/`.
+2. **DESIGN** (as nw-solution-architect, `interaction_mode=propose`): make the technical decisions these stories need, for example rendering approach and libraries (pixi.js or not), UI framework or none, state and domain architecture (ECS, functional pipeline, plain modules), persistence, and the package manager and test tooling. Record each decision as a numbered ADR in `docs/adrs/NNNN-title.md` (Context, Options with trade-offs, Decision, Consequences). Prefer reversible, boring, small-dependency choices. To change an accepted ADR, write a new one that supersedes it and says why. If an ADR changes tooling, implement the switch in this same PR only if it stays within the diff cap and keeps every `ci:*` script working. The `ci:*` script contract is in `CLAUDE.md`.
+3. Have the decisions critiqued by the nWave reviewer agents (product-owner-reviewer, solution-architect-reviewer) and fold in their findings. Record unresolved disagreements in the ADR.
+4. **Protected scenarios** for every new story: `tests/protected/<story-id>/*.spec.ts`, 2–5 black-box Playwright scenarios per story. Use only what a player sees (roles, accessible names, visible text) on a phone viewport; prefer properties that hold for any seed over hard-coded values. **They must fail on the current app.** CI verifies this, and they become permanent and unchangeable once merged, so write them as the player's real expectations, not as easy targets.
+5. Do not implement features in this run; the deliver runs do that. Tooling or architecture scaffolding that an ADR requires is allowed.
+
+Commit messages: `plan: <summary>`.

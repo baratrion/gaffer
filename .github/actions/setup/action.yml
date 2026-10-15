@@ -1,5 +1,7 @@
 name: Setup toolchain
-description: Node 22 + pnpm + deps (+ optional Playwright Chromium)
+description: >-
+  Detects the package manager from the lockfile (bun, pnpm, yarn or npm), so nWave can switch
+  tooling without editing workflows. Exports PM and PMX to the environment.
 inputs:
   playwright:
     description: Install Playwright Chromium
@@ -7,13 +9,36 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: pnpm/action-setup@v4
+    - name: Detect package manager
+      shell: bash
+      run: |
+        if   [ -f bun.lock ] || [ -f bun.lockb ]; then pm=bun;  pmx="bunx"
+        elif [ -f pnpm-lock.yaml ];                then pm=pnpm; pmx="pnpm exec"
+        elif [ -f yarn.lock ];                     then pm=yarn; pmx="yarn"
+        else                                            pm=npm;  pmx="npx"
+        fi
+        echo "PM=$pm" >> "$GITHUB_ENV"
+        echo "PMX=$pmx" >> "$GITHUB_ENV"
+        echo "Package manager: $pm"
     - uses: actions/setup-node@v5
       with:
         node-version: 22
-        cache: pnpm
-    - run: pnpm install --frozen-lockfile
+    - if: env.PM == 'pnpm'
+      uses: pnpm/action-setup@v4
+    - if: env.PM == 'bun'
+      uses: oven-sh/setup-bun@v2
+    - if: env.PM == 'yarn'
       shell: bash
+      run: corepack enable
+    - name: Install dependencies
+      shell: bash
+      run: |
+        case "$PM" in
+          bun)  bun install --frozen-lockfile ;;
+          pnpm) pnpm install --frozen-lockfile ;;
+          yarn) yarn install --immutable ;;
+          npm)  npm ci ;;
+        esac
     - if: inputs.playwright == 'true'
-      run: pnpm exec playwright install --with-deps chromium
       shell: bash
+      run: $PMX playwright install --with-deps chromium

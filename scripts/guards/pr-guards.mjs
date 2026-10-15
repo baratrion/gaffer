@@ -9,19 +9,20 @@ const baseRef = process.env.BASE_REF ?? "origin/main";
 const humanApproved = process.env.HUMAN_APPROVED === "true";
 const base = git("merge-base", baseRef, "HEAD").trim();
 
-// Paths only the owner may change (CODEOWNERS mirrors this list).
+// Locked paths: the referee and the security boundary (CODEOWNERS mirrors this list).
+// Everything else - code, libraries, tool configs, package manager, architecture - is nWave's to decide.
 const PROTECTED = [
-  /^tests\/protected\//,
   /^\.github\//,
   /^factory\//,
   /^docs\/product\//,
-  /^scripts\/(guards|factory)\//,
+  /^scripts\//,
   /^\.nwave\//,
   /^CLAUDE\.md$/,
-  /^(tsconfig\.json|vitest\.config\.ts|playwright\.config\.ts|stryker\.config\.mjs|\.oxlintrc\.json|vite\.config\.ts)$/,
 ];
+// Append-only: merged story scenarios may never be modified, renamed or deleted.
+const APPEND_ONLY = /^tests\/protected\//;
 const MAX_CHANGED_LINES = 600;
-const DIFF_SIZE_IGNORE = [/^pnpm-lock\.yaml$/, /^docs\//];
+const DIFF_SIZE_IGNORE = [/^(pnpm-lock\.yaml|bun\.lockb?|yarn\.lock|package-lock\.json)$/, /^docs\//];
 
 const failures = [];
 const changed = git("diff", "--name-only", `${base}...HEAD`).split("\n").filter(Boolean);
@@ -30,6 +31,15 @@ const changed = git("diff", "--name-only", `${base}...HEAD`).split("\n").filter(
 const touchedProtected = changed.filter((f) => PROTECTED.some((re) => re.test(f)));
 if (touchedProtected.length && !humanApproved) {
   failures.push(`Protected paths changed without the 'human-approved' label:\n  ${touchedProtected.join("\n  ")}`);
+}
+
+// 1b. Append-only protected scenarios
+const nonAdditions = git("diff", "--name-status", "--diff-filter=MDRT", `${base}...HEAD`)
+  .split("\n").filter(Boolean)
+  .flatMap((l) => l.split("\t").slice(1))
+  .filter((f) => APPEND_ONLY.test(f));
+if (nonAdditions.length && !humanApproved) {
+  failures.push(`Protected scenarios are append-only; these were modified/removed:\n  ${nonAdditions.join("\n  ")}`);
 }
 
 // 2. Diff size cap

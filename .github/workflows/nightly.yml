@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - name: Mutation testing (domain core; break threshold in stryker.config.mjs)
-        run: pnpm exec stryker run
+        run: $PM run ci:mutation
       - name: Raise alarm on failure
         if: failure()
         env:

@@ -5,7 +5,10 @@
   "max_fix_cycles": 2,
   "max_story_attempts": 3,
   "crafter_model": "sonnet",
+  "planner_model": "opus",
   "reviewer_model": "opus",
   "crafter_max_turns": 60,
-  "reviewer_max_turns": 20
+  "planner_max_turns": 60,
+  "reviewer_max_turns": 20,
+  "out_of_scope_tags": ["match-2d", "utility-ai", "transfers", "finances", "training", "youth", "staff", "multiplayer", "backend", "real-data"]
 }

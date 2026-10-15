@@ -18,12 +18,15 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    env:
+      IS_BRANCH: ${{ github.event_name != 'push' }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      # The toolchain is nWave's choice: setup detects the package manager, and CI only calls the ci:* script contract.
       - uses: ./.github/actions/setup
         with:
           playwright: "true"
@@ -36,7 +39,7 @@ jobs:
           OWNER: ${{ github.repository_owner }}
         run: |
           approved=false
-          if [ "$BRANCH" != "main" ]; then
+          if [ "$IS_BRANCH" = "true" ]; then
             pr=$(gh pr list --head "$BRANCH" --state open --json labels,author --limit 1)
             if echo "$pr" | jq -e --arg o "$OWNER" '.[0] | ((.labels | map(.name) | index("human-approved")) != null) or (.author.login == $o)' >/dev/null; then
               approved=true
@@ -44,39 +47,56 @@ jobs:
           fi
           echo "human_approved=$approved" >> "$GITHUB_OUTPUT"
 
-      - name: Guards (protected paths, test count, diff size, determinism)
-        if: github.ref_name != 'main' || github.event_name != 'push'
+      - name: Guards (locked paths, append-only scenarios, test count, diff size, determinism)
+        if: env.IS_BRANCH == 'true'
         env:
           BASE_REF: origin/main
           HUMAN_APPROVED: ${{ steps.approval.outputs.human_approved }}
         run: node scripts/guards/pr-guards.mjs
       - name: Roadmap lint
         run: node scripts/factory/roadmap.mjs
-      - name: Lint
-        run: pnpm exec oxlint .
-      - name: Typecheck
-        run: pnpm exec tsc --noEmit
-      - name: Unit, acceptance and property tests (fresh seed each run)
+      - name: ci:lint
+        run: $PM run ci:lint
+      - name: ci:typecheck
+        run: $PM run ci:typecheck
+      - name: ci:test (fresh property-test seed every run)
         run: |
           export FC_SEED=$RANDOM$RANDOM
           echo "fast-check seed: $FC_SEED"
-          pnpm exec vitest run
-      - name: Build
-        run: pnpm build
-      - name: E2E smoke (phone viewport)
-        run: pnpm exec playwright test --project=e2e
+          $PM run ci:test
+      - name: ci:build (must emit dist/)
+        run: $PM run ci:build && test -f dist/index.html
+      - name: ci:e2e (phone viewport)
+        run: $PM run ci:e2e
 
-      - name: Story regression (protected scenarios must not regress vs main)
-        if: github.ref_name != 'main' || github.event_name != 'push'
+      - name: Protected scenarios (locked runner) - no regression vs main, new ones must fail on main
+        if: env.IS_BRANCH == 'true'
         run: |
+          set -euo pipefail
           node scripts/factory/stories.mjs test-results/stories-head.json > /dev/null
+          added=$(git diff --name-only --diff-filter=A "$(git merge-base origin/main HEAD)"...HEAD -- tests/protected | grep '\.spec\.ts$' || true)
+
           git worktree add ../base origin/main
-          (cd ../base && pnpm install --frozen-lockfile >/dev/null && node scripts/factory/stories.mjs test-results/stories-base.json > /dev/null)
+          cp -r scripts/factory/. ../base/scripts/factory/   # locked runner from this branch == main (locked path)
+          for f in $added; do mkdir -p "../base/$(dirname "$f")"; cp "$f" "../base/$f"; done
+          cd ../base
+          # main may use a different package manager than this branch (nWave can switch it)
+          if   [ -f bun.lock ] || [ -f bun.lockb ]; then bun install --frozen-lockfile; export PM=bun PMX=bunx
+          elif [ -f pnpm-lock.yaml ]; then corepack enable >/dev/null 2>&1 || true; pnpm install --frozen-lockfile; export PM=pnpm PMX="pnpm exec"
+          elif [ -f yarn.lock ]; then corepack enable; yarn install --immutable; export PM=yarn PMX=yarn
+          else npm ci; export PM=npm PMX=npx; fi > /dev/null
+          node scripts/factory/stories.mjs test-results/stories-base.json > /dev/null
+          for f in $added; do
+            if $PMX playwright test --config=scripts/factory/protected.playwright.config.ts "${f#tests/protected/}" > /dev/null 2>&1; then
+              echo "::error file=$f::New protected scenario already passes on main, so it doesn't test anything new"; exit 1
+            fi
+          done
+          cd - > /dev/null
+
           head=$(jq .doneCount test-results/stories-head.json)
-          base=$(jq .doneCount ../base/test-results/stories-base.json)
-          echo "Stories done: main=$base branch=$head"
-          echo "### Stories done: main=$base, this branch=$head" >> "$GITHUB_STEP_SUMMARY"
-          [ "$head" -ge "$base" ] || { echo "::error::Protected story scenarios regressed ($base -> $head)"; exit 1; }
+          base_prefix=$(jq .doneCount ../base/test-results/stories-base.json)
+          echo "### Stories done: main=$base_prefix, this branch=$head; new scenario files: $(echo $added | wc -w)" >> "$GITHUB_STEP_SUMMARY"
+          [ "$head" -ge "$base_prefix" ] || { echo "::error::Protected story scenarios regressed ($base_prefix -> $head)"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         if: failure()

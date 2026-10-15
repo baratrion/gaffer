@@ -1,0 +1,14 @@
+# nWave-owned story queue, written by the factory's plan runs (AI-reviewed, auto-merged).
+# Delivered strictly in order. A story is DONE only when tests/protected/<id>/ scenarios pass on main.
+# Protected scenarios are append-only: once merged they can never be edited or deleted.
+# Out-of-scope tags are forbidden; the list lives in factory/config.json (owner-only).
+#
+# Story shape:
+#   - id: S-001          # S-NNN, never reused
+#     week: 0            # target demo week
+#     title: ...
+#     tags: [...]
+#     outcome: >         # what the player can do afterwards, observable on a phone
+#       ...
+
+stories: []

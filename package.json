@@ -13,14 +13,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173 --strictPort",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint .",
     "test": "vitest run",
-    "test:e2e": "playwright test --project=e2e",
-    "test:protected": "playwright test --project=protected",
-    "test:mutation": "stryker run",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "stories": "node scripts/factory/stories.mjs"
+    "ci:lint": "oxlint .",
+    "ci:typecheck": "tsc --noEmit",
+    "ci:test": "vitest run",
+    "ci:build": "vite build",
+    "ci:serve": "vite build && vite preview --port 4173 --strictPort",
+    "ci:e2e": "playwright test",
+    "ci:mutation": "stryker run",
+    "check": "pnpm run ci:lint && pnpm run ci:typecheck && pnpm run ci:test && pnpm run ci:build && pnpm run ci:e2e"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

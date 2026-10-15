@@ -117,8 +117,9 @@ jobs:
             cat factory-out/prompt.md
             echo "PROMPT_EOF"
           } >> "$GITHUB_OUTPUT"
-          echo "model=$(jq -r .crafter_model factory/config.json)" >> "$GITHUB_OUTPUT"
-          echo "turns=$(jq -r .crafter_max_turns factory/config.json)" >> "$GITHUB_OUTPUT"
+          role=crafter; [ "$MODE" = "plan" ] && role=planner
+          echo "model=$(jq -r ".${role}_model" factory/config.json)" >> "$GITHUB_OUTPUT"
+          echo "turns=$(jq -r ".${role}_max_turns" factory/config.json)" >> "$GITHUB_OUTPUT"
 
       - name: Claude (one nWave step)
         uses: anthropics/claude-code-action@v1
@@ -129,7 +130,7 @@ jobs:
           claude_args: >-
             --model ${{ steps.prompt.outputs.model }}
             --max-turns ${{ steps.prompt.outputs.turns }}
-            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(node:*),Bash(npx:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(nwave-ai:*)"
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(bunx:*),Bash(yarn:*),Bash(corepack:*),Bash(node:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(nwave-ai:*)"
             --disallowedTools "WebFetch,WebSearch,Bash(git push:*),Bash(gh:*),Bash(curl:*),Bash(wget:*)"
 
       - name: Publish branch and PR
@@ -145,10 +146,9 @@ jobs:
           git push origin "HEAD:refs/heads/$BRANCH"
           body=$( [ -f factory-out/summary.md ] && head -c 60000 factory-out/summary.md || echo "No summary written." )
           if [ "$MODE" != "fix" ]; then
-            labels="factory"; [ "$MODE" = "scenarios" ] && labels="factory,needs-human"
-            PR=$(gh pr create --base main --head "$BRANCH" --title "$STORY: $TITLE${MODE:+ ($MODE)}" --body "$body" --label "$labels" | grep -o '[0-9]*$')
+            PR=$(gh pr create --base main --head "$BRANCH" --title "$STORY: $TITLE ($MODE)" --body "$body" --label factory | grep -o '[0-9]*$')
+            gh pr merge "$PR" --auto --squash
           fi
-          [ "$MODE" != "scenarios" ] && gh pr merge "$PR" --auto --squash || true
           gh workflow run ci.yml --ref "$BRANCH"
           echo "pr=$PR" >> "$GITHUB_OUTPUT"
           echo "outcome=pushed" >> "$GITHUB_OUTPUT"

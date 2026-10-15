@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Token-free preflight for every factory tick. Decides whether the agent runs, and in which mode.
 // Reads ONLY machine state (labels, check results, workflow runs, repo files) - never Issue/PR/comment text.
-// Writes GITHUB_OUTPUT: run, mode (deliver|fix|scenarios), story_id, story_title, pr, reason
+// Writes GITHUB_OUTPUT: run, mode (plan|deliver|fix), story_id, story_title, pr, reason
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 
@@ -58,7 +58,7 @@ if (prs.length) {
   const checks = pr.statusCheckRollup ?? [];
   const pending = checks.some((c) => (c.status && c.status !== "COMPLETED") || c.state === "PENDING");
   const failed = checks.filter((c) => ["FAILURE", "ERROR", "TIMED_OUT", "CANCELLED"].includes(c.conclusion ?? c.state));
-  const storyId = (pr.headRefName.match(/S-\d{3}/) ?? [""])[0];
+  const storyId = (pr.headRefName.match(/S-\d{3}|plan/) ?? [""])[0];
   if (labels.includes("needs-human")) stop(`PR #${pr.number} waits for the owner (needs-human)`);
   if (pending || checks.length === 0) stop(`PR #${pr.number} checks still running`);
   if (!failed.length) stop(`PR #${pr.number} is green and should auto-merge`);
@@ -72,18 +72,21 @@ if (prs.length) {
   process.exit(0);
 }
 
-// 6. Next story by evidence (owner-protected scenarios on main)
+// 6. Next work item by evidence (protected scenarios on main)
 const stories = JSON.parse(execFileSync("node", ["scripts/factory/stories.mjs"], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }));
 const next = stories.next;
-if (!next) {
-  ensureIssue("Factory: roadmap complete - add the next stories", ["needs-human"]);
-  stop("roadmap complete");
-}
-const attempts = ghJson("pr", "list", "--state", "closed", "--search", `head:claude/${next.id}`, "--json", "number,mergedAt", "--limit", "50")
-  .filter((p) => !p.mergedAt).length;
+// No story with scenarios left -> nWave plan run (DISCUSS/DESIGN: next stories, their scenarios, ADRs)
+const needsPlan = !next || next.status === "no-scenarios";
+const workId = needsPlan ? "plan" : next.id;
+const attempts = ghJson("pr", "list", "--state", "closed", "--search", `head:claude/${workId}-`, "--json", "number,mergedAt,closedAt", "--limit", "50")
+  .filter((p) => !p.mergedAt && (workId !== "plan" || Date.now() - new Date(p.closedAt).getTime() < 7 * 864e5)).length;
 if (attempts >= config.max_story_attempts) {
-  ensureIssue(`Factory blocked on ${next.id} after ${attempts} failed attempts`, ["factory:stop", "needs-human"]);
-  stop(`${next.id} blocked after ${attempts} attempts`);
+  ensureIssue(`Factory blocked on ${workId} after ${attempts} failed attempts`, ["factory:stop", "needs-human"]);
+  stop(`${workId} blocked after ${attempts} attempts`);
 }
-const mode = next.status === "no-scenarios" ? "scenarios" : "deliver";
-output({ run: "true", mode, story_id: next.id, story_title: next.title, pr: "", reason: `${mode} ${next.id} (done ${stories.doneCount}/${stories.stories.length}, ticks ${ticks}/${config.max_ticks_per_week})` });
+const progress = `done ${stories.doneCount}/${stories.stories.length}, ticks ${ticks}/${config.max_ticks_per_week}`;
+if (needsPlan) {
+  output({ run: "true", mode: "plan", story_id: "plan", story_title: "Plan the next stories", pr: "", reason: `plan (${progress})` });
+} else {
+  output({ run: "true", mode: "deliver", story_id: next.id, story_title: next.title, pr: "", reason: `deliver ${next.id} (${progress})` });
+}
