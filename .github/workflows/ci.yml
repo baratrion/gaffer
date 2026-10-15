@@ -32,6 +32,10 @@ jobs:
         with:
           playwright: "true"
 
+      - name: Use main's referee (guards and factory scripts)
+        if: env.IS_BRANCH == 'true'
+        run: git checkout origin/main -- scripts/guards scripts/factory
+
       - name: Resolve owner approval
         id: approval
         env:
@@ -78,7 +82,6 @@ jobs:
           added=$(git diff --name-only --diff-filter=A "$(git merge-base origin/main HEAD)"...HEAD -- tests/protected | grep '\.spec\.ts$' || true)
 
           git worktree add ../base origin/main
-          cp -r scripts/factory/. ../base/scripts/factory/   # locked runner from this branch == main (locked path)
           for f in $added; do mkdir -p "../base/$(dirname "$f")"; cp "$f" "../base/$f"; done
           cd ../base
           # main may use a different package manager than this branch (nWave can switch it)

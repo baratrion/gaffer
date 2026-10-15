@@ -7,10 +7,12 @@ const pm = process.env.PM ?? "pnpm";
 
 export default defineConfig({
   testDir: "../../tests/protected",
-  timeout: 30_000,
-  retries: process.env.CI ? 1 : 0,
-  workers: 2,
-  use: { baseURL, ...devices["Pixel 7"], trace: "retain-on-failure" },
+  // Status check, not a debugging run: a scenario for an unbuilt screen should fail in seconds, not minutes.
+  timeout: 20_000,
+  expect: { timeout: 2_000 },
+  retries: 0,
+  workers: 4,
+  use: { baseURL, ...devices["Pixel 7"], actionTimeout: 2_000, navigationTimeout: 10_000, trace: "off" },
   projects: [{ name: "protected" }],
   ...(process.env.BASE_URL
     ? {}
