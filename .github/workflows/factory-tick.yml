@@ -126,6 +126,14 @@ jobs:
             --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- ai-review -->")))] | last | .body // ""' \
             > factory-out/review.md
 
+      - name: Hide protected scenarios from the builder (deliver/fix only)
+        if: env.MODE != 'plan'
+        run: |
+          # skip-worktree: files vanish from the working tree but git never stages their deletion
+          git ls-files tests/protected | grep -v README.md | xargs -r git update-index --skip-worktree
+          git ls-files tests/protected | grep -v README.md | xargs -r rm -f
+          echo "Protected scenarios hidden: $(git ls-files tests/protected | grep -vc README.md) files"
+
       - name: Render prompt (owner-controlled files only)
         id: prompt
         run: |
@@ -261,6 +269,15 @@ jobs:
           fi
           if [ "$(git rev-parse HEAD)" = "$START" ]; then
             echo "::error::Agent produced no commits"; echo "outcome=no-commits" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+          # Always keep a recoverable copy of the work first
+          git bundle create factory-out/work.bundle "$START..HEAD" 2>/dev/null || true
+          # Main may have moved during the run (e.g. workflow edits). Merge it in so locked files match main;
+          # otherwise GitHub rejects the push as a workflow change by the Actions token.
+          git fetch -q "https://github.com/${GITHUB_REPOSITORY}.git" main:refs/remotes/origin/main
+          if ! git merge -q --no-edit origin/main -m "Merge main into $BRANCH (factory publish)"; then
+            git merge --abort || true
+            echo "::error::Branch conflicts with main; work kept in factory-out/work.bundle"; exit 1
           fi
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
           body=$( [ -f factory-out/summary.md ] && head -c 60000 factory-out/summary.md || echo "No summary written." )
