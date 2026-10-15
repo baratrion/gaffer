@@ -128,3 +128,77 @@ No new technology. Existing: TypeScript strict, Vite, pnpm, Vitest + fast-check,
 ### Wave: DESIGN / [REF] Open questions
 - None blocking. Back navigation from club-home is deferred (slice 02 "Out"). Seed variety between new games is deferred (open-questions.md item 4).
 - Handoff note for DISTILL: lean on property tests for the domain and the role-based black-box checks listed in the brief.
+
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope) are read-only. Machine-readable environments: `docs/feature/S-001/environments.yaml`.
+
+Checklist: ✓ existing infra reused | ✓ KPI mapped to instrument | ✓ rollback defined | ✓ mutation strategy (nightly-delta, inherited) | ⊘ new IaC/containers (none needed) | ⊘ server-side observability (no backend) | ⊘ continuous learning | ⊘ CLAUDE.md edit (already states strategy)
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test; unit, e2e and protected scenarios |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke via `BASE_URL` |
+
+No staging: static site, recreate strategy, pre-merge CI against the production build is the gate. Client: Chromium, Pixel 7 profile, 390px viewport.
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch): setup, PR guards, roadmap lint, `ci:lint`, `ci:typecheck`, `ci:test` (fresh `FC_SEED`), `ci:build` (asserts `dist/index.html`), `ci:e2e`, protected-scenario no-regression check vs main.
+- `deploy` (push to main): `ci:build`, upload `dist`, deploy-pages, then `smoke` runs `ci:e2e` against the live URL.
+- `nightly`: `ci:mutation`; opens a `mutation-alarm` issue on failure.
+- `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- S-001 needs no pipeline change: it adds only unit, property and e2e specs run by the existing scripts.
+- Local gates: `pnpm run check` mirrors the commit stage (lint, typecheck, test, build, e2e). No git hooks are added (`.nwave`/scripts locked; CI is the gate).
+- Security: no secrets, no runtime dependencies, no network calls. Generated text enters the DOM only via `el()` (ADR-0002). Dependency supply chain is covered by the lockfile and `pnpm install --frozen-lockfile`. SAST/SCA/SBOM jobs are not added (no workflow edits allowed; see Open questions).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI to instrument)
+| KPI (DISCUSS) | Instrument | Where / when | Pass condition |
+|---|---|---|---|
+| Title to chosen club in 2 taps, under 10 s | Playwright e2e in `tests/e2e/shell.spec.ts`: count clicks (New game, club), assert club `<h1>` | `ci:e2e` on PR and main; `smoke` on live URL after each deploy | Exactly 2 clicks; completes well inside the 30 s test timeout |
+| No console errors | Playwright `page.on("console"/"pageerror")` assertion in the e2e spec | same as above | Zero errors across title, pick-club, club-home |
+| No horizontal scroll at 390px | e2e assertion `scrollWidth <= clientWidth` on the Pixel 7 profile | same | holds on all 3 screens |
+| Tap targets at least 44px | e2e `boundingBox().height >= 44` on every club button | same | 8 of 8 buttons |
+| Determinism (same seed, same league) | fast-check property test + e2e two-visit comparison | `ci:test`, `ci:e2e` | deep-equal |
+| Domain test strength | Stryker on `src/domain/**` | nightly | at or above the break threshold in `stryker.config.mjs` |
+
+No analytics (POC, per DISCUSS). The e2e tap count is the KPI's sole measurement.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, which replaces the whole static artifact. No traffic splitting is possible or needed on Pages.
+- Rollback (designed first): `git revert <squash-sha>` on a `claude/*` branch, then PR and merge. `deploy` redeploys the prior content, and `smoke` validates it. Faster alternative: `workflow_dispatch` of `deploy` on a known-good tag or commit is not possible for Pages from a branch (deploy uses the triggering ref), so revert-forward is the path. Target time to restore: one CI plus deploy cycle (about 10 minutes).
+- Failure detection: a failing `smoke` job marks the deploy run red. The state (chosen club) is in memory only, so there is no data migration and no user data to corrupt on rollback.
+- Blast radius: one static page, no persistence, no backend.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. Scope is `src/domain/**` (`league.ts`, `names.ts`, `rng.ts`, `deriveSeed`). Run by `nightly.yml` at 03:00 UTC through `ci:mutation`, with a break threshold in `stryker.config.mjs`. Failure opens an issue labelled `mutation-alarm`, `needs-human`. `src/app/` (`parseSeed`, `update`) is outside the configured mutation scope; extending it needs an owner edit of the Stryker config (Open questions).
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green after every deploy; no console errors on the 3 screens. Alerting: a red `deploy` run (GitHub notification). No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-001-*` branches, PR to main, squash merge. CI must pass and the protected scenarios must not regress. Deploy fires on merge. No release branches, no tags required.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-001 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml` | none; they run the existing `ci:*` scripts | reuse |
+| `ci:*` scripts, `playwright.config.ts` | none; `BASE_URL` and the Pixel 7 profile already fit | reuse |
+| `tests/e2e/shell.spec.ts` | extended with pick-club and club-home smoke (DESIGN Reuse Analysis) | extend |
+| `tests/protected/S-001/` | locked runner on `localhost:4173/gaffer/`; relies on roles and accessible names | none |
+| Stryker config | covers `src/domain/**`, which now holds `league.ts` and `names.ts` | none |
+| Pages artifact | `dist/` grows slightly; base path `/gaffer/` unchanged | none |
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- GitHub Pages enabled with source "GitHub Actions" (already in use by `deploy.yml`).
+- Node 22 or later, pnpm 10.12.4 (pinned), Playwright chromium installed by `.github/actions/setup`.
+- ADR-0001..0004 accepted (✓).
+- `BASE_URL` for the smoke is derived from the repository owner and name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only (locked paths); none block S-001:
+1. `deploy.yml` smoke uses a fixed `sleep 20`; a poll-until-200 would be more robust against Pages propagation lag.
+2. No security scanning job (dependency audit, secret scan) in `ci.yml`; consider `pnpm audit` as an advisory step.
+3. Stryker scope excludes `src/app/` (`parseSeed`, `update`); consider adding it once it holds logic worth mutating.
+4. Smoke does not assert deployed commit SHA, so a stale Pages cache could pass; consider a build-stamp check.
