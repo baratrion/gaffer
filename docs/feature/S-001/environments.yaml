@@ -1,0 +1,17 @@
+target_environments:
+  - name: clean
+    description: "Production build served at http://localhost:4173/gaffer/ on a Pixel 7 viewport"
+    platform: [linux]
+    preconditions: []
+  - name: github-pages
+    description: "Deployed static site under /gaffer/"
+    platform: [linux]
+    preconditions: ["merged to main"]
+coexistence_matrix:
+  - tool: playwright-smoke
+    must_not_break: true
+platform_coverage:
+  CI: [GitHub Actions ubuntu-latest]
+deployment_assumptions:
+  - "Static assets only; no server state"
+  - "Seed read from ?seed= in the URL; no storage"
