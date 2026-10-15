@@ -13,7 +13,8 @@ environments:
     command: pnpm run ci:serve
     used_by: [ci:e2e, protected-scenarios]
   production:
-    url: https://<owner>.github.io/gaffer/
+    url: https://<repository_owner>.github.io/gaffer/
     deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
     smoke: "BASE_URL=<production url> pnpm run ci:e2e"
-rollback: revert squash commit on a claude/* branch, merge; deploy and smoke re-run
+rollback: workflow_dispatch of deploy.yml on a known-good ref/tag; fallback fix-forward
+rollback_owner: owner

@@ -27,7 +27,7 @@ touching `document`, `window` or `localStorage`.
   No `Date`, `Math.random`, DOM or storage.
 - **`src/app/`** (shell state): one `GameState` value plus `Screen` (a tagged union such as
   `{ kind: "title" } | { kind: "pickClub" } | { kind: "clubHome", clubId } | { kind: "squad", clubId }`)
-  and a pure `update(state, action) => state`. Reading the seed from the URL happens here (ADR-0004).
+  and a pure `update(state, action) => state`. `main.ts` reads `location.search` once; the pure `parseSeed(search)` here turns it into a seed (ADR-0004).
 - **`src/ui/`** (shell view): screen renderers (ADR-0002) that receive state and a `dispatch(action)`
   callback. `main.ts` wires `dispatch` to `update` and re-renders.
 - Dependencies point inward: `ui` → `app` → `domain`. Never the reverse. `.oxlintrc.json` enforces this:

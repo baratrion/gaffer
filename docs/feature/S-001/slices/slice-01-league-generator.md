@@ -1,6 +1,7 @@
-# Slice 01: League generator (domain)
+# Slice 01: The same seed always produces the same league
 
 **Story:** US-1 (S-001). **Estimate:** about 150 changed lines, under 1 day.
+**Precursor commit, not shipped separately:** nothing is visible to the player until slice 02 lands.
 
 ## Outcome
 Given a seed, the domain returns the same fictional 8-club league every time. Nothing is visible to the player yet, but the behaviour is proven by tests.

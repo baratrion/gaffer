@@ -19,12 +19,13 @@ Sam taps "New game", sees 8 clubs, taps one, and lands on that club's home scree
 ## Acceptance (embedded)
 - "New game" shows 1 `<h1>` and a "Clubs" list with 8 items, each with exactly 1 button.
 - Tapping a club makes the `<h1>` contain its name.
-- Same `?seed=` gives the same list. Different seeds give different lists.
-- Invalid seeds (`abc`, empty, `9999999999`) give the default league (unit-tested).
+- Same `?seed=` gives the same list. Seeds 1 and 4242 give different lists.
+- Invalid seeds (`abc`, empty, `9999999999`, `1.5`, `+5`) give the default league (unit-tested).
 - The phone-viewport e2e smoke passes with no console errors.
 
 ## Demonstrable
 Open the deployed `/gaffer/` on a phone and tap through in 2 taps.
+Completes the walking skeleton (e2e: New game, pick a club, club home).
 
 ## Out
 Persistence, crests, squads, back navigation polish (a later story if needed).

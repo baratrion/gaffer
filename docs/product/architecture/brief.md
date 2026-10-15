@@ -5,7 +5,7 @@ SSOT for architecture. Decisions live in `adr-0001..0004`; this file shows how t
 ## Application Architecture
 
 ### Drivers and constraints
-Quality attributes, in order: determinism and replayability, phone usability and accessibility, testability, small bundle, simplicity.
+Quality attributes, in order: determinism and replayability, phone usability and accessibility, testability, small bundle, simplicity. Bundle budget: no runtime dependencies; JS under 50 kB gzip (not yet enforced by CI; deferred).
 Constraints: static site under `/gaffer/`, no backend, one solo team (no Conway conflict), OSS only (TypeScript, Vite, Vitest, fast-check, Playwright, oxlint, Stryker: all MIT or Apache-2.0).
 
 ### Style (ADR-0003)
@@ -22,10 +22,12 @@ Rejected simpler alternative: no layering, with generation inline in the UI. It 
 ### Effect isolation (contract shapes)
 | Component | Shape | Universe / assertion |
 |---|---|---|
-| `generateLeague`, `deriveSeed`, `createRng`, `nextFloat` | pure, return-only | Deep-equal on repeat calls; input never mutated; fast-check property tests |
+| `generateLeague`, `createRng`, `nextFloat` (`deriveSeed` from S-002) | pure, return-only | Deep-equal on repeat calls; input never mutated; fast-check property tests |
 | `parseSeed`, `update` | pure, return-only | Unit tests; `update` returns a new state and never mutates the old one |
-| `render<Screen>` | bounded-change | Writes only `root`'s children and moves focus to the new `<h1>`. Takes `root` and `dispatch`, never `window` or `location` |
-| `main.ts` | unbounded shell | The only reader of `location.search`; covered by e2e |
+| `domain/names.ts` | pure data constants, return-only | Frozen word lists, towns, suffixes, palette; no functions with effects. Unit test: no duplicates in name/town lists |
+| `ui/dom.ts` `el()` | bounded-change | Creates detached nodes only; never touches `document.body` or attached nodes |
+| `render<Screen>` | bounded-change | Writes only `root`'s children. Takes `(root, props, dispatch)`, never `window` or `location`. Does not move focus |
+| `main.ts` | unbounded shell | Universe: reads `location.search` once; writes only `root`'s children (via render) and focus (the new `<h1>`, `tabindex="-1"`); no other globals. Covered by e2e |
 
 Driving ports that only read expose no write methods: `generateLeague` and `parseSeed` return values and have no setters.
 
@@ -100,7 +102,7 @@ Black-box target: `http://localhost:4173/gaffer/` (`ci:serve`). Pin the seed wit
 | Pick club | One `<h1>` "Choose your club"; a `list` named "Clubs" (`aria-labelledby` on the h1) with exactly 8 `listitem`s, each holding exactly 1 `button`. The first line of the button text is the club name; the swatch is `aria-hidden`. Buttons are 44px or taller. |
 | Club home | One `<h1>` containing the chosen club's name |
 
-Cross-cutting: focus moves to the new `<h1>` after navigation. There is no horizontal scroll at 390px and no console errors. Generated text is set with `textContent`, never `innerHTML`.
+Cross-cutting: the shell (`main.ts`, not the renderers) moves focus to the new `<h1>` (`tabindex="-1"`) after navigation. `deriveSeed` is not in S-001 scope (arrives with squads, S-002). There is no horizontal scroll at 390px and no console errors. Generated text is set with `textContent`, never `innerHTML`.
 
 ### Observable acceptance (behavioural)
 - Title to "New game" shows the heading and the 8-club list.

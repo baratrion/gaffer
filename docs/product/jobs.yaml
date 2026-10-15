@@ -1,0 +1,12 @@
+# Jobs to be done. Source: docs/product/brief.md ("Job to be done").
+jobs:
+  - id: J-01
+    name: take-charge-of-a-club
+    statement: >-
+      When I have a few spare minutes, I want to make meaningful managerial
+      decisions and see their consequences quickly, so that I feel the
+      satisfaction of building a winning team.
+    dimensions:
+      functional: Make club-management decisions and see their outcome within a five-minute session.
+      emotional: Feel in charge and capable, never held up by setup chores.
+      social: Be able to talk about "my club" and its results with other football fans.

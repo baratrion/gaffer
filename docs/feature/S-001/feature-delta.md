@@ -8,22 +8,23 @@ Lean, unattended. Reuses `discuss/journey.md`. Outcome is fixed by `docs/roadmap
 Sam, 34, a lapsed Championship Manager fan. Plays on the bus, one-handed, on a mid-range Android phone at 390px wide. Has 5 minutes and no patience for setup screens (brief.md, "Player").
 
 ### Wave: DISCUSS / [REF] JTBD one-liner
-When I open Gaffer with a few spare minutes, I want to be in charge of a club in seconds, so that the next thing I do is a managerial decision rather than a setup chore. (Specialises the brief job; `job_id: J-01 take-charge-of-a-club`. No `docs/product/jobs.yaml` exists yet, so this is the only job.)
+When I open Gaffer with a few spare minutes, I want to be in charge of a club in seconds, so that the next thing I do is a managerial decision rather than a setup chore. (Specialises the brief job, recorded as J-01 `take-charge-of-a-club` in `docs/product/jobs.yaml`.)
 
 ### Wave: DISCUSS / [REF] Locked decisions
 - Seed comes from `?seed=<int>` with a fixed `DEFAULT_SEED` fallback. Anything invalid (missing, empty, `abc`, fractional, out of 32-bit range) silently uses the default (ADR-0004).
 - League: 8 fictional clubs, each with a unique name and two distinct colours, generated purely from the seed (ADR-0004).
 - Chosen club is held in memory only. No persistence in this story.
 - Screens: title (exists), pick-club, club-home. Each has exactly one `<h1>`.
-- Club = one `<button>` of 44px or taller, inside a `<ul>` named "Clubs". The first line of its text is the club name. The colour swatch is decorative and `aria-hidden`.
+- Club = one `<button>` of 44px or taller, inside a `<ul>` named "Clubs". The first line of its text is the club name. The colour swatch is decorative and `aria-hidden`. Real buttons, one `<h1>` per screen, lists for collections and 44px targets are required by CLAUDE.md "Phone first" (accessible markup that the protected scenarios query by role and name).
 - Real-club denylist unit test, per ADR-0004.
-- UX depth lightweight: no mockups beyond the journey table.
+- Seed alternatives rejected in ADR-0004: B (wall-clock seed on "New game", untestable black-box and a varying first run) and C (seed text input on the title screen, extra friction against the five-minute loop).
+- UX depth: no mockups beyond the journey table.
 
 ### Wave: DISCUSS / [REF] User stories
 
 #### US-1: Choose a club from a generated league
 **Problem:** Sam opens Gaffer, taps "New game" and nothing is behind it. There is no club to manage, so no decision is possible.
-**Job:** J-01.
+**job_id:** J-01
 **Elevator Pitch**
 - Before: the title screen has a "New game" that leads nowhere.
 - After: Sam taps "New game", sees "Choose your club" with 8 clubs, taps one, and lands on a screen headed by that club's name.
@@ -31,19 +32,30 @@ When I open Gaffer with a few spare minutes, I want to be in charge of a club in
 
 **Domain examples**
 1. Sam opens `/gaffer/` with no seed, taps "New game" and sees the same 8 clubs every visit, for example "Brindlecombe Rovers" and "Quarrow Athletic".
-2. Sam opens `/gaffer/?seed=4242` and sees a different league. Reopening that link shows the identical league.
-3. Sam opens `/gaffer/?seed=abc` and sees the default league. The same happens with `?seed=` or `?seed=9999999999`.
+2. Sam opens `/gaffer/?seed=1` and then `/gaffer/?seed=4242` and sees two different leagues. Reopening `?seed=4242` shows the identical league as before.
+3. Sam opens `/gaffer/?seed=abc` and sees the default league (the one with no seed). The same happens with `?seed=`, `?seed=9999999999`, `?seed=1.5` (fractional) and `?seed=+5`. `?seed=007` is a valid seed (7), not a fallback.
+
+The names above are illustrative. The actual `DEFAULT_SEED` value is chosen in DELIVER, so the default league's club names are not fixed here.
 
 **Acceptance criteria (embedded UAT)**
-- Given the title screen, when Sam taps "New game", then there is one `<h1>` and a list named "Clubs" with exactly 8 items, each holding exactly one button.
-- Every club name (first line of the item) is non-empty and unique.
-- When Sam taps any club, then the screen's `<h1>` contains that club's name.
-- The same `?seed=` on two fresh visits gives identical club lists. Different seeds give different lists.
-- Every club button is at least 44px tall. There is no horizontal scroll at 390px and no console errors.
-- An invalid seed (`abc`, empty, out of range) gives the same league as no seed (unit-tested in the shell, not protected).
-- Domain property: for any 32-bit seed, `generateLeague` returns 8 unique names, each club has two distinct colours, and the output is deep-equal for the same seed.
+- Scenario: Sam sees 8 clubs after tapping New game.
+  Given Sam is on the title screen, when Sam taps "New game", then Sam sees a heading "Choose your club" and a list named "Clubs" with 8 clubs, each one a single tappable button.
+- Scenario: Every club has its own name.
+  Given Sam is looking at the "Clubs" list, then each of the 8 clubs shows a non-empty name and no two names are the same.
+- Scenario: Tapping a club takes charge of it.
+  Given Sam is looking at the "Clubs" list, when Sam taps "Quarrow Athletic" (or any listed club), then the screen heading is that club's name.
+- Scenario: The same link gives the same league.
+  Given Sam opened `?seed=4242` and noted the 8 club names, when Sam opens `?seed=4242` again in a fresh visit, then the 8 names are identical and in the same order.
+- Scenario: Different seeds give different leagues.
+  Given Sam opened `?seed=1`, when Sam opens `?seed=4242`, then the list of club names is not the same as for seed 1.
+- Scenario: An unusable seed gives the default league.
+  Given Sam opens the game with no seed, when Sam opens it again with `?seed=abc`, `?seed=`, `?seed=9999999999`, `?seed=1.5` or `?seed=+5`, then each shows the same 8 clubs as the no-seed visit. `?seed=007` is not in this list: it is the valid seed 7.
+- Scenario: The list is easy to use on a phone.
+  Given Sam is on a 390px-wide phone viewport looking at the "Clubs" list, then every club button is at least 44px tall, the page does not scroll sideways, and no errors appear in the browser console on any of the three screens.
 
-**Outcome KPI:** Sam goes from the title screen to a chosen club in 2 taps and under 10 seconds (measured by the e2e smoke tap count; no analytics in the POC).
+Notes for DELIVER and DISTILL (not part of the AC): the domain property (8 unique names, two distinct colours, deep-equal for the same seed) is covered by property tests on `generateLeague`. Seed fallback is unit-tested on `parseSeed`.
+
+**Outcome KPI:** Sam goes from the title screen to a chosen club in 2 taps (measured by the e2e smoke tap count; no analytics in the POC).
 **Technical notes:** `generateLeague` and `names.ts` in `src/domain/`. Seed parsing and `update`/`Screen` in `src/app/` (ADR-0003). The `el()` helper for views (ADR-0002).
 
 ### Wave: DISCUSS / [REF] DoD
@@ -56,7 +68,7 @@ When I open Gaffer with a few spare minutes, I want to be in charge of a club in
 Persistence or "continue", crests and badges, club-name editing, squads (S-002), seeding policy for a new season, a seed input UI.
 
 ### Wave: DISCUSS / [REF] WS strategy
-No walking skeleton. A title screen exists. This story is the first thin end-to-end slice. Delivery is two carpaccio slices: `slices/slice-01-league-generator.md`, then `slices/slice-02-pick-club-screens.md`.
+The e2e journey "New game, pick a club, club home" is the walking skeleton: the first thin end-to-end slice through title, pick-club and club-home screens. Delivery is two carpaccio slices: `slices/slice-01-league-generator.md` (a precursor commit, not shipped separately, since nothing is visible to the player), then `slices/slice-02-pick-club-screens.md`, which completes the skeleton.
 
 ### Wave: DISCUSS / [REF] Driving ports
 - `generateLeague(seed: number) => League`, a pure domain function (ADR-0004).
@@ -66,7 +78,8 @@ No walking skeleton. A title screen exists. This story is the first thin end-to-
 ### Wave: DISCUSS / [REF] Pre-requisites
 - ADR-0002 (view helper), ADR-0003 (`update`/`Screen`, `deriveSeed`) and ADR-0004 (seed and world) are accepted.
 - The title screen with a "New game" button exists.
-- Open risk: there is no DIVERGE artifact and no `jobs.yaml`. Accepted as lean.
+- `docs/product/jobs.yaml` now exists with J-01 (prerequisite resolved).
+- Open risk: there is no DIVERGE artifact. Accepted as lean.
 
 ## Wave: DESIGN
 
@@ -82,14 +95,14 @@ Mode: propose. Scope: application. One solo team. Paradigm: functional (function
 | Component | Layer | Responsibility |
 |---|---|---|
 | `rng.ts` | domain | Seeded draws (exists) |
-| `deriveSeed` | domain | Pure integer hash of seed and index (ADR-0003/0004). Needed for the squads in S-002; S-001 may skip it. |
+| `deriveSeed` | domain | NOT in S-001 scope. Pure integer hash (ADR-0003/0004), added with squads in S-002. |
 | `names.ts` | domain | Word lists, towns (24 or more), suffixes, palette |
 | `league.ts` (`generateLeague`) | domain | Pure League from a seed |
 | `seed.ts` (`parseSeed`, `DEFAULT_SEED`) | app | `search` string to a number |
 | `state.ts` (`GameState`, `Screen`, `Action`, `update`) | app | Navigation and chosen club |
 | `ui/dom.ts` (`el`) | ui | Safe element builder |
 | `ui/screens/{title,pick-club,club-home}.ts` | ui | `render<Screen>(root, props, dispatch)` |
-| `main.ts` | shell | Composition root and loop; moves focus to the new `<h1>` |
+| `main.ts` | shell | Composition root and loop; the only reader of `location.search`; moves focus to the new `<h1>` (renderers do not) |
 
 ### Wave: DESIGN / [REF] Driving ports
 - `generateLeague(seed: number) => League` (domain, pure).
@@ -103,24 +116,26 @@ Mode: propose. Scope: application. One solo team. Paradigm: functional (function
 - No external integrations, so no contract tests.
 
 ### Wave: DESIGN / [REF] Technology choices
-No new technology. Existing: TypeScript strict, Vite, pnpm, Vitest + fast-check, Playwright, oxlint, Stryker (ADR-0001), plain DOM (ADR-0002); all MIT or Apache-2.0. Enforcement: the oxlint boundary rules, the PR guard, and nightly mutation of `src/domain/**`.
+No new technology. Bundle budget: no runtime dependencies; JS under 50 kB gzip (not CI-enforced yet; deferred). Existing: TypeScript strict, Vite, pnpm, Vitest + fast-check, Playwright, oxlint, Stryker (ADR-0001), plain DOM (ADR-0002); all MIT or Apache-2.0. Enforcement: the oxlint boundary rules, the PR guard, and nightly mutation of `src/domain/**`.
 
 ### Wave: DESIGN / [REF] Decisions
 | # | Decision | Source |
 |---|---|---|
 | D1 | Functional core / imperative shell; dependencies point inward | ADR-0003 |
-| D2 | Seed from `?seed=` with a default fallback; the parser is in the app layer | ADR-0004 |
+| D2 | Seed from `?seed=` with a default fallback. Resolution: only `main.ts` reads `location.search`; `parseSeed(search: string)` in the app layer is pure. ADR-0004 and ADR-0003 wording amended to match | ADR-0004 |
 | D3 | Name uniqueness by construction (towns drawn without replacement) | ADR-0004 |
-| D4 | Plain-DOM `el()` views with no `innerHTML` of generated text; focus moves to `<h1>` | ADR-0002/0003 |
-| D5 | Chosen club is kept in `GameState` (memory only) | DISCUSS |
-| D6 | The title screen is migrated to `el()` and given a `dispatch` hook, because it needs a click handler; static `innerHTML` was only valid while it was inert | ADR-0002 |
+| D4 | Plain-DOM `el()` views with no `innerHTML` of generated text. Each screen has one `<h1 tabindex="-1">`. Renderers write only `root`'s children; `main.ts` (shell) moves focus to the new `<h1>` after navigation | ADR-0002/0003 |
+| D5 | Chosen club is kept in `GameState` (memory only). Rejected: persisting it (out of scope, no storage port yet) | DISCUSS |
+| D6 | The title screen is migrated to `el()` and given a `dispatch` hook, because it needs a click handler; static `innerHTML` was only valid while it was inert. Rejected: attaching a listener from `main.ts` onto `innerHTML` markup (splits view logic, bypasses `el()`) | ADR-0002 |
 
 ### Wave: DESIGN / [REF] Reuse Analysis
 | Existing | Action | Contract shape / assertion |
 |---|---|---|
 | `src/domain/rng.ts` (`createRng`, `nextFloat`) | EXTEND (use as is; add `deriveSeed` alongside only if needed) | pure, return-only; deep-equal and property tests |
 | `src/ui/title-screen.ts` | EXTEND (move to `ui/screens/title.ts`, use `el()`, add a "New game" click that dispatches) | bounded-change: writes only `root`'s children; e2e |
-| `src/main.ts` | EXTEND (becomes the loop and composition root) | unbounded shell; e2e |
+| `src/main.ts` | EXTEND (becomes the loop and composition root) | unbounded shell, declared universe: reads `location.search` once; writes only `root`'s children and focus; no other globals; e2e |
+| `src/domain/names.ts` | CREATE NEW | pure data constants, return-only; unit test that name/town lists contain no duplicates |
+| `src/ui/dom.ts` `el()` | CREATE NEW | bounded-change: creates detached nodes only; unit/e2e |
 | `src/ui/styles.css` | EXTEND (club list, 44px buttons, swatch) | n/a |
 | `tests/e2e/shell.spec.ts` | EXTEND (pick-club and club-home smoke) | black-box |
 | `league.ts`, `names.ts`, `app/*`, `ui/dom.ts`, pick-club and club-home screens | CREATE NEW (no existing alternative) | `generateLeague` pure; `update` and `parseSeed` pure; renderers bounded-change |
@@ -156,7 +171,7 @@ No staging: static site, recreate strategy, pre-merge CI against the production 
 ### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI to instrument)
 | KPI (DISCUSS) | Instrument | Where / when | Pass condition |
 |---|---|---|---|
-| Title to chosen club in 2 taps, under 10 s | Playwright e2e in `tests/e2e/shell.spec.ts`: count clicks (New game, club), assert club `<h1>` | `ci:e2e` on PR and main; `smoke` on live URL after each deploy | Exactly 2 clicks; completes well inside the 30 s test timeout |
+| Title to chosen club in 2 taps | Playwright e2e in `tests/e2e/S-001-pick-club.spec.ts`: count clicks (New game, club), assert club `<h1>` | `ci:e2e` on PR and main; `smoke` on live URL after each deploy | Exactly 2 clicks |
 | No console errors | Playwright `page.on("console"/"pageerror")` assertion in the e2e spec | same as above | Zero errors across title, pick-club, club-home |
 | No horizontal scroll at 390px | e2e assertion `scrollWidth <= clientWidth` on the Pixel 7 profile | same | holds on all 3 screens |
 | Tap targets at least 44px | e2e `boundingBox().height >= 44` on every club button | same | 8 of 8 buttons |
@@ -167,15 +182,15 @@ No analytics (POC, per DISCUSS). The e2e tap count is the KPI's sole measurement
 
 ### Wave: DEVOPS / [REF] Deployment strategy and rollback
 - Strategy: recreate. Merge to main triggers `deploy`, which replaces the whole static artifact. No traffic splitting is possible or needed on Pages.
-- Rollback (designed first): `git revert <squash-sha>` on a `claude/*` branch, then PR and merge. `deploy` redeploys the prior content, and `smoke` validates it. Faster alternative: `workflow_dispatch` of `deploy` on a known-good tag or commit is not possible for Pages from a branch (deploy uses the triggering ref), so revert-forward is the path. Target time to restore: one CI plus deploy cycle (about 10 minutes).
+- Rollback (designed first): primary = `workflow_dispatch` of `deploy.yml` on a known-good ref or tag (the trigger exists); `smoke` then validates the restored site. Fallback = fix-forward (new PR on a `claude/*` branch). A `git revert` of the squash commit is not a reliable path: the append-only protected-tests guard and the no-regression guard block it, so it needs owner action. Target time to restore: one deploy cycle (about 5 minutes) for the dispatch.
 - Failure detection: a failing `smoke` job marks the deploy run red. The state (chosen club) is in memory only, so there is no data migration and no user data to corrupt on rollback.
 - Blast radius: one static page, no persistence, no backend.
 
 ### Wave: DEVOPS / [REF] Mutation testing strategy
-nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. Scope is `src/domain/**` (`league.ts`, `names.ts`, `rng.ts`, `deriveSeed`). Run by `nightly.yml` at 03:00 UTC through `ci:mutation`, with a break threshold in `stryker.config.mjs`. Failure opens an issue labelled `mutation-alarm`, `needs-human`. `src/app/` (`parseSeed`, `update`) is outside the configured mutation scope; extending it needs an owner edit of the Stryker config (Open questions).
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. Scope is `src/domain/**` (`league.ts`, `names.ts`, `rng.ts`). Run by `nightly.yml` at 03:00 UTC through `ci:mutation`, with a break threshold in `stryker.config.mjs`. Failure opens an issue labelled `mutation-alarm`, `needs-human`. `src/app/` (`parseSeed`, `update`) is outside the configured mutation scope; the Stryker config is agent-editable (ADR-0001), so extending it is an agent decision (Open questions).
 
 ### Wave: DEVOPS / [REF] Observability stack
-Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green after every deploy; no console errors on the 3 screens. Alerting: a red `deploy` run (GitHub notification). No dashboards.
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy; availability monitoring out of scope for S-001 (owner open question 7). Alerting: a red `deploy` run (GitHub notification). No dashboards.
 
 ### Wave: DEVOPS / [REF] Branching strategy
 Trunk-based. Short-lived `claude/S-001-*` branches, PR to main, squash merge. CI must pass and the protected scenarios must not regress. Deploy fires on merge. No release branches, no tags required.
@@ -185,7 +200,7 @@ Trunk-based. Short-lived `claude/S-001-*` branches, PR to main, squash merge. CI
 |---|---|---|
 | `ci.yml`, `deploy.yml`, `nightly.yml` | none; they run the existing `ci:*` scripts | reuse |
 | `ci:*` scripts, `playwright.config.ts` | none; `BASE_URL` and the Pixel 7 profile already fit | reuse |
-| `tests/e2e/shell.spec.ts` | extended with pick-club and club-home smoke (DESIGN Reuse Analysis) | extend |
+| `tests/e2e/S-001-pick-club.spec.ts` | new S-001 e2e spec (pick-club and club-home smoke); `shell.spec.ts` unchanged | add |
 | `tests/protected/S-001/` | locked runner on `localhost:4173/gaffer/`; relies on roles and accessible names | none |
 | Stryker config | covers `src/domain/**`, which now holds `league.ts` and `names.ts` | none |
 | Pages artifact | `dist/` grows slightly; base path `/gaffer/` unchanged | none |
@@ -198,10 +213,13 @@ Trunk-based. Short-lived `claude/S-001-*` branches, PR to main, squash merge. CI
 
 ### Wave: DEVOPS / [REF] Open questions
 Owner-only (locked paths); none block S-001:
-1. `deploy.yml` smoke uses a fixed `sleep 20`; a poll-until-200 would be more robust against Pages propagation lag.
-2. No security scanning job (dependency audit, secret scan) in `ci.yml`; consider `pnpm audit` as an advisory step.
-3. Stryker scope excludes `src/app/` (`parseSeed`, `update`); consider adding it once it holds logic worth mutating.
+1. `deploy.yml` smoke uses a fixed `sleep 20` (weakness already recorded); a poll-until-200 would be more robust against Pages propagation lag.
+2. OWNER DECISION NEEDED (not a blocker for S-001): security scanning absent (no dependency audit or secret scan in `ci.yml`); owner-locked. Waiver proposed for S-001: no runtime deps, no secrets, no network. Consider `pnpm audit` as an advisory step.
+3. Stryker scope excludes `src/app/` (`parseSeed`, `update`); per ADR-0001 the Stryker, vitest and playwright configs are agent-editable (not locked), so extending the scope is an agent decision once `src/app/` holds logic worth mutating. Only `.github/` workflow changes remain owner-only.
 4. Smoke does not assert deployed commit SHA, so a stale Pages cache could pass; consider a build-stamp check.
+5. Deploy is not gated on the `ci` workflow (it triggers on push to main independently); branch protection is the only gate. Owner to confirm branch protection requires `ci` green.
+6. Reverting a squash commit is blocked by the append-only protected-tests and no-regression guards; owner action is needed if a revert is ever required.
+7. Availability monitoring (uptime probe) is out of scope for S-001; owner to decide whether to add one.
 
 ## Wave: DISTILL
 
@@ -264,3 +282,7 @@ Mandate-12 note: TS vitest tests call the driving ports directly with no step la
 - `ci:serve` on `localhost:4173/gaffer/` (Playwright `webServer` in `playwright.config.ts`); Pixel 7 profile at 390px.
 - `FC_SEED` honoured through `tests/setup/fast-check-seed.ts`.
 - DEVOPS matrix: local-preview for e2e, production through `BASE_URL` for smoke. These specs are URL-relative, so they run against both.
+- Env mapping: local-preview = `ci:serve` default; production = `BASE_URL`; local-dev is covered by the same URL-relative spec.
+- Mandate 8 (state-delta port) n/a: `update()` is pure and returns the next state, so tests assert on returned values directly.
+- Placement: a new `S-001-pick-club.spec.ts` rather than extending `shell.spec.ts`, to keep story scope separate.
+- The e2e journey "New game, pick club, home" is the walking skeleton, as DISCUSS states. All tests carry `@US-1`.
