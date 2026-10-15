@@ -235,6 +235,15 @@ jobs:
         run: |
           t="$RUNNER_TEMP/claude-execution-output.json"
           if [ -f "$t" ]; then r=$(node scripts/factory/nwave-check.mjs "$MODE" "$t"); else r='{"ok":false,"missing":["no transcript"]}'; fi
+          # Hard evidence of DELIVER: code changes for a story must come with nWave's roadmap, DES log and a passing integrity check
+          if [ "$MODE" = "deliver" ] && git diff --name-only "${{ steps.branch.outputs.start }}"..HEAD -- src | grep -q .; then
+            d="docs/feature/$STORY/deliver"
+            why=""
+            [ -f "$d/roadmap.json" ] || why="no $d/roadmap.json"
+            [ -z "$why" ] && { [ -f "$d/execution-log.json" ] || why="no DES log in $d"; }
+            [ -z "$why" ] && { des-verify-integrity "$d/" > factory-out/des-verify.txt 2>&1 || why="des-verify-integrity failed (see factory-out/des-verify.txt)"; }
+            [ -n "$why" ] && r=$(echo "$r" | jq -c --arg w "DELIVER evidence: $why" '.ok=false | .missing += [$w]')
+          fi
           echo "$r" | tee factory-out/nwave-check.json
           echo "ok=$(echo "$r" | jq -r .ok)" >> "$GITHUB_OUTPUT"
           echo "line=nWave: $(echo "$r" | jq -r '"skills " + (.skills|join(",")) + " · agents " + (.agents|join(",")) + (if (.missing|length)>0 then " · MISSING " + (.missing|join("; ")) else "" end)')" >> "$GITHUB_OUTPUT"

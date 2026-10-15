@@ -3,7 +3,7 @@
 Advance story {{STORY_ID}} through nWave's documented flow, **DISCUSS → DESIGN → DEVOPS → DISTILL → DELIVER**, using nWave's commands, not your own approximation of them. CI reads this session's transcript and blocks a PR that didn't invoke the required nWave skills.
 The story is an nWave feature with feature-id **`{{STORY_ID}}`**: everything lives in `docs/feature/{{STORY_ID}}/` (`feature-delta.md`, `slices/`, `deliver/`). Look at what exists, then continue from the first wave that is missing:
 
-1. **DISCUSS, DESIGN or DEVOPS missing** (`feature-delta.md` lacks a `## Wave: DISCUSS`, `## Wave: DESIGN` or `## Wave: DEVOPS` section). This happens for stories planned before the factory used nWave properly. Run whichever is missing, in order: `/nw-discuss {{STORY_ID}} --interactive=moderate`, `/nw-design {{STORY_ID}}`, `/nw-devops {{STORY_ID}}`, with the pre-answers below. Keep them lean: the story outcome is already decided, so don't re-scope it.
+1. **DISCUSS, DESIGN or DEVOPS missing** (`feature-delta.md` lacks a `## Wave: DISCUSS`, `## Wave: DESIGN` or `## Wave: DEVOPS` section). This happens for stories planned before the factory used nWave properly. Run whichever is missing, in order: `/nw-discuss {{STORY_ID}} --interactive=moderate`, `/nw-design {{STORY_ID}}`, `/nw-devops {{STORY_ID}}`, with the pre-answers below. The story outcome is already decided, so don't re-scope it.
 2. **DISTILL missing** (no `## Wave: DISTILL` section): run `/nw-distill {{STORY_ID}}`. Every port classification and the soft-gate table are approved as proposed. Driving ports come from the "For Acceptance Designer" section of `docs/product/architecture/brief.md`. Its mandatory reviewers run in the foreground.
 3. **DELIVER:** run `/nw-deliver {{STORY_ID}}`. It creates or reuses the roadmap and the audit log, then executes steps in **resume mode**, picking up where the last tick stopped.
    - Respect the rigor profile in `.nwave/des-config.json`.
@@ -11,6 +11,16 @@ The story is an nWave feature with feature-id **`{{STORY_ID}}`**: everything liv
    - **Phase 7 (Finalize):** archive and commit, but **do not push**; the workflow publishes the branch.
    - If you are running low on turns or approaching the diff cap (~1200 lines), finish the current step green, commit, and stop. The next tick resumes.
 4. Before your final commit, open the app in the Playwright browser on a phone viewport and walk the outcome so far. The protected scenarios judge the story once DELIVER is complete.
+
+**Follow each skill, don't imitate it.** Every nWave command dispatches its own agents:
+- DISCUSS → `nw-product-owner`
+- DESIGN → an architect
+- DEVOPS → `nw-platform-architect`
+- DISTILL → `nw-acceptance-designer` plus reviewers
+- DELIVER → the crafter for every step, plus reviewers, with `roadmap.json`, the DES log and `des-verify-integrity`
+
+Writing a wave's artifacts yourself, or implementing code without the crafter, is a violation. CI checks the transcript and the DELIVER artifacts, and rejects the PR. Lean documentation density is fine; skipping the agents is not.
+**Known DES conflict (nWave 3.22.1):** the `des-hook:pre-bash` hook blocks Bash commands that contain the DES log's file name inside subagent shells, which can block a crafter's `des-commit`. Use the documented split: the crafter logs its phases with `des-log-phase`, and you (the orchestrator) run `des-commit`, where the hook doesn't block. **Never obfuscate a command to get past a hook or guard.** If it's still blocked, stop and record it in `docs/feature/{{STORY_ID}}/open-questions.md`.
 
 **Pre-answers** (for any wave you run):
 - DISCUSS: the project brief is `docs/product/brief.md`, and scope is in `docs/product/scope.md`. JTBD is on.
