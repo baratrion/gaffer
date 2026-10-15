@@ -286,3 +286,36 @@ Mandate-12 note: TS vitest tests call the driving ports directly with no step la
 - Mandate 8 (state-delta port) n/a: `update()` is pure and returns the next state, so tests assert on returned values directly.
 - Placement: a new `S-001-pick-club.spec.ts` rather than extending `shell.spec.ts`, to keep story scope separate.
 - The e2e journey "New game, pick club, home" is the walking skeleton, as DISCUSS states. All tests carry `@US-1`.
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+Four roadmap steps (01-01..01-04), each RED, GREEN, COMMIT: deterministic `generateLeague` with `names.ts`; `parseSeed` with `DEFAULT_SEED`; `update` navigation (`NewGame`, `ChooseClub`); `el()`, the title, pick-club and club-home screens, and the `main.ts` loop. A refactor pass and reviewer findings followed (a2c4dd1), then a favicon 404 fix (36cccd1).
+
+### Wave: DELIVER / [REF] Files modified
+- Domain: `src/domain/league.ts`, `src/domain/names.ts`.
+- App: `src/app/seed.ts`, `src/app/state.ts`, `src/app/types.ts`.
+- UI: `src/ui/dom.ts`, `src/ui/screens/{title,pick-club,club-home,club-colours}.ts`, `src/ui/styles.css`.
+- Shell: `src/main.ts`, `index.html` (favicon).
+- Tests: `tests/acceptance/S-001/*`, `tests/e2e/S-001-pick-club.spec.ts`, `tests/unit/domain/real-club-denylist.test.ts`.
+
+### Wave: DELIVER / [REF] Scenarios green
+Vitest: 37 tests passing. Playwright e2e: 14 passing (last run). All DISTILL scenarios are enabled, none skipped.
+
+### Wave: DELIVER / [REF] DoD check
+- Protected scenarios `tests/protected/S-001/`: run by CI on main (locked runner).
+- Unit, property and denylist tests pass; `ci:*` scripts green on last run.
+- e2e phone-viewport smoke covers title, pick-club and club-home.
+- No ambient randomness or wall-clock time in `src/domain/`.
+
+### Wave: DELIVER / [REF] Demo evidence
+Pick-club walk with `?seed=4242`: New game shows 8 clubs; tapping the 2nd club gives `<h1>` "Netherwold Town". Screenshot: `factory-out/screens/pick-club.png`.
+
+### Wave: DELIVER / [REF] Quality gates
+- Refactor pass done (a2c4dd1).
+- Reviewer ran; findings folded in.
+- Mutation testing: nightly-delta, `/nw-deliver` Phase 5 skipped.
+- des-verify-integrity: all 4 steps complete.
+
+### Wave: DELIVER / [REF] Pre-requisites
+ADR-0001..0004 accepted; `ci:*` scripts; Pixel 7 profile at 390px; `FC_SEED` honoured via `tests/setup/fast-check-seed.ts`. Evolution record: `docs/evolution/2026-10-15-S-001.md`.

@@ -43,6 +43,19 @@ S-001 has no external adapters. The only environment dependency is `location.sea
 - Name uniqueness: 8 towns drawn without replacement from at least 24, plus a suffix that may repeat (ADR-0004).
 - No external integrations, so no contract tests are needed.
 
+### Component inventory (shipped in S-001)
+| Component | Layer | Responsibility |
+|---|---|---|
+| `src/domain/rng.ts` | domain | Seeded draws (`createRng`, `nextFloat`) |
+| `src/domain/names.ts` | domain | Frozen word lists: towns, suffixes, palette |
+| `src/domain/league.ts` | domain | `generateLeague(seed)`: pure 8-club `League` |
+| `src/app/seed.ts` | app | `parseSeed(search)`, `DEFAULT_SEED` |
+| `src/app/types.ts` | app | Shared app types |
+| `src/app/state.ts` | app | `GameState`, `Screen`, `Action`, `update` |
+| `src/ui/dom.ts` | ui | `el()` safe element builder |
+| `src/ui/screens/{title,pick-club,club-home}.ts` | ui | `render<Screen>(root, props, dispatch)`; `club-colours.ts` is a shared swatch helper |
+| `src/main.ts` | shell | Composition root, loop, focus on new `<h1>` |
+
 ### C4 level 1: System context
 ```mermaid
 C4Context
