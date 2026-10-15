@@ -1,5 +1,27 @@
 {
-  "schema_version": "5.0",
+  "schema_version": "3.0",
   "feature_id": "S-001",
-  "events": []
+  "events": [
+    {
+      "sid": "01-01",
+      "p": "RED",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-10-15T20:38:04Z"
+    },
+    {
+      "sid": "01-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-10-15T20:39:16Z"
+    },
+    {
+      "sid": "01-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-10-15T20:39:20Z"
+    }
+  ]
 }
