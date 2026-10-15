@@ -2,12 +2,16 @@ name: ai-review
 
 # Runs only after CI is green on a factory branch of THIS repo. It can only block.
 on:
-  workflow_run:
+  workflow_run: # CI runs started by a person
     workflows: [ci]
     types: [completed]
+  workflow_dispatch: # CI runs started by the factory (GITHUB_TOKEN-triggered runs never fire workflow_run)
+    inputs:
+      head_branch: { required: true, type: string }
+      head_sha: { required: true, type: string }
 
 concurrency:
-  group: ai-review-${{ github.event.workflow_run.head_branch }}
+  group: ai-review-${{ github.event.workflow_run.head_branch || inputs.head_branch }}
   cancel-in-progress: true
 
 permissions:
@@ -16,9 +20,11 @@ permissions:
 jobs:
   review:
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'claude/') &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       startsWith(github.event.workflow_run.head_branch, 'claude/') &&
+       github.event.workflow_run.head_repository.full_name == github.repository) ||
+      (github.event_name == 'workflow_dispatch' && startsWith(inputs.head_branch, 'claude/'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -28,13 +34,13 @@ jobs:
       id-token: write
     env:
       GH_TOKEN: ${{ github.token }}
-      SHA: ${{ github.event.workflow_run.head_sha }}
-      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      SHA: ${{ github.event.workflow_run.head_sha || inputs.head_sha }}
+      BRANCH: ${{ github.event.workflow_run.head_branch || inputs.head_branch }}
     steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || inputs.head_sha }}
           fetch-depth: 0
       - name: Mark pending
         id: ctx

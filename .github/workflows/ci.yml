@@ -14,6 +14,7 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
+  actions: write # to start ai-review for factory branches
 
 jobs:
   verify:
@@ -101,6 +102,12 @@ jobs:
           base_prefix=$(jq .doneCount ../base/test-results/stories-base.json)
           echo "### Stories done: main=$base_prefix, this branch=$head; new scenario files: $(echo $added | wc -w)" >> "$GITHUB_STEP_SUMMARY"
           [ "$head" -ge "$base_prefix" ] || { echo "::error::Protected story scenarios regressed ($base_prefix -> $head)"; exit 1; }
+
+      - name: Start the merge review (factory branches)
+        if: success() && github.event_name == 'workflow_dispatch' && startsWith(github.ref_name, 'claude/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ai-review.yml --ref main -f head_branch="${{ github.ref_name }}" -f head_sha="${{ github.sha }}"
 
       - uses: actions/upload-artifact@v4
         if: failure()
