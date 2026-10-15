@@ -18,3 +18,11 @@ export const nextFloat = (rng: Rng): { readonly value: number; readonly next: Rn
   const value = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   return { value, next: { seed: rng.seed, state: nextState } };
 };
+
+/** Pure integer hash giving each entity its own seed, so adding a field to one club never reshuffles another. */
+export const deriveSeed = (seed: number, index: number): number => {
+  let t = (seed ^ Math.imul(index + 1, 0x9e3779b9)) | 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return (t ^ (t >>> 14)) | 0;
+};

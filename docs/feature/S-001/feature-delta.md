@@ -104,3 +104,49 @@ Playwright smoke tests (`tests/e2e/shell.spec.ts`) must keep passing.
 
 ## Wave: DEVOPS / [REF] Pre-requisites
 Static build in `dist/` with base `/gaffer/`. No changes to locked `.github/` needed.
+
+## Wave: DISTILL / [REF] Scenario list with tags
+| Scenario | Tags | File |
+|---|---|---|
+| New game lists 8 unique clubs; tap lands on club home; 44px; one h1; no overflow | @walking_skeleton @driving_port @real-io | `tests/e2e/pick-club.spec.ts` |
+| Same seed same league, different seeds differ, invalid seed is default | @driving_port @real-io | `tests/e2e/pick-club.spec.ts` |
+| League has 8 unique clubs with two distinct colours for any seed | @property | `tests/acceptance/S-001/pick-club.test.ts` |
+| Determinism and seed sensitivity | @property | same |
+| Seed parsing accepts and rejects the ADR-0004 forms | @error | same |
+| Navigation title -> pickClub -> clubHome; unknown club ignored | @driving_port | same |
+
+Error and edge scenarios: 4 of 6 (seed parsing, unknown club, determinism, bad seed).
+
+## Wave: DISTILL / [REF] WS strategy
+Architecture of Reference: driving port is the browser (real); there are no driven internal or external ports yet. The walking skeleton is the Playwright flow against the production build.
+
+## Wave: DISTILL / [REF] Adapter coverage table
+| Adapter | @real-io scenario | Covered by |
+|---|---|---|
+| none (no driven adapters; the URL is read by the shell) | n/a | Playwright reads the real URL |
+
+## Wave: DISTILL / [REF] Scaffolds
+None. Vitest runs in the same tick as DELIVER, and the repo rule is that no failing, skipped or `.todo` test is ever committed, so acceptance tests and implementation land together green.
+
+## Wave: DISTILL / [REF] Test placement
+`tests/acceptance/S-001/` (matched by `vitest.config.ts`) and `tests/e2e/` (Playwright, Pixel 7).
+
+## Wave: DISTILL / [REF] Driving Adapter coverage
+Every entry point in the DESIGN brief (title, pick-club, club-home) is exercised through the real browser.
+
+## Wave: DISTILL / [REF] Pre-requisites
+DESIGN driving ports; `environments.yaml` (production preview at `/gaffer/`).
+
+### Reviewer follow-up (Sentinel, haiku)
+Applied: `@US-1` and `@contract-shape` tags, swatch `aria-hidden` check, pick-club screen checks (one `<h1>`, no overflow, one button per item) before the tap, 390px viewport. FC_SEED is honoured by the shared Vitest setup (`tests/setup/fast-check-seed.ts`), so per-call seeds are unneeded.
+Declined: Gherkin `.feature` files (the stack has no cucumber runner and ADR-0001 chose Vitest and Playwright; scenarios are named tests) and Strategy label change beyond "Strategy A" (stated here: WS strategy A, real browser, no doubles). Navigation tests assert the `screen` union, the app's public state value per ADR-0003.
+
+## Wave: DELIVER / [REF] Implementation summary
+Seeded 8-club league generator (`src/domain/league.ts`, `names.ts`, `deriveSeed`), `parseSeed` and the pure `update` (`src/app/`), plain-DOM title, pick-club and club-home screens (`src/ui/`), wired in `src/main.ts`. Club buttons are 56px tall; the colour swatch is `aria-hidden`.
+
+## Wave: DELIVER / [REF] Quality gates
+`ci:lint`, `ci:typecheck`, `ci:test` (27 tests) and `ci:e2e` (4 tests, Pixel 7 and 390px) pass. Phone walk-through screenshots in `factory-out/screens/`, no console errors. Mutation testing skipped (nightly-delta).
+Process deviation: the implementation was written directly by the orchestrating session, not through DES-monitored crafter dispatch. The DES hook blocks writing `execution-log.json` outside its own CLI, so no `deliver/roadmap.json` or `execution-log.json` exists yet, and no separate refactor or adversarial-review pass ran. The next tick should create the roadmap and log, and review the slice.
+
+## Wave: DELIVER / [REF] Demo evidence
+Playwright flow: `/gaffer/?seed=4242`, tap "New game", tap the 3rd club. The `<h1>` becomes "Dunmere Wanderers" (see `factory-out/screens/club-home.png`).
