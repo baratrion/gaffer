@@ -20,13 +20,15 @@ runs:
         echo "PM=$pm" >> "$GITHUB_ENV"
         echo "PMX=$pmx" >> "$GITHUB_ENV"
         echo "Package manager: $pm"
-    - uses: actions/setup-node@v5
-      with:
-        node-version: 22
+    # Package manager first: setup-node v5 auto-detects packageManager and expects it on PATH.
     - if: env.PM == 'pnpm'
       uses: pnpm/action-setup@v4
     - if: env.PM == 'bun'
       uses: oven-sh/setup-bun@v2
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 22
+        package-manager-cache: false
     - if: env.PM == 'yarn'
       shell: bash
       run: corepack enable
