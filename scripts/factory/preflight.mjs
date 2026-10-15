@@ -3,7 +3,7 @@
 // Reads ONLY machine state (labels, check results, workflow runs, repo files) - never Issue/PR/comment text.
 // Writes GITHUB_OUTPUT: run, mode (plan|deliver|fix), story_id, story_title, pr, reason
 import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 
 const OWNER = process.env.FACTORY_OWNER;
 const REPO = process.env.GITHUB_REPOSITORY;
@@ -45,6 +45,23 @@ for (const run of runs) {
 }
 if (ticks >= config.max_ticks_per_week) stop(`weekly budget reached: ${ticks}/${config.max_ticks_per_week} ticks in 7 days`);
 
+// 3b. Real plan usage (whole account: factory + owner). Owner's headroom always wins.
+const usageFile = process.env.USAGE_FILE;
+const usage = usageFile && existsSync(usageFile) ? JSON.parse(readFileSync(usageFile, "utf8")) : { ok: false };
+const u = config.usage;
+const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: u.timezone }).format(new Date()));
+const night = u.night_start_hour > u.night_end_hour ? hour >= u.night_start_hour || hour < u.night_end_hour : hour >= u.night_start_hour && hour < u.night_end_hour;
+const pct = (x) => `${Math.round((x ?? 0) * 100)}%`;
+let usageNote = "usage: no reading (tick-count fallback only)";
+if (usage.ok) {
+  const fiveCap = night ? u.five_hour_night_max : u.five_hour_day_max;
+  usageNote = `usage: 5h ${pct(usage.five_hour)}/${pct(fiveCap)} (${night ? "night" : "day"}), 7d ${pct(usage.seven_day)}/${pct(u.weekly_max)}`;
+  if (usage.status && usage.status !== "allowed") stop(`plan usage status ${usage.status}; ${usageNote}`);
+  if ((usage.seven_day ?? 0) >= u.weekly_max) stop(`weekly usage cap reached; ${usageNote}`);
+  if ((usage.five_hour ?? 0) >= fiveCap) stop(`5-hour usage cap reached; ${usageNote}`);
+}
+const modelWindowFull = (name) => usage.ok && (usage[name] ?? 0) >= u.model_weekly_max;
+
 // 4. main must be green
 const mainRuns = ghJson("run", "list", "--workflow", "ci.yml", "--branch", "main", "--limit", "1", "--json", "conclusion,status");
 if (mainRuns[0] && mainRuns[0].status === "completed" && mainRuns[0].conclusion !== "success") stop("main is red; fix it first");
@@ -84,9 +101,11 @@ if (attempts >= config.max_story_attempts) {
   ensureIssue(`Factory blocked on ${workId} after ${attempts} failed attempts`, ["factory:stop", "needs-human"]);
   stop(`${workId} blocked after ${attempts} attempts`);
 }
-const progress = `done ${stories.doneCount}/${stories.stories.length}, ticks ${ticks}/${config.max_ticks_per_week}`;
+const progress = `done ${stories.doneCount}/${stories.stories.length}, ticks ${ticks}/${config.max_ticks_per_week}, ${usageNote}`;
+// Opus weekly window nearly full -> plan with Sonnet instead (keeps the factory moving)
+const planModel = modelWindowFull("seven_day_opus") ? "sonnet" : "";
 if (needsPlan) {
-  output({ run: "true", mode: "plan", story_id: "plan", story_title: "Plan the next stories", pr: "", reason: `plan (${progress})` });
+  output({ run: "true", mode: "plan", story_id: "plan", story_title: "Plan the next stories", pr: "", model_override: planModel, reason: `plan (${progress})` });
 } else {
   output({ run: "true", mode: "deliver", story_id: next.id, story_title: next.title, pr: "", reason: `deliver ${next.id} (${progress})` });
 }

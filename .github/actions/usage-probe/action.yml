@@ -1,0 +1,31 @@
+name: Claude usage probe
+description: >-
+  Reads the owner's real plan usage (5-hour / 7-day utilization) from Claude Code's documented
+  RateLimitEvent, using one tiny Haiku request. Never fails the job; ok=false means "no reading".
+inputs:
+  token:
+    description: CLAUDE_CODE_OAUTH_TOKEN
+    required: true
+  out:
+    description: Path for the JSON reading
+    required: true
+outputs:
+  json:
+    description: The reading as a JSON string
+    value: ${{ steps.probe.outputs.json }}
+runs:
+  using: composite
+  steps:
+    - name: Install Claude Code CLI (pinned) if missing
+      shell: bash
+      run: |
+        command -v claude >/dev/null 2>&1 || npm_config_ignore_scripts=false npm install -g --silent @anthropic-ai/claude-code@2.1.300
+    - id: probe
+      shell: bash
+      env:
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.token }}
+      run: |
+        mkdir -p "$(dirname "${{ inputs.out }}")"
+        json=$(node scripts/factory/usage-probe.mjs "${{ inputs.out }}" || echo '{"ok":false}')
+        echo "json=$json" >> "$GITHUB_OUTPUT"
+        echo "Usage: $json"

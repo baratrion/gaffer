@@ -21,5 +21,14 @@
     "multiplayer",
     "backend",
     "real-data"
-  ]
+  ],
+  "usage": {
+    "weekly_max": 0.5,
+    "five_hour_day_max": 0.4,
+    "five_hour_night_max": 0.85,
+    "night_start_hour": 23,
+    "night_end_hour": 7,
+    "timezone": "Europe/London",
+    "model_weekly_max": 0.8
+  }
 }
