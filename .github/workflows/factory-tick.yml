@@ -147,6 +147,8 @@ jobs:
             echo "perm_args=--allowedTools \"Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(bunx:*),Bash(yarn:*),Bash(corepack:*),Bash(node:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(rm:*),Bash(mv:*),Bash(cp:*),Bash(touch:*),Bash(cd:*),Bash(sed:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(find:*),Bash(wc:*),Bash(sort:*),Bash(uniq:*),Bash(diff:*),Bash(echo:*),Bash(printf:*),Bash(jq:*),Bash(readlink:*),Bash(dirname:*),Bash(basename:*),Bash(python3:*),Bash(sleep:*),Bash(kill:*),Bash(lsof:*),Bash(test:*),Bash(true:*),Bash(xargs:*),Bash(nwave-ai:*),Bash(des-roadmap:*),Bash(des-init-log:*),Bash(des-log-phase:*),Bash(des-commit:*),Bash(des-verify-integrity:*),mcp__context7,mcp__playwright\" --disallowedTools \"$deny\"" >> "$GITHUB_OUTPUT"
           fi
           echo "turns=$(jq -r ".${role}_max_turns" factory/config.json)" >> "$GITHUB_OUTPUT"
+          # Effort per role (Thariq Shihipar, "Spending your effort": build at medium from a spec, decide/verify at high when unattended)
+          echo "effort=$(jq -r ".${role}_effort // \"medium\"" factory/config.json)" >> "$GITHUB_OUTPUT"
 
       - name: MCP servers (Context7 docs, Playwright browser restricted to localhost)
         env:
@@ -190,6 +192,7 @@ jobs:
           claude_args: >-
             --mcp-config ${{ runner.temp }}/mcp.json
             --model ${{ steps.prompt.outputs.model }}
+            --effort ${{ steps.prompt.outputs.effort }}
             --max-turns ${{ steps.prompt.outputs.turns }}
             ${{ steps.prompt.outputs.perm_args }}
 

@@ -49,6 +49,7 @@ jobs:
           echo "nwave_skipped=$skipped" >> "$GITHUB_OUTPUT"
           echo "model=$(jq -r .reviewer_model factory/config.json)" >> "$GITHUB_OUTPUT"
           echo "turns=$(jq -r .reviewer_max_turns factory/config.json)" >> "$GITHUB_OUTPUT"
+          echo "effort=$(jq -r '.reviewer_effort // "high"' factory/config.json)" >> "$GITHUB_OUTPUT"
           mkdir -p factory-out
           key=$(printf %s "$CONTEXT7_API_KEY" | tr -d '[:space:]')
           headers='{}'
@@ -76,6 +77,7 @@ jobs:
           claude_args: >-
             --mcp-config ${{ runner.temp }}/mcp.json
             --model ${{ steps.ctx.outputs.model }}
+            --effort ${{ steps.ctx.outputs.effort }}
             --max-turns ${{ steps.ctx.outputs.turns }}
             --allowedTools "Read,Glob,Grep,LS,Write,Skill,Task,Agent,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(git rev-parse:*),Bash(git status:*),mcp__context7"
             --disallowedTools "Edit,MultiEdit,NotebookEdit,WebFetch,WebSearch,Bash(gh:*),Bash(curl:*),Bash(git push:*),Bash(git commit:*),Bash(git checkout:*),Bash(git reset:*)"

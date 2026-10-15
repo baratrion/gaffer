@@ -32,5 +32,8 @@
     "model_weekly_max": 0.8
   },
   "permission_mode": "auto",
-  "transcript_recipient": "age1cy5alk5eyxq55r9cevvjn5j85jt504uv87u0fkmp6kycervnqg8sra3zgm"
+  "transcript_recipient": "age1cy5alk5eyxq55r9cevvjn5j85jt504uv87u0fkmp6kycervnqg8sra3zgm",
+  "planner_effort": "high",
+  "crafter_effort": "medium",
+  "reviewer_effort": "high"
 }
