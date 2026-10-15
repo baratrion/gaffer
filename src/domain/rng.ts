@@ -18,3 +18,10 @@ export const nextFloat = (rng: Rng): { readonly value: number; readonly next: Rn
   const value = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   return { value, next: { seed: rng.seed, state: nextState } };
 };
+
+// S-002 RED scaffold (created by DISTILL). DELIVER implements it and removes the marker.
+export const __SCAFFOLD__ = true;
+
+export const deriveSeed = (_seed: number, _clubIndex: number): number => {
+  throw new Error("Not yet implemented -- RED scaffold");
+};

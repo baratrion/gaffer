@@ -23,6 +23,8 @@ Rejected simpler alternative: no layering, with generation inline in the UI. It 
 | Component | Shape | Universe / assertion |
 |---|---|---|
 | `generateLeague`, `createRng`, `nextFloat` (`deriveSeed` from S-002) | pure, return-only | Deep-equal on repeat calls; input never mutated; fast-check property tests |
+| `generateSquad`, `deriveSeed` (S-002) | pure, return-only | Returns a `readonly Player[]`; deep-equal on repeat calls; input never mutated; fast-check property tests (quota, ranges, no digits, pairwise distinct squads) |
+| `renderSquad` (S-002) | bounded-change | Writes only `root`'s children; takes `(root, club, squad, dispatch)`, never `window` or `location`; does not move focus. Covered by e2e |
 | `parseSeed`, `update` | pure, return-only | Unit tests; `update` returns a new state and never mutates the old one |
 | `domain/names.ts` | pure data constants, return-only | Frozen word lists, towns, suffixes, palette; no functions with effects. Unit test: no duplicates in name/town lists |
 | `ui/dom.ts` `el()` | bounded-change | Creates detached nodes only; never touches `document.body` or attached nodes |
@@ -44,9 +46,9 @@ S-001 has no external adapters. The only environment dependency is `location.sea
 - No external integrations, so no contract tests are needed.
 
 ### Domain model (S-002: squads)
-- `Player`: `{ name, position, age, overall }`, all readonly. `Position` is `GK | DF | MF | FW`. No other fields (ADR-0004 defers attributes and condition).
+- `Player`: `{ name, position, age, overall }`, all readonly. A squad is typed `readonly Player[]` (ADR-0003 writes `Player[]` loosely). `Position` is `GK | DF | MF | FW`. No other fields (ADR-0004 defers attributes and condition).
 - A squad is `readonly Player[]` of 18, ordered GK, DF, MF, FW. It is derived data, never stored: `generateSquad(league.seed, clubIndex)` with `clubIndex` = the club's position in `league.clubs`. Per-club seed comes from `deriveSeed(seed, clubIndex)` in `rng.ts`.
-- Invariants by construction: quota 2/6/6/4, age 17-35, overall 1-20 (independent of position and age), no digits in names, surnames unique within a squad (drawn without replacement). Squads of different clubs differ because each club has its own derived seed.
+- Invariants by construction: quota 2/6/6/4, age 17-35, overall 1-20 (independent of position and age), no digits in names, surnames unique within a squad (drawn without replacement). Each club has its own derived seed; pairwise distinctness of the 8 squads is property-tested, not guaranteed by construction. Fixed order GK, DF, MF, FW and within-squad surname uniqueness are specified here (this brief is their SSOT).
 - `Screen` gains `{ kind: "squad", clubId }`. `Action` gains `OpenSquad` (clubHome to squad) and `Back` (squad to clubHome); both are no-ops from any other screen.
 
 ### S-002 components
@@ -58,7 +60,7 @@ S-001 has no external adapters. The only environment dependency is `location.sea
 | `state.ts`, `types.ts` | app | `squad` screen, `OpenSquad`/`Back`, `Player` re-export |
 | `ui/screens/squad.ts` | ui | `renderSquad(root, club, squad, dispatch)` |
 | `ui/screens/club-home.ts` | ui | Adds the "Squad" button (now takes `dispatch`) |
-| `main.ts` | shell | `squad` case: derives the squad, renders; focus on `<h1>` |
+| `main.ts` (composition root and loop) | shell | `squad` case: derives the squad, renders; focus on `<h1>` |
 
 Contract shapes: `deriveSeed` and `generateSquad` are pure, return-only (deep-equal, no input mutation, fast-check); `update` pure; `renderSquad` bounded-change (writes only `root`'s children). No driven adapters, so no probe; no external integrations, so no contract tests. No new ADR; no new technology. Existing enforcement (oxlint boundaries, PR guard, nightly Stryker on `src/domain/**`) covers the new domain code.
 
