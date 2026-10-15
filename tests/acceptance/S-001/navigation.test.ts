@@ -1,4 +1,6 @@
 // @US-1 (S-001 start a new game and pick a club)
+// CONTRACT_SHAPE: bounded-change
+// Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1)
 import { describe, expect, it } from "vitest";
 import { update, type GameState } from "../../../src/app/state";
 import { generateLeague } from "../../../src/domain/league";

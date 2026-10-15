@@ -38,7 +38,11 @@ const drawDistinctColours = (rng: Rng): Draw<readonly [Colour, Colour]> => {
   return { value: [first.value.item, second.value.item], next: second.next };
 };
 
-const drawClub = (rng: Rng, townsLeft: readonly string[], position: number): Draw<{ club: Club; townsLeft: readonly string[] }> => {
+const drawClub = (
+  rng: Rng,
+  townsLeft: readonly string[],
+  position: number,
+): Draw<{ club: Club; townsLeft: readonly string[] }> => {
   const town = drawWithoutReplacement(rng, townsLeft);
   const suffix = drawIndex(town.next, CLUB_SUFFIXES.length);
   const colours = drawDistinctColours(suffix.next);

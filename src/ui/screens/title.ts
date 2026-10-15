@@ -1,11 +1,10 @@
 import type { Action } from "../../app/state";
-import { el, replaceChildren } from "../dom";
+import { el } from "../dom";
 
 export const renderTitle = (root: HTMLElement, dispatch: (action: Action) => void): void => {
   const newGame = el("button", { type: "button", class: "primary" }, "New game");
   newGame.addEventListener("click", () => dispatch({ type: "NewGame" }));
-  replaceChildren(
-    root,
+  root.replaceChildren(
     el(
       "section",
       { class: "title-screen" },

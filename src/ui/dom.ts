@@ -11,7 +11,3 @@ export const el = <K extends keyof HTMLElementTagNameMap>(
   node.append(...children);
   return node;
 };
-
-export const replaceChildren = (root: HTMLElement, ...nodes: readonly Node[]): void => {
-  root.replaceChildren(...nodes);
-};

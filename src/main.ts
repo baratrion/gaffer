@@ -17,7 +17,8 @@ const render = (root: HTMLElement, state: GameState, dispatch: (action: Action) 
       break;
     case "clubHome": {
       const club = league.clubs.find((candidate) => candidate.id === screen.clubId);
-      if (club) renderClubHome(root, club);
+      if (!club) throw new Error(`Unknown club in game state: ${screen.clubId}`);
+      renderClubHome(root, club);
       break;
     }
   }

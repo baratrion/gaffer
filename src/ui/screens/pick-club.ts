@@ -1,6 +1,6 @@
 import type { Action } from "../../app/state";
-import type { Club, League } from "../../domain/league";
-import { el, replaceChildren } from "../dom";
+import type { Club, League } from "../../app/types";
+import { el } from "../dom";
 import { COLOUR_HEX } from "./club-colours";
 
 const swatch = ({ colours: [first, second] }: Club): HTMLElement =>
@@ -22,8 +22,7 @@ const clubItem = (club: Club, dispatch: (action: Action) => void): HTMLElement =
 };
 
 export const renderPickClub = (root: HTMLElement, league: League, dispatch: (action: Action) => void): void => {
-  replaceChildren(
-    root,
+  root.replaceChildren(
     el(
       "section",
       { class: "pick-club" },

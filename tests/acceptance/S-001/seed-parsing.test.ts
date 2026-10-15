@@ -1,4 +1,6 @@
 // @US-1 (S-001 start a new game and pick a club)
+// CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1)
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SEED, parseSeed } from "../../../src/app/seed";
@@ -23,7 +25,7 @@ describe("@US-1 S-001 the seed comes from the web address", () => {
   });
 
   describe("Given an invalid or missing seed", () => {
-    it.each(["", "?", "?seed=", "?seed=abc", "?seed=1.5", "?seed=9999999999", "?seed=-2147483649", "?other=3"])(
+    it.each(["", "?", "?seed=", "?seed=abc", "?seed=1.5", "?seed=9999999999", "?seed=-2147483649", "?other=3", "?seed=+5"])(
       "then %j falls back to the default seed @error",
       (search) => {
         expect(parseSeed(search)).toBe(DEFAULT_SEED);

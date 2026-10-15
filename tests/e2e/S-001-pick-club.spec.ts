@@ -1,4 +1,6 @@
 // @US-1 (S-001 start a new game and pick a club)
+// CONTRACT_SHAPE: e2e journey
+// Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1)
 // Runs against local-preview (ci:serve, localhost:4173/gaffer/) and, via BASE_URL, production smoke;
 // local-dev is covered by the same URL-relative spec.
 import { expect, test, type Page } from "@playwright/test";

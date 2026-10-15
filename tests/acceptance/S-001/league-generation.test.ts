@@ -1,4 +1,6 @@
 // @US-1 (S-001 start a new game and pick a club)
+// CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1)
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { generateLeague } from "../../../src/domain/league";

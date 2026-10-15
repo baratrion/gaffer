@@ -1,3 +1,6 @@
+// @US-1 (S-001 start a new game and pick a club)
+// CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1)
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { generateLeague } from "../../../src/domain/league";
@@ -30,7 +33,7 @@ const REAL_CLUB_DENYLIST: readonly string[] = [
 const hasNoDuplicates = (items: readonly string[]) => new Set(items).size === items.length;
 
 describe("fictional club naming", () => {
-  it("never generates a real club name, nor a real club name as a town", () => {
+  it("never generates a club name equal to, or starting with, a real club name", () => {
     fc.assert(
       fc.property(fc.integer({ min: -2147483648, max: 2147483647 }), (seed) => {
         for (const club of generateLeague(seed).clubs) {

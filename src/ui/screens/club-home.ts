@@ -1,11 +1,10 @@
-import type { Club } from "../../domain/league";
-import { el, replaceChildren } from "../dom";
+import type { Club } from "../../app/types";
+import { el } from "../dom";
 import { COLOUR_HEX } from "./club-colours";
 
 export const renderClubHome = (root: HTMLElement, club: Club): void => {
   const [first, second] = club.colours;
-  replaceChildren(
-    root,
+  root.replaceChildren(
     el(
       "section",
       { class: "club-home" },

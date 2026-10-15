@@ -1,4 +1,4 @@
-import type { Colour } from "../../domain/league";
+import type { Colour } from "../../app/types";
 
 export const COLOUR_HEX: Readonly<Record<Colour, string>> = {
   crimson: "#c8102e",
