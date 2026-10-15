@@ -109,7 +109,8 @@ jobs:
           # DES CLIs (des-roadmap, des-init-log, des-log-phase, des-commit, des-verify-integrity) live in ~/.claude/bin
           echo "$HOME/.claude/bin" >> "$GITHUB_PATH"
           ls "$HOME/.claude/bin" | grep '^des-' || echo "::warning::no DES CLIs in ~/.claude/bin"
-          nwave-ai doctor || true
+          # Fail before spending any Claude tokens if nWave is not healthy
+          nwave-ai doctor || { echo "::error::nwave-ai doctor failed; not starting Claude"; exit 1; }
           # Keep nWave's machine-local files out of commits (they live under locked paths).
           git status --porcelain
           git diff --name-only | xargs -r git checkout --
