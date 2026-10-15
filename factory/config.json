@@ -1,0 +1,11 @@
+{
+  "paused": false,
+  "nwave_version": "3.22.1",
+  "max_ticks_per_week": 10,
+  "max_fix_cycles": 2,
+  "max_story_attempts": 3,
+  "crafter_model": "sonnet",
+  "reviewer_model": "opus",
+  "crafter_max_turns": 60,
+  "reviewer_max_turns": 20
+}

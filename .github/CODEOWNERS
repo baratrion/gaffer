@@ -1,0 +1,14 @@
+# Owner-only paths. Mirrors PROTECTED in scripts/guards/pr-guards.mjs.
+/tests/protected/     @baratrion
+/.github/             @baratrion
+/factory/             @baratrion
+/docs/product/        @baratrion
+/scripts/             @baratrion
+/.nwave/              @baratrion
+/CLAUDE.md            @baratrion
+/tsconfig.json        @baratrion
+/vite.config.ts       @baratrion
+/vitest.config.ts     @baratrion
+/playwright.config.ts @baratrion
+/stryker.config.mjs   @baratrion
+/.oxlintrc.json       @baratrion

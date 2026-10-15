@@ -1,0 +1,12 @@
+{
+  "rigor": {
+    "profile": "custom",
+    "agent_model": "sonnet",
+    "reviewer_model": "haiku",
+    "tdd_phases": ["RED", "GREEN", "COMMIT"],
+    "review_enabled": true,
+    "double_review": false,
+    "mutation_enabled": false,
+    "refactor_pass": true
+  }
+}

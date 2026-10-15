@@ -1,0 +1,8 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+reports/
+.stryker-tmp/
+.DS_Store
+factory-out/

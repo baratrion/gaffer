@@ -1,0 +1,105 @@
+# Owner-authored story queue. Delivered strictly in order.
+# A story is DONE only when tests/protected/<id>/ scenarios pass on main (no self-certified status).
+# Stories without protected scenarios trigger "scenarios" mode: the factory proposes them in a PR for owner approval.
+
+out_of_scope_tags: [match-2d, utility-ai, transfers, finances, training, youth, staff, multiplayer, backend, real-data]
+
+stories:
+  - id: S-001
+    week: 0
+    title: Start a new game and pick a club
+    tags: [onboarding]
+    outcome: >
+      From the title screen the player taps "New game", sees the 8 clubs of a generated fictional
+      league (name and colours), picks one, and lands on a club home screen showing their club's name.
+      The same seed always generates the same league.
+
+  - id: S-002
+    week: 1
+    title: View my squad
+    tags: [squad]
+    outcome: >
+      From the club home screen the player opens "Squad" and sees 18 generated players, each with
+      name, position (GK/DF/MF/FW), age and an overall rating; the squad has at least 2 goalkeepers.
+
+  - id: S-003
+    week: 1
+    title: View a player's details
+    tags: [squad]
+    outcome: >
+      Tapping a player in the squad shows their attributes (4-6 numeric attributes on a 1-20 scale)
+      and current condition (0-100%), with a way back to the squad list.
+
+  - id: S-004
+    week: 2
+    title: Choose a formation
+    tags: [tactics]
+    outcome: >
+      On a "Tactics" screen the player picks one of 4-4-2, 4-3-3 or 4-2-3-1; the choice is shown as
+      11 position slots and persists when leaving and returning to the screen.
+
+  - id: S-005
+    week: 2
+    title: Pick the starting eleven
+    tags: [tactics]
+    outcome: >
+      The player fills the 11 slots from the squad by tapping (tap slot, tap player). A suggested XI is
+      pre-filled by best rating per position. Exactly 11 starters with exactly 1 goalkeeper are required to continue.
+
+  - id: S-006
+    week: 3
+    title: Play a match (quick sim)
+    tags: [match]
+    outcome: >
+      From the club home screen the player taps "Play match" and watches a text commentary feed of
+      match events (kick-off, chances, goals, half-time, full-time) that reveals over about 30-60 seconds
+      with a skip button, ending with the final score. Stronger line-ups win more often over many seeds.
+
+  - id: S-007
+    week: 3
+    title: Match stats
+    tags: [match]
+    outcome: >
+      After full-time the player sees basic stats for both teams: goals, shots, shots on target,
+      possession % (summing to 100) and cards, consistent with the commentary.
+
+  - id: S-008
+    week: 4
+    title: Season fixtures
+    tags: [season]
+    outcome: >
+      The game generates a double round-robin season (14 matchdays, each club plays every other club
+      home and away). A "Fixtures" screen lists matchdays with results so far; other clubs' matches are
+      simulated when the player plays theirs.
+
+  - id: S-009
+    week: 4
+    title: League table
+    tags: [season]
+    outcome: >
+      A "Table" screen shows all 8 clubs sorted by points, then goal difference, then goals scored,
+      with played/won/drawn/lost/GF/GA/GD/points, the player's club highlighted, updated after each matchday.
+
+  - id: S-010
+    week: 4
+    title: Save and continue
+    tags: [persistence]
+    outcome: >
+      Closing and reopening the page offers "Continue" on the title screen, which restores the club,
+      squad, tactics, fixtures, results and table exactly as they were.
+
+  - id: S-011
+    week: 5
+    title: Inbox
+    tags: [inbox]
+    outcome: >
+      An "Inbox" lists generated messages after each matchday (match report, a league-position note,
+      an occasional player-form story), newest first, with unread markers.
+
+  - id: S-012
+    week: 5
+    title: End of season
+    tags: [season]
+    outcome: >
+      After matchday 14 the player sees an end-of-season screen with their final position, champion,
+      top scorer of their club and a "New season" button that starts a fresh season with the same club.

@@ -1,0 +1,86 @@
+name: ci
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+  workflow_dispatch: # the factory dispatches CI on claude/* branches (GITHUB_TOKEN pushes don't trigger workflows)
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: ./.github/actions/setup
+        with:
+          playwright: "true"
+
+      - name: Resolve owner approval
+        id: approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          approved=false
+          if [ "$BRANCH" != "main" ]; then
+            pr=$(gh pr list --head "$BRANCH" --state open --json labels,author --limit 1)
+            if echo "$pr" | jq -e --arg o "$OWNER" '.[0] | ((.labels | map(.name) | index("human-approved")) != null) or (.author.login == $o)' >/dev/null; then
+              approved=true
+            fi
+          fi
+          echo "human_approved=$approved" >> "$GITHUB_OUTPUT"
+
+      - name: Guards (protected paths, test count, diff size, determinism)
+        if: github.ref_name != 'main' || github.event_name != 'push'
+        env:
+          BASE_REF: origin/main
+          HUMAN_APPROVED: ${{ steps.approval.outputs.human_approved }}
+        run: node scripts/guards/pr-guards.mjs
+      - name: Roadmap lint
+        run: node scripts/factory/roadmap.mjs
+      - name: Lint
+        run: pnpm exec oxlint .
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+      - name: Unit, acceptance and property tests (fresh seed each run)
+        run: |
+          export FC_SEED=$RANDOM$RANDOM
+          echo "fast-check seed: $FC_SEED"
+          pnpm exec vitest run
+      - name: Build
+        run: pnpm build
+      - name: E2E smoke (phone viewport)
+        run: pnpm exec playwright test --project=e2e
+
+      - name: Story regression (protected scenarios must not regress vs main)
+        if: github.ref_name != 'main' || github.event_name != 'push'
+        run: |
+          node scripts/factory/stories.mjs test-results/stories-head.json > /dev/null
+          git worktree add ../base origin/main
+          (cd ../base && pnpm install --frozen-lockfile >/dev/null && node scripts/factory/stories.mjs test-results/stories-base.json > /dev/null)
+          head=$(jq .doneCount test-results/stories-head.json)
+          base=$(jq .doneCount ../base/test-results/stories-base.json)
+          echo "Stories done: main=$base branch=$head"
+          echo "### Stories done: main=$base, this branch=$head" >> "$GITHUB_STEP_SUMMARY"
+          [ "$head" -ge "$base" ] || { echo "::error::Protected story scenarios regressed ($base -> $head)"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7

@@ -1,0 +1,71 @@
+# Trusted Source Domains for Evidence-Driven Research
+# Used by knowledge-researcher agent to validate source credibility
+
+academic:
+  description: "Peer-reviewed academic and research institutions"
+  domains: ["*.edu", "*.ac.uk", "scholar.google.com", "arxiv.org", "pubmed.ncbi.nlm.nih.gov", "researchgate.net", "ieee.org", "acm.org", "springer.com", "sciencedirect.com", "jstor.org", "nature.com", "science.org"]
+  reputation: high
+  verification_requirements: [peer_review_preferred, citation_tracking, author_credentials]
+
+official:
+  description: "Government, standards organizations, and official documentation"
+  domains: ["*.gov", "*.gov.uk", "w3.org", "ietf.org", "iso.org", "nist.gov", "docs.microsoft.com", "docs.oracle.com", "docs.python.org", "docs.oracle.com/javase", "kubernetes.io/docs", "docker.com/docs"]
+  reputation: high
+  verification_requirements: [official_publication, version_tracking, standards_compliance]
+
+industry_leaders:
+  description: "Established technology companies and recognized industry experts"
+  domains: ["github.com", "stackoverflow.com", "martinfowler.com", "refactoring.guru", "enterpriseintegrationpatterns.com", "microservices.io", "12factor.net", "reactivemanifesto.org", "agilemanifesto.org", "thoughtworks.com/insights", "infoq.com"]
+  reputation: medium-high
+  verification_requirements: [cross_reference_required, author_expertise_validation, community_consensus]
+
+technical_documentation:
+  description: "Official technical documentation and established platforms"
+  domains: ["developer.mozilla.org", "developers.google.com", "aws.amazon.com/documentation", "cloud.google.com/docs", "learn.microsoft.com", "devdocs.io", "readthedocs.org"]
+  reputation: high
+  verification_requirements: [version_accuracy, official_source_confirmation]
+
+open_source:
+  description: "Recognized open source foundations and communities"
+  domains: ["apache.org", "eclipse.org", "cncf.io", "opensource.org", "fsf.org", "linuxfoundation.org"]
+  reputation: high
+  verification_requirements: [community_validation, project_maturity_check]
+
+agentic_coding_practitioners:
+  description: "Originators of agentic/autonomous coding tools and patterns - trusted authorities on their own practices (user-designated, 2026-10-15)"
+  people:
+    - "Peter Steinberger (OpenClaw)"
+    - "Boris Cherny (Claude Code)"
+    - "Andrej Karpathy"
+    - "Geoffrey Huntley (Ralph loop)"
+    - "Simon Willison"
+  domains: ["steipete.me", "github.com/steipete", "x.com/steipete", "x.com/bcherny", "threads.net/@boris_cherny", "karpathy.ai", "karpathy.bearblog.dev", "x.com/karpathy", "github.com/karpathy", "youtube.com/@AndrejKarpathy", "ghuntley.com", "github.com/ghuntley", "x.com/GeoffreyHuntley", "simonwillison.net"]
+  reputation: high
+  verification_requirements: [primary_channel_preferred, date_noted, vendor_official_docs_win_on_product_limits_billing_tos]
+
+medium_trust:
+  description: "Quality sources requiring cross-referencing"
+  domains: ["medium.com", "dev.to", "hashnode.com"]
+  reputation: medium
+  verification_requirements: [author_verification_required, minimum_3_source_cross_reference, fact_checking_mandatory]
+
+excluded:
+  description: "Sources excluded due to low quality control or bias"
+  domains: ["*.blogspot.com", "wordpress.com", "tumblr.com", "pastebin.com", "quora.com"]
+  reason: "Unverified sources, potential bias, low quality control, no editorial oversight"
+  action: "Reject and log warning"
+
+validation_rules:
+  minimum_sources_per_claim: 3
+  cross_reference_required: true
+  reputation_scoring: {high: 1.0, medium-high: 0.8, medium: 0.6, low: 0.0}
+  confidence_thresholds:
+    high_confidence: {min_sources: 3, min_avg_reputation: 0.8}
+    medium_confidence: {min_sources: 2, min_avg_reputation: 0.6}
+    low_confidence: {min_sources: 1, min_avg_reputation: 0.4}
+  required_metadata: [source_url, domain, access_date, reputation_score, verification_status]
+
+quality_guidelines:
+  evidence_standards: ["Direct quotes or data from reputable sources", "Proper attribution and citation", "Version information for technical documentation", "Publication date or last update date", "Author credentials when available"]
+  bias_detection: ["Check for commercial interests or sponsorship", "Identify potential conflicts of interest", "Verify with independent sources", "Note any disclaimers or limitations"]
+  conflicting_information: ["Document all conflicting sources", "Evaluate source reliability for each claim", "Present both sides with evidence", "Note which sources are more authoritative"]

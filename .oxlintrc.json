@@ -1,0 +1,32 @@
+{
+  "ignorePatterns": ["salvage/**", "dist/**"],
+  "rules": {
+    "complexity": ["error", { "max": 15 }],
+    "max-depth": ["error", { "max": 4 }],
+    "max-params": ["error", { "max": 3 }],
+    "max-lines": ["error", { "max": 400 }],
+    "no-unused-vars": "error",
+    "no-console": "error",
+    "no-debugger": "error",
+    "eqeqeq": "error",
+    "prefer-const": "error",
+    "no-var": "error"
+  },
+  "overrides": [
+    {
+      "files": ["src/domain/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["**/ui/**"], "message": "Domain must not depend on UI (architectural boundary)" }
+          ]
+        }],
+        "no-restricted-globals": ["error", "document", "window", "localStorage"]
+      }
+    },
+    {
+      "files": ["tests/**/*.ts", "scripts/**/*.mjs"],
+      "rules": { "no-console": "off", "max-lines": "off", "complexity": "off" }
+    }
+  ]
+}

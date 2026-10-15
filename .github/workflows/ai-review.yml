@@ -1,0 +1,79 @@
+name: ai-review
+
+# Runs only after CI is green on a factory branch of THIS repo. It can only block.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+
+concurrency:
+  group: ai-review-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'claude/') &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: Mark pending
+        id: ctx
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=pending -f context=ai-review -f description="Reviewing" >/dev/null
+          echo "pr=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')" >> "$GITHUB_OUTPUT"
+          echo "model=$(jq -r .reviewer_model factory/config.json)" >> "$GITHUB_OUTPUT"
+          echo "turns=$(jq -r .reviewer_max_turns factory/config.json)" >> "$GITHUB_OUTPUT"
+          mkdir -p factory-out
+          { echo "text<<PROMPT_EOF"; cat factory/review-prompt.md; echo "PROMPT_EOF"; } >> "$GITHUB_OUTPUT"
+
+      - name: Claude reviewer (different tier from crafter)
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.ctx.outputs.text }}
+          claude_args: >-
+            --model ${{ steps.ctx.outputs.model }}
+            --max-turns ${{ steps.ctx.outputs.turns }}
+            --allowedTools "Read,Glob,Grep,LS,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
+            --disallowedTools "Edit,MultiEdit,WebFetch,WebSearch,Bash(gh:*),Bash(curl:*)"
+
+      - name: Publish verdict
+        if: always()
+        env:
+          PR: ${{ steps.ctx.outputs.pr }}
+        run: |
+          verdict=$(jq -r '.verdict // "missing"' factory-out/review.json 2>/dev/null || echo missing)
+          case "$verdict" in
+            approve) state=success; desc="No blocking findings" ;;
+            block)   state=failure; desc="Blocking findings - see PR comment" ;;
+            *)       state=error;   desc="Reviewer produced no verdict" ;;
+          esac
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=$state -f context=ai-review -f description="$desc" >/dev/null
+          if [ -n "$PR" ] && [ "$verdict" = "block" ]; then
+            {
+              echo "<!-- ai-review -->"
+              echo "### AI review: blocking findings"
+              jq -r '.findings[] | "- `\(.file):\(.line)` **\(.reason)**: \(.detail)"' factory-out/review.json
+            } > comment.md
+            gh pr comment "$PR" --body-file comment.md
+          fi

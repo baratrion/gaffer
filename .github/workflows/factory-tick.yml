@@ -1,0 +1,173 @@
+name: factory-tick
+
+# Off-hours UK cadence (cron is UTC; drifts 1h with BST, which is fine).
+on:
+  schedule:
+    - cron: "30 21 * * *"   # ~22:30 UK
+    - cron: "30 1 * * *"    # ~02:30 UK
+    - cron: "30 5 * * *"    # ~06:30 UK
+    - cron: "30 11 * * 0,6" # weekend midday
+    - cron: "30 15 * * 0,6" # weekend afternoon
+  workflow_dispatch:
+
+concurrency:
+  group: factory
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      actions: read
+      checks: read
+    outputs:
+      run: ${{ steps.pre.outputs.run }}
+      mode: ${{ steps.pre.outputs.mode }}
+      story_id: ${{ steps.pre.outputs.story_id }}
+      story_title: ${{ steps.pre.outputs.story_title }}
+      pr: ${{ steps.pre.outputs.pr }}
+      reason: ${{ steps.pre.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+        with:
+          playwright: "true"
+      - id: pre
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_OWNER: ${{ github.repository_owner }}
+        run: node scripts/factory/preflight.mjs
+      - run: echo "### Preflight → run=${{ steps.pre.outputs.run }} — ${{ steps.pre.outputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
+
+  agent:
+    needs: preflight
+    if: needs.preflight.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MODE: ${{ needs.preflight.outputs.mode }}
+      STORY: ${{ needs.preflight.outputs.story_id }}
+      PR: ${{ needs.preflight.outputs.pr }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Select branch
+        id: branch
+        run: |
+          git config user.name "gaffer-factory[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$MODE" = "fix" ]; then
+            branch=$(gh pr view "$PR" --json headRefName -q .headRefName)
+            git checkout "$branch"
+          else
+            branch="claude/${STORY}-${GITHUB_RUN_NUMBER}"
+            git checkout -b "$branch"
+          fi
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+          echo "start=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup
+        with:
+          playwright: "true"
+
+      - name: Install nWave (pinned) and verify it loaded
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install "nwave-ai==$(jq -r .nwave_version factory/config.json)"
+          nwave-ai install < /dev/null
+          nwave-ai project enable
+          test -d "$HOME/.claude/skills/nw-deliver" || { echo "::error::nWave skills missing after install"; exit 1; }
+          nwave-ai doctor || true
+
+      - name: Fix-mode context (own workflow output only)
+        if: env.MODE == 'fix'
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          mkdir -p factory-out
+          run_id=$(gh run list --workflow ci.yml --branch "$BRANCH" --limit 1 --json databaseId -q '.[0].databaseId')
+          gh run view "$run_id" --log-failed | tail -n 400 > factory-out/failures.txt || true
+          gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- ai-review -->")))] | last | .body // ""' \
+            > factory-out/review.md
+
+      - name: Render prompt (owner-controlled files only)
+        id: prompt
+        run: |
+          node scripts/factory/render-prompt.mjs "$MODE" "$STORY" "$PR" > /dev/null
+          {
+            echo "text<<PROMPT_EOF"
+            cat factory-out/prompt.md
+            echo "PROMPT_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "model=$(jq -r .crafter_model factory/config.json)" >> "$GITHUB_OUTPUT"
+          echo "turns=$(jq -r .crafter_max_turns factory/config.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Claude (one nWave step)
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.prompt.outputs.text }}
+          claude_args: >-
+            --model ${{ steps.prompt.outputs.model }}
+            --max-turns ${{ steps.prompt.outputs.turns }}
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Task,Agent,Skill,TodoWrite,Bash(pnpm:*),Bash(node:*),Bash(npx:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git restore:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(nwave-ai:*)"
+            --disallowedTools "WebFetch,WebSearch,Bash(git push:*),Bash(gh:*),Bash(curl:*),Bash(wget:*)"
+
+      - name: Publish branch and PR
+        id: publish
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+          START: ${{ steps.branch.outputs.start }}
+          TITLE: ${{ needs.preflight.outputs.story_title }}
+        run: |
+          if [ "$(git rev-parse HEAD)" = "$START" ]; then
+            echo "::error::Agent produced no commits"; echo "outcome=no-commits" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+          git push origin "HEAD:refs/heads/$BRANCH"
+          body=$( [ -f factory-out/summary.md ] && head -c 60000 factory-out/summary.md || echo "No summary written." )
+          if [ "$MODE" != "fix" ]; then
+            labels="factory"; [ "$MODE" = "scenarios" ] && labels="factory,needs-human"
+            PR=$(gh pr create --base main --head "$BRANCH" --title "$STORY: $TITLE${MODE:+ ($MODE)}" --body "$body" --label "$labels" | grep -o '[0-9]*$')
+          fi
+          [ "$MODE" != "scenarios" ] && gh pr merge "$PR" --auto --squash || true
+          gh workflow run ci.yml --ref "$BRANCH"
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          echo "outcome=pushed" >> "$GITHUB_OUTPUT"
+
+      - name: Factory log
+        if: always()
+        env:
+          REASON: ${{ needs.preflight.outputs.reason }}
+          OUTCOME: ${{ steps.publish.outputs.outcome || 'failed' }}
+          OUT_PR: ${{ steps.publish.outputs.pr }}
+        run: |
+          issue=$(gh issue list --label factory-log --state open --json number -q '.[0].number')
+          [ -n "$issue" ] || issue=$(gh issue create --title "Factory log" --label factory-log --body "Append-only tick journal (written by workflows)." | grep -o '[0-9]*$')
+          gh issue comment "$issue" --body "**Tick #$GITHUB_RUN_NUMBER** · $MODE · $STORY · outcome: \`$OUTCOME\` ${OUT_PR:+· PR #$OUT_PR}
+          $REASON · [run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: factory-out-${{ github.run_number }}
+          path: factory-out/
+          retention-days: 14

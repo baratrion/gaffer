@@ -1,0 +1,37 @@
+{
+  "name": "gaffer",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Mobile-first football management game for the browser. Built unattended by an nWave-governed Claude Code factory.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.12.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test --project=e2e",
+    "test:protected": "playwright test --project=protected",
+    "test:mutation": "stryker run",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "stories": "node scripts/factory/stories.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@stryker-mutator/core": "^9.6.0",
+    "@stryker-mutator/vitest-runner": "^9.6.0",
+    "@types/node": "^22.20.5",
+    "fast-check": "^4.6.0",
+    "oxlint": "^1.56.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0",
+    "yaml": "^2.8.0"
+  }
+}

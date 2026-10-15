@@ -1,0 +1,28 @@
+name: nightly
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - name: Mutation testing (domain core; break threshold in stryker.config.mjs)
+        run: pnpm exec stryker run
+      - name: Raise alarm on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue list --label mutation-alarm --state open --json number -q '.[0].number' | grep -q . || \
+          gh issue create --title "Mutation score dropped below threshold" --label mutation-alarm --label needs-human \
+            --body "Nightly mutation run failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
