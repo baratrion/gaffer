@@ -20,7 +20,7 @@ The story is an nWave feature with feature-id **`{{STORY_ID}}`**: everything liv
 - DELIVER → the crafter for every step, plus reviewers, with `roadmap.json`, the DES log and `des-verify-integrity`
 
 Writing a wave's artifacts yourself, or implementing code without the crafter, is a violation. CI checks the transcript and the DELIVER artifacts, and rejects the PR. Lean documentation density is fine; skipping the agents is not.
-**Known DES conflict (nWave 3.22.1):** the `des-hook:pre-bash` hook blocks Bash commands that contain the DES log's file name inside subagent shells, which can block a crafter's `des-commit`. Use the documented split: the crafter logs its phases with `des-log-phase`, and you (the orchestrator) run `des-commit`, where the hook doesn't block. **Never obfuscate a command to get past a hook or guard.** If it's still blocked, stop and record it in `docs/feature/{{STORY_ID}}/open-questions.md`.
+**DES hook:** nWave 3.22.x's pre-bash hook wrongly blocked its own `des-*` commands. This runner patches it, so `des-commit`, `des-log-phase`, `des-init-log` and `des-verify-integrity` work as the skills describe. **Never obfuscate a command to get past a hook or guard.** If it's still blocked, stop and record it in `docs/feature/{{STORY_ID}}/open-questions.md`.
 
 **Pre-answers** (for any wave you run):
 - DISCUSS: the project brief is `docs/product/brief.md`, and scope is in `docs/product/scope.md`. JTBD is on.

@@ -100,6 +100,8 @@ jobs:
           uv tool install "nwave-ai==$(jq -r .nwave_version factory/config.json)"
           nwave-ai install < /dev/null
           nwave-ai project enable
+          # nWave 3.22.x bug: its pre-bash hook blocks nWave's own des-* commands (incl. des-commit). Widen the allow pattern.
+          python3 scripts/factory/patch-des-hook.py || echo "::warning::DES pre-bash hook not found or format changed (nWave version?)"
           # Unattended: never show expansion menus (documented value for unattended work)
           cfg="$HOME/.nwave/global-config.json"; [ -f "$cfg" ] || echo '{}' > "$cfg"
           jq '.documentation.expansion_prompt = "always-skip"' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
@@ -107,7 +109,8 @@ jobs:
           # DES CLIs (des-roadmap, des-init-log, des-log-phase, des-commit, des-verify-integrity) live in ~/.claude/bin
           echo "$HOME/.claude/bin" >> "$GITHUB_PATH"
           ls "$HOME/.claude/bin" | grep '^des-' || echo "::warning::no DES CLIs in ~/.claude/bin"
-          nwave-ai doctor || true
+          # Fail before spending any Claude tokens if nWave is not healthy
+          nwave-ai doctor || { echo "::error::nwave-ai doctor failed; not starting Claude"; exit 1; }
           # Keep nWave's machine-local files out of commits (they live under locked paths).
           git status --porcelain
           git diff --name-only | xargs -r git checkout --
