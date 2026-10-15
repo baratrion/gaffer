@@ -23,9 +23,8 @@ jobs:
       IS_BRANCH: ${{ github.event_name != 'push' }}
     steps:
       - uses: actions/checkout@v5
-       with:
-         persist-credentials: false
         with:
+          persist-credentials: false
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       # The toolchain is nWave's choice: setup detects the package manager, and CI only calls the ci:* script contract.
