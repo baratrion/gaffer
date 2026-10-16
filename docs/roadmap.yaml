@@ -38,3 +38,22 @@ stories:
       row. Every club's squad has at least 2 goalkeepers and players in every position, and every
       club has different players. A button named exactly "Back" returns to the club home screen. The squad comes from the same seed as the league, so it is identical on every
       visit with the same seed. No horizontal scroll at 390px.
+
+  - id: S-003
+    week: 1
+    title: View a player's details
+    tags: [squad]
+    outcome: >
+      In the list named "Squad" each of the 18 player rows holds exactly one tappable button (44px or
+      taller) whose text still reads name, position, age, overall (age and overall the first two
+      numbers). Tapping a row opens that player's screen: exactly one heading, the player's name, and
+      the labelled values "Position" (GK, DF, MF or FW), "Age" and "Overall", each label followed by
+      the same value as in the tapped row (for example "Position GK", "Age 27", "Overall 14"). A list
+      named "Attributes" holds exactly 4 items, "Goalkeeping", "Defending", "Passing" and "Shooting" in
+      that order, each the attribute name followed by a whole number from 1 to 20 and no other number.
+      The overall is at least the player's lowest and at most their highest attribute. Outside that
+      list, "Condition" is followed by a whole percentage from 0 to 100 (for example "Condition 92%").
+      A button named exactly "Back" returns to the same club's squad list (heading the club's name, 18
+      players); "Back" there still returns to the club home. The player screen comes from the same
+      seed as the league, so it is identical on every visit with the same seed, and the players of a
+      squad do not all share the same attributes. No horizontal scroll at 390px.
