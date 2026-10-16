@@ -39,7 +39,8 @@ and ADR. The narrower choice ships now.
   the same helper ADR-0003 names. Position quota: exactly 2 GK, 6 DF, 6 MF, 4 FW. Age 17-35, which is
   deliberately narrower than the 16-40 the S-002 outcome allows. `overall` is an integer from 1 to 20,
   stored for now. It becomes derived when the player-detail story adds the 4-6 attributes and condition
-  that scope.md lists. Those fields are deferred, so do not add them ad hoc. Names come from fictional
+  that scope.md lists. Those fields are deferred, so do not add them ad hoc.
+  *Refinement note 2026-10-16 (S-003, ADR-0006): done. Four attributes (1-20) and a condition (75-100 generated, 0-100 accepted by the UI) are added, and `overall` is derived from the attributes; see ADR-0006.* Names come from fictional
   first-name and surname lists. No real players or clubs.
 - Word lists live in `src/domain/names.ts` as plain data. A unit test checks that no generated club name
   matches a small denylist of well-known real club names (`tests/unit/fixtures/real-club-denylist.ts`).

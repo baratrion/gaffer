@@ -98,3 +98,69 @@ Extends the S-002 walking skeleton (club home, squad, back) by one step: squad, 
 | 7 | Technical notes | PASS | Ports, ADR-0002..0005, superseded S-002 decision, e2e test replacement |
 | 8 | Dependencies tracked | PASS | S-002 delivered; DESIGN ADR expected; open items listed |
 | 9 | Outcome KPI measurable | PASS | Squad to player in 1 tap and back in 1, e2e tap count |
+
+## Wave: DESIGN
+
+Mode: propose. Scope: application. One solo team. Paradigm: functional (ADR-0003). New ADR: `adr-0006-player-attributes-condition-derived-overall.md` (refines ADR-0005 (e) and the ADR-0004 overall note). Architecture: `docs/product/architecture/brief.md` ("Player detail (S-003)", "For Acceptance Designer" ports 8-10). No new C4 container: the S-001 L1/L2 still hold.
+
+### Wave: DESIGN / [REF] DDD list
+- Same bounded context, "League setup", extended. Language: Attribute, Condition, Overall (now derived), Quality (internal only).
+- Value objects: `Player { name, position, age, overall, attributes, condition }`; `Attributes` = four integers 1-20 keyed `goalkeeping | defending | passing | shooting`. No aggregates, no events.
+- Invariants by construction: `overall = deriveOverall(position, attributes)` lies in [min, max] attribute (non-negative weights summing to 10, integer round-half-up); condition 75-100; S-002 invariants (quota, ages, unique names) unchanged.
+
+### Wave: DESIGN / [REF] Decisions
+| # | Decision | Source |
+|---|---|---|
+| D1 | `overall` derived: floor((sum(w*a)+5)/10), weights in tenths GK 7/1/2/0, DF 0/6/3/1, MF 0/2/5/3, FW 0/1/3/6. Rejected: stored overall plus fitted attributes; plain mean; UI-side formula | ADR-0006 (1); DISCUSS D4 |
+| D2 | Club stream still draws age then 1-20 internal `quality` (ages, names, positions unchanged); attributes and condition from `deriveSeed(seed, 100 + clubIndex)`, 5 draws per player (4 noise -2..+2, condition). Attribute = clamp(quality + position offset + noise, 1, 20). Rejected: redraw everything; attributes from the names stream | ADR-0006 (2) |
+| D3 | Condition integer 75-100 uniform, constant in this story. Rejected: uniform 0-100; fixed 100 | ADR-0006 (2); DISCUSS D3 |
+| D4 | `Screen` + `{player, clubId, playerIndex}`; `Action` + `ViewPlayer{playerIndex}` valid only from squad, known club, integer 0..17; `Back` player to squad (same club), squad to clubHome; else no-ops | ADR-0006 (3); DISCUSS D7 |
+| D5 | Player derived on render, not stored | ADR-0005 (d); DISCUSS D6 |
+| D6 | Squad row = `<li>` with one `<button>` (same spans, 44px or taller). Supersedes the S-002 "not buttons" line in the brief | ADR-0006 (4, 6); DISCUSS D1 |
+| D7 | Player screen via `el()`: h1 name; `<p>` lines "Position GK", "Age 27", "Overall 14"; `<ul aria-label="Attributes">` of four items in `ATTRIBUTE_ORDER`; `<p>` "Condition 92%"; "Back" button. Label and value on one line, inline flow only; any bar is CSS-only. Rejected: `<dl>`, table | ADR-0006 (4); DISCUSS D5, D8 |
+| D8 | DELIVER replaces the S-002 e2e "display-only" assertion with "each of the 18 rows holds exactly one button" (same test, never deleted) | ADR-0006 (6); DISCUSS notes |
+
+### Wave: DESIGN / [REF] Component decomposition
+| Component | Layer | Responsibility |
+|---|---|---|
+| `domain/squad.ts` | domain | `Player` gains `attributes`, `condition`; exports `ATTRIBUTE_ORDER`, `ATTRIBUTE_LABELS`, `Attributes`, `OVERALL_WEIGHTS`, `deriveOverall`, `CONDITION_MIN/MAX`, `ATTRIBUTE_STREAM_BASE`; `generateSquad` extended |
+| `app/state.ts` | app | `Screen` + `player`; `Action` + `ViewPlayer`; `update` cases |
+| `ui/screens/squad.ts` | ui | Row becomes `<li><button>`; click dispatches `ViewPlayer(index)` |
+| `ui/screens/player.ts` | ui | `renderPlayer(root, { club, player }, dispatch)` |
+| `main.ts` | shell | Player render case: `generateSquad(league.seed, clubIndex)[playerIndex]` |
+| `ui/styles.css` | ui | Row button (grid, 44px or taller), player screen layout, CSS-only attribute bar |
+
+### Wave: DESIGN / [REF] Driving ports
+- `generateSquad(seed, clubIndex)` (extended), `deriveOverall(position, attributes)` (pure).
+- `update(GameState, Action) => GameState` with `ViewPlayer` and `Back`.
+- Browser: 18 row buttons in the list "Squad"; the player screen (`<h1>`, Position/Age/Overall lines, list "Attributes", "Condition" line); "Back" button. Detail in the brief, "For Acceptance Designer" ports 8-10.
+
+### Wave: DESIGN / [REF] Driven ports and adapters
+None: no storage, clock or network. The player is derived, so nothing is persisted and no probe is needed. No external integrations, so no contract tests. Enforcement unchanged (oxlint boundary rules, PR guard, nightly Stryker on `src/domain/**`, which covers `squad.ts`).
+
+### Wave: DESIGN / [REF] Technology choices
+No new technology or dependency (ADR-0001, 0002, 0004, 0005 apply; all OSS).
+
+### Wave: DESIGN / [REF] Reuse Analysis
+| Existing | Action | Contract shape / assertion |
+|---|---|---|
+| `src/domain/squad.ts` (`generateSquad`, `Player`, `drawInRange`) | EXTEND: new fields, attribute stream, `deriveOverall`; the existing `drawInRange` and `createRng` are reused | pure, return-only; property tests (ranges, bounds, determinism, differing attributes, S-002 invariants) |
+| `src/domain/rng.ts` (`deriveSeed`, `createRng`, `nextFloat`) | REUSE unchanged (new stream numbers only) | pure, return-only |
+| `src/app/state.ts` | EXTEND: `Screen`/`Action` variants, `update` cases (reuses `isKnownClub`, imports `PLAYERS_PER_SQUAD`) | pure, return-only; unit tests incl. wrong-screen, unknown club and index no-ops |
+| `src/ui/screens/squad.ts` | EXTEND: row is `<li><button>` | bounded-change; e2e |
+| `src/ui/screens/player.ts` | CREATE NEW (no existing alternative: no screen shows one person) | bounded-change (root's children only); e2e |
+| `src/ui/dom.ts` `el()` | REUSE | bounded-change; detached nodes only |
+| `src/main.ts` | EXTEND: player case; `findClub` reused | unbounded shell, universe unchanged |
+| `src/ui/styles.css` | EXTEND: move row grid from `li` to the row button; player layout | n/a |
+| `tests/e2e/S-002-squad.spec.ts` | EXTEND: replace the "display-only" assertion by "each of the 18 rows holds exactly one button" (same count) | black-box |
+| `tests/e2e/S-003-player.spec.ts`, `tests/acceptance/S-003/` | CREATE NEW (DISTILL): new story's tests | black-box / property |
+| `tests/acceptance/S-002/*` | REUSE unchanged; they assert overall 1-20 only | regression |
+
+### Wave: DESIGN / [REF] Changed Assumptions
+- DISCUSS slice 01: "Drawn from the per-club seed (`deriveSeed(seed, clubIndex)`), pure, no `Date`, `Math.random` or DOM." Changed: attributes and condition come from a separate per-club stream `deriveSeed(seed, 100 + clubIndex)`; only age and the internal `quality` stay on `deriveSeed(seed, clubIndex)`. Reason: keeps every S-002 age, name and position identical for every seed (ADR-0006 (2)).
+- DISCUSS D3: "The generator range ... may be narrower than 0-100". Decided: 75-100.
+- DISCUSS D1/brief: "squad rows are display-only / listitems, not buttons". Superseded as DISCUSS expected (ADR-0006 (6)).
+
+### Wave: DESIGN / [REF] Open questions
+- None blocking. Accepted: returning to the squad re-renders from the top, so scroll position is not restored (not in the AC; revisit if Sam finds it annoying).
+- Handoff for DISTILL: property tests over all 8 clubs per seed; formula test via `deriveOverall`/`OVERALL_WEIGHTS`; an optional golden of (name, position, age) for one seed captured from the pre-change code; unit tests for `ViewPlayer` index bounds (-1, 18, 1.5, NaN) and unknown club; e2e for rows holding one button, label and value on one line, "Attributes" list with no other digits, and Back, Back. Pin the 8th-club `?seed=abc` first (GK) and last (FW) rows.
