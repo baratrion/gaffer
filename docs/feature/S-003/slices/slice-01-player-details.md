@@ -9,7 +9,7 @@ On the squad list Sam taps a player's row, sees what that player is good at and 
 Precursor commit (developer-facing, ADR-0006):
 - `Player` gains `attributes` (goalkeeping, defending, passing, shooting; whole numbers 1-20) and `condition` (75-100 generated, inside the 0-100 the UI accepts).
 - `overall` derived by `deriveOverall(position, attributes)`: at least the lowest attribute, at most the highest, still 1-20.
-- Age and the internal quality stay on `deriveSeed(seed, clubIndex)`; attributes and condition come from `deriveSeed(seed, 100 + clubIndex)`. Names, positions, ages and row order stay identical to S-002 for every seed.
+- Age and the internal quality stay on `deriveSeed(seed, clubIndex)`; attributes and condition come from `deriveSeed(seed, 100 + clubIndex)`. Names, positions, ages and row order stay identical to S-002 for every seed. Pure: no `Date`, `Math.random` or DOM in `src/domain/`.
 
 Player-visible commit:
 - Each squad row holds exactly one button (44px or taller); row text unchanged (name, position, age, overall).

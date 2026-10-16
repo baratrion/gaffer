@@ -56,7 +56,7 @@ stories:
       attribute. Outside that list a line reads "Condition" followed by a whole percentage from 0 to
       100 (for example "Condition 92%"). A button named exactly "Back" (44px or taller) returns to the
       same club's squad list (heading the club's name, 18 players); "Back" there still returns to the
-      club home. The player screen comes from the same seed as the league, so it is identical on every
+      club home. After each tap, focus moves to the new screen's heading. The player screen comes from the same seed as the league, so it is identical on every
       visit with the same seed, also when the seed is invalid and the default is used, and the players
       of a squad do not all share the same attributes. No horizontal scroll at 390px and no console
       errors.
