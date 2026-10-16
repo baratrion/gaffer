@@ -145,3 +145,83 @@ No new technology or dependency (ADR-0001, 0002, 0004 apply; all OSS). New word 
 - None blocking. Name pool size (30 x 30) is a floor; DELIVER may grow it. Squad list label: use `aria-labelledby` on the h1 or `aria-label="Squad"`; either gives the accessible name "Squad" the scenarios need.
 - Deferred: skewed overall distribution, attributes, sort and filter (later stories).
 - Handoff note for DISTILL: lean on property tests for `generateSquad` (all 8 clubs per seed, assert the 144 names are distinct) and role-based e2e; enumerate the full name pool in the denylist test.
+
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope) are read-only. Machine-readable environments: `docs/feature/S-002/environments.yaml`. Inherits the S-001 DEVOPS setup; only the deltas are recorded.
+
+Checklist: ✓ existing infra reused | ✓ KPI mapped to instrument | ✓ rollback defined | ✓ mutation strategy (nightly-delta, inherited) | ⊘ new IaC/containers (none) | ⊘ server-side observability (no backend) | ⊘ continuous learning | ⊘ CLAUDE.md edit (already states strategy)
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test; unit, property, e2e and `tests/protected/S-002/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke via `BASE_URL` |
+
+No staging (static site, recreate). Client: Chromium, Pixel 7 profile, 390px viewport. The squad is derived from `?seed=` on render, so the same seed gives the same squad in every environment.
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch): PR guards, roadmap lint, `ci:lint`, `ci:typecheck`, `ci:test` (fresh `FC_SEED`; S-002 property tests on `generateSquad` honour it), `ci:build`, `ci:e2e`, protected-scenario no-regression check vs main.
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` runs `ci:e2e` against the live URL.
+- `nightly`: `ci:mutation`; failure opens a `mutation-alarm` issue.
+- `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- S-002 needs no pipeline change: it adds unit, property and e2e specs run by the existing scripts, and no new dependency.
+- Local gate: `pnpm run check` mirrors the commit stage. No git hooks (locked paths; CI is the gate).
+- Security: no secrets, no runtime deps, no network. Generated names enter the DOM only via `el()` (ADR-0002, never `innerHTML`). Name-pool denylist test guards against real-player names. SAST/SCA/SBOM not added (workflows locked; see Open questions).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI to instrument)
+| KPI / criterion (DISCUSS) | Instrument | Where / when | Pass condition |
+|---|---|---|---|
+| Club home to squad in 1 tap | Playwright `tests/e2e/S-002-squad.spec.ts`: count clicks on "Squad", assert list "Squad" visible | `ci:e2e` on PR and main; `smoke` on live URL after each deploy | Exactly 1 click |
+| 18 rows per squad, quota 2/6/6/4 | e2e role query: `listitem` count in list "Squad"; position token counts | same | 18; 2 GK, 6 DF, 6 MF, 4 FW |
+| Row order and ranges | e2e regexp on row text: position, first two numbers = age 16-40, overall 1-20 | same | all 18 rows match |
+| Back returns to club home | e2e click "Back", assert `<h1>` is club name | same | holds |
+| Same link, same squad | e2e two-visit comparison on `?seed=31`; fast-check deep-equal | `ci:e2e`, `ci:test` | identical rows, same order |
+| No console errors | `page.on("console"/"pageerror")` across home, squad, back | same | zero |
+| No horizontal scroll at 390px | `scrollWidth <= clientWidth` on squad screen | same | holds |
+| Tap targets at least 44px | `boundingBox().height >= 44` for "Squad" and "Back" | same | both |
+| Cross-club name uniqueness | property test over all 8 clubs (144 distinct names) | `ci:test` | distinct |
+| Domain test strength | Stryker on `src/domain/**` (now incl. `squad.ts`, `deriveSeed`) | nightly | at or above break threshold |
+
+No analytics (POC). The e2e tap count is the KPI's sole measurement.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact.
+- Rollback (designed first): `workflow_dispatch` of `deploy.yml` on a known-good ref (the S-001 commit before the S-002 squash); `smoke` validates the restored site. Fallback: fix-forward on a `claude/*` branch. `git revert` of the squash is blocked by the append-only protected-tests and no-regression guards (owner action). Time to restore: one deploy cycle (about 5 minutes).
+- Failure detection: a red `smoke` job marks the deploy run red.
+- Data: squad is derived, never stored or persisted, so no migration and no user data at risk. Rolling back to S-001 simply removes the "Squad" button.
+- Blast radius: one static page.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. Scope `src/domain/**` now covers `squad.ts`, `rng.ts` (`deriveSeed`), `names.ts` and `league.ts`. Run by `nightly.yml` via `ci:mutation`. Failure opens `mutation-alarm`, `needs-human`. `src/app/state.ts` (`ViewSquad`/`Back`) remains outside Stryker scope (agent-editable config; see Open questions).
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy. Alerting: a red `deploy` run. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-002-*` branches, PR to main, squash merge. CI green and protected scenarios not regressing. Deploy fires on merge. No release branches.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-002 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml` | none; run existing `ci:*` scripts | reuse |
+| `ci:*` scripts, `playwright.config.ts`, `stryker.config.mjs` | none required; Pixel 7 and `BASE_URL` fit; `src/domain/**` glob already covers new files | reuse |
+| `tests/e2e/S-001-pick-club.spec.ts`, `shell.spec.ts` | club-home screen gains a "Squad" button; S-001 assertions (heading = club name, scroll, 44px club buttons) must stay green | unchanged, regression-watch |
+| `tests/e2e/S-002-squad.spec.ts` | new spec | add |
+| `tests/protected/S-001/`, `tests/protected/S-002/` | locked runner on `localhost:4173/gaffer/`; roles and accessible names | none |
+| `src/domain/league.ts` | draw helper exported or shared (DESIGN) | behaviour must stay deep-equal for S-001 seeds |
+| `src/ui/screens/club-home.ts`, `src/main.ts` | extended (dispatch, squad case) | S-001 tests guard |
+| Pages artifact | grows slightly; base path `/gaffer/` unchanged | none |
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-001 delivered and deployed; GitHub Pages source "GitHub Actions" enabled (✓).
+- Node 22 or later, pnpm 10.12.4 pinned, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0005 accepted (✓).
+- `BASE_URL` derived from repository owner and name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001 (smoke `sleep 20`, no security scanning, smoke has no commit-SHA check, deploy not gated on `ci`, squash revert blocked, no uptime probe) are unchanged and none block S-002. New:
+1. No `.github/` change is needed for S-002.
+2. Agent decision for DELIVER: extend Stryker scope to `src/app/state.ts` now that it holds navigation logic for `ViewSquad`/`Back` (config is agent-editable per ADR-0001); optional, not blocking.
+3. Smoke on the live URL runs the S-002 e2e spec too; it relies on `?seed=` being honoured on Pages (same as S-001).
