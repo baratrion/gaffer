@@ -82,3 +82,66 @@ Extends the S-001 walking skeleton (title, pick-club, club-home) by one step: cl
 - ADR-0002, ADR-0003 and ADR-0004 accepted; no new ADR expected. Possible superseding note in ADR-0004 when overall becomes derived (later story).
 - `docs/product/jobs.yaml` now has J-02 (resolved).
 - Open risk: no DIVERGE artifact (accepted as lean). Open question for DESIGN: the construction that guarantees no shared player name across clubs.
+
+## Wave: DESIGN
+
+Mode: propose. Scope: application. One solo team. Paradigm: functional (ADR-0003). New ADR: `adr-0005-squad-generation.md`. Architecture: `docs/product/architecture/brief.md` ("Squad (S-002)", "For Acceptance Designer" ports 4-7). No new C4 container: the S-001 L1/L2 still hold.
+
+### Wave: DESIGN / [REF] DDD list
+- Same bounded context, "League setup", extended with `Player` and `Position`. Language: Squad, Player, Position, Overall.
+- Value objects: `Player { name, position: GK|DF|MF|FW, age, overall }`; a squad is a `readonly Player[]` of 18. No aggregates, no events.
+- Invariants by construction: exact quota 2/6/6/4; all names unique across the league (one league-wide draw without replacement, sliced per club); names have no digits.
+
+### Wave: DESIGN / [REF] Decisions
+| # | Decision | Source |
+|---|---|---|
+| D1 | Name uniqueness: partial Fisher-Yates of 144 draws from `FIRST_NAMES x SURNAMES` (900 or more combinations), seeded by `deriveSeed(seed, -1)`, club takes slice `clubIndex*18..+18`. Rejected: per-club draw plus retry; surname partition per club | ADR-0005 (a) |
+| D2 | Quota 2/6/6/4 in order GK, DF, MF, FW; age 17-35; overall 1-20 uniform; no digits and no GK/DF/MF/FW tokens in names | ADR-0005 (b) |
+| D3 | `deriveSeed(seed, stream)` = one mulberry32 step over `seed ^ imul(stream, 0x9e3779b9)`, in `rng.ts` | ADR-0005 (c) |
+| D4 | Squad derived on render, not in `GameState`. Rejected: storing it; memoising | ADR-0005 (d) |
+| D5 | `overall` stored; derived later (player-detail story) | ADR-0005 (e) |
+| D6 | Denylist test enumerates the whole name pool, not just generated names | ADR-0005 (f) |
+| D7 | `ViewSquad` only from clubHome, `Back` only from squad (returns to the same club); otherwise no-ops, like `ChooseClub` | ADR-0003 |
+| D8 | Row built with `el()`: spans for name, position, age, overall in that order with a space between; `<li>` is not a button. `club-home.ts` gains `dispatch` and a "Squad" button | ADR-0002 |
+
+### Wave: DESIGN / [REF] Component decomposition
+| Component | Layer | Responsibility |
+|---|---|---|
+| `rng.ts` `deriveSeed` | domain | Pure int32 hash of (seed, stream) |
+| `names.ts` | domain | Adds `FIRST_NAMES`, `SURNAMES` (30 or more each, letters/space/hyphen/apostrophe) |
+| `squad.ts` | domain | `Player`, `Position`, `SQUAD_QUOTA`, `PLAYERS_PER_SQUAD`, `generateSquad` |
+| `app/state.ts` | app | `Screen` + `squad`; `Action` + `ViewSquad`, `Back`; `update` |
+| `ui/screens/squad.ts` | ui | `renderSquad(root, club, squad, dispatch)` |
+| `ui/screens/club-home.ts` | ui | Adds "Squad" button |
+| `main.ts` | shell | Renders squad screen: finds club index, calls `generateSquad(league.seed, index)` |
+
+### Wave: DESIGN / [REF] Driving ports
+- `generateSquad(seed, clubIndex) => readonly Player[]`, `deriveSeed(seed, stream) => number` (pure).
+- `update(GameState, Action) => GameState` with `ViewSquad` and `Back`.
+- Browser: "Squad" button on club home; `<h1>`; list "Squad" with 18 `listitem`s; "Back" button. Detail in the brief, "For Acceptance Designer".
+
+### Wave: DESIGN / [REF] Driven ports and adapters
+None: no storage, clock or network. The squad is derived, so nothing is persisted and no probe is needed. No external integrations, so no contract tests. Enforcement unchanged (oxlint boundary rules, PR guard, nightly Stryker on `src/domain/**`, which includes `squad.ts`).
+
+### Wave: DESIGN / [REF] Technology choices
+No new technology or dependency (ADR-0001, 0002, 0004 apply; all OSS). New word lists are plain data.
+
+### Wave: DESIGN / [REF] Reuse Analysis
+| Existing | Action | Contract shape / assertion |
+|---|---|---|
+| `src/domain/rng.ts` (`createRng`, `nextFloat`) | EXTEND: add `deriveSeed` | pure, return-only; deep-equal, int32 property |
+| `src/domain/names.ts` | EXTEND: add name lists | pure data; test no duplicates, no digits, size 144 or more, denylist over whole pool |
+| `src/domain/league.ts` (`drawWithoutReplacement`, `CLUBS_PER_LEAGUE`) | EXTEND: reuse the draw helper (export or move to a shared domain helper); `squad.ts` imports `CLUBS_PER_LEAGUE` | pure, return-only |
+| `src/domain/squad.ts` | CREATE NEW (no existing alternative) | pure, return-only; property tests (quota, ranges, determinism, cross-club uniqueness) |
+| `src/app/state.ts` | EXTEND: new `Screen` and `Action` variants | pure, return-only; unit tests including wrong-screen no-ops |
+| `src/ui/screens/club-home.ts` | EXTEND: "Squad" button, `dispatch` parameter | bounded-change: root's children only; e2e |
+| `src/ui/screens/squad.ts` | CREATE NEW | bounded-change; e2e |
+| `src/main.ts` | EXTEND: render case for squad | unbounded shell, universe unchanged (reads `location.search` once, writes root and focus) |
+| `src/ui/styles.css` | EXTEND: squad rows, 44px buttons, no sideways scroll | n/a |
+| `tests/unit/fixtures/real-player-denylist.ts` | CREATE NEW | test fixture |
+| `tests/e2e/` | EXTEND: new `S-002-squad.spec.ts` (shell.spec.ts untouched) | black-box |
+
+### Wave: DESIGN / [REF] Open questions
+- None blocking. Name pool size (30 x 30) is a floor; DELIVER may grow it. Squad list label: use `aria-labelledby` on the h1 or `aria-label="Squad"`; either gives the accessible name "Squad" the scenarios need.
+- Deferred: skewed overall distribution, attributes, sort and filter (later stories).
+- Handoff note for DISTILL: lean on property tests for `generateSquad` (all 8 clubs per seed, assert the 144 names are distinct) and role-based e2e; enumerate the full name pool in the denylist test.
