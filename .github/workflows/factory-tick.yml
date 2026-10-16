@@ -114,7 +114,10 @@ jobs:
           # Keep nWave's machine-local files out of commits (they live under locked paths).
           git status --porcelain
           git diff --name-only | xargs -r git checkout --
-          git ls-files --others --exclude-standard | grep -E '^\.nwave/|^\.claude/' >> .git/info/exclude || true
+          # Exclude the directories, not just today's files: nWave writes more of them later in the run (e.g.
+          # .nwave/local-config.json, .nwave/des/), and the publish step's catch-all commit took one into PR #8.
+          # Tracked files there (.nwave/des-config.json etc.) are unaffected; edits to them still fail pr-guards.
+          printf '%s\n' '/.nwave/' '/.claude/' >> .git/info/exclude
 
       - name: Fix-mode context (own workflow output only)
         if: env.MODE == 'fix'
