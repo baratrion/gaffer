@@ -117,10 +117,10 @@ Mode: propose. Scope: application. One solo team. Paradigm: functional (ADR-0003
 | D1 | `overall` derived: floor((sum(w*a)+5)/10), weights in tenths GK 7/1/2/0, DF 0/6/3/1, MF 0/2/5/3, FW 0/1/3/6. Rejected: stored overall plus fitted attributes; plain mean; UI-side formula | ADR-0006 (1); DISCUSS D4 |
 | D2 | Club stream still draws age then 1-20 internal `quality` (ages, names, positions unchanged); attributes and condition from `deriveSeed(seed, 100 + clubIndex)`, 5 draws per player (4 noise -2..+2, condition). Attribute = clamp(quality + position offset + noise, 1, 20). Rejected: redraw everything; attributes from the names stream | ADR-0006 (2) |
 | D3 | Condition integer 75-100 uniform, constant in this story. Rejected: uniform 0-100; fixed 100 | ADR-0006 (2); DISCUSS D3 |
-| D4 | `Screen` + `{player, clubId, playerIndex}`; `Action` + `ViewPlayer{playerIndex}` valid only from squad, known club, integer 0..17; `Back` player to squad (same club), squad to clubHome; else no-ops | ADR-0006 (3); DISCUSS D7 |
+| D4 | `Screen` + `{kind: "player", clubId, playerIndex}` (no `Player` field: the player is derived on render); `Action` + `ViewPlayer{playerIndex}` valid only from squad, known club, integer 0..17; `Back` player to squad (same club), squad to clubHome; else no-ops | ADR-0006 (3); DISCUSS D7 |
 | D5 | Player derived on render, not stored | ADR-0005 (d); DISCUSS D6 |
 | D6 | Squad row = `<li>` with one `<button>` (same spans, 44px or taller). Supersedes the S-002 "not buttons" line in the brief | ADR-0006 (4, 6); DISCUSS D1 |
-| D7 | Player screen via `el()`: h1 name; `<p>` lines "Position GK", "Age 27", "Overall 14"; `<ul aria-label="Attributes">` of four items in `ATTRIBUTE_ORDER`; `<p>` "Condition 92%"; "Back" button. Label and value on one line, inline flow only; any bar is CSS-only. Rejected: `<dl>`, table | ADR-0006 (4); DISCUSS D5, D8 |
+| D7 | Player screen via `el()`: h1 name; `<p>` lines "Position GK", "Age 27", "Overall 14"; `<ul role="list" aria-label="Attributes">` of four items in `ATTRIBUTE_ORDER`; `<p>` "Condition 92%"; "Back" button. Label and value on one line, inline flow only; any bar is CSS-only. Rejected: `<dl>`, table | ADR-0006 (4); DISCUSS D5, D8 |
 | D8 | DELIVER renames the S-002 e2e "display-only" test and replaces its assertion with a per-row check (18 items, each holding exactly one button); same test, never deleted | ADR-0006 (6); DISCUSS notes |
 
 ### Wave: DESIGN / [REF] Component decomposition
@@ -262,3 +262,157 @@ Owner-only items inherited from S-001/S-002 (smoke `sleep 20`, no security scann
 2. DELIVER requirement (ADR-0006 Consequences, after architect review): add `src/app/state.ts` to the Stryker `mutate` list (agent-editable config; navigation logic now has `ViewSquad`, `ViewPlayer`, `Back` with index and club guards).
 3. Smoke on the live URL runs the S-003 e2e spec too; it relies on `?seed=` being honoured on Pages (same as S-001/S-002).
 4. The overall of any existing `?seed=` link changes on deploy (accepted in ADR-0006; no persistence). Rollback restores the S-002 values.
+
+## Wave: DISTILL
+
+Unattended. Language: TypeScript (`package.json`, `tsconfig.json`); runners: vitest + fast-check (`FC_SEED` honoured through `tests/setup/fast-check-seed.ts`) and Playwright (Pixel 7, 390px). No Gherkin runner exists, so scenarios are `describe/it` blocks whose titles read Given/When/Then in domain language, with `@tags` in the titles and a `CONTRACT_SHAPE` + outcome-anchor header, as in `tests/acceptance/S-002/`. Every test title also carries `@contract-shape:<pure-function|bounded-change|unbounded-preservation>`: domain files `pure-function`, `update` navigation and the e2e spec `bounded-change` (no `unbounded-preservation` shape applies: nothing is written outside the screen). Wave-decision reconciliation: DISCUSS, DESIGN and DEVOPS read, 0 contradictions (the three superseded DISCUSS/brief lines are already recorded as "Changed Assumptions"). Only `discuss/journey.md` exists under `discuss/` (no separate wave-decisions files); the decisions live in this file.
+
+### Wave: DISTILL / [REF] Hand-off model: green tree, scenarios held out until DELIVER (Mandate 7 adapted)
+CI forbids committing failing, skipped or `.todo` tests, and test counts may only go up. New-behaviour scenarios cannot pass before DELIVER implements the generator, `update` and the screens. So DISTILL does this:
+- **Committed and running now (green, regression guard):** `tests/acceptance/S-003/unchanged-identity.test.ts` (7 tests), pinning names, positions and ages captured from the pre-change generator. It passes before and after DELIVER because it never reads `overall`, `attributes` or `condition`.
+- **Held out, complete and verified:** the four executable specs below are stored as `docs/feature/S-003/distill/pending/**/*.pending`. The `.pending` suffix keeps them outside every glob (`vitest include`, `tsc include`, `oxlint .`, Playwright `testDir`), so nothing is skipped, weakened or marked todo; they simply are not in the tree yet. Nothing was weakened to get them to pass.
+- **Verification done in DISTILL** (details and commands in `docs/feature/S-003/distill/verification-note.md`): I implemented a throwaway reference (domain, `update`, row buttons, player screen) in a scratch git worktree (since removed), copied the four files into `tests/`, and ran them. After the review edits (contract-shape tags, tap counter, viewport, whole-state asserts, A9) the held-out files were re-linted and re-typechecked in the real repo only; the reference e2e/vitest run was not repeated, and DELIVER step 01 therefore re-runs them (below). Result there: `ci:typecheck` clean; vitest 162 passed (S-003 files 78); Playwright 39 passed, the only red being the S-002 "display-only" test that DELIVER must supersede (see step 02). Without the reference the same files fail for the right reason (missing exports, no row buttons), not for setup. The reference is not kept; DELIVER writes the real implementation.
+- **No scaffold stubs in `src/`:** a stub that throws would make the committed run red. The scaffold equivalent is the `.pending` files plus the exact-symbol list below.
+- **DELIVER mechanics:** `git mv` each file to its destination, dropping `.pending`, in the same commit as the code that makes it green. Never edit an assertion to fit the implementation; if one is wrong, record it in `distill/upstream-issues.md`.
+
+### Wave: DISTILL / [REF] Scenario list with tags
+Tier A only (production code: real `generateSquad`, `update`, built app). Tier B skipped: the journey is 1 chained step on a small input space (club 0..7 x row 0..17), property tests already cover it.
+
+| # | Scenario (title in the file) | File | Tags | Kind |
+|---|---|---|---|---|
+| R1 | Seed 31, first club: 18 names, positions, ages are the S-002 ones | `unchanged-identity.test.ts` (committed) | `@regression @driving_port` | example |
+| R2 | Default seed, 8th club: same | same | `@regression` | example |
+| R3 | Seeds 31, 4242, 20260, -1, all 8 clubs: identity hashes unchanged (4 cases) | same | `@regression` | example |
+| R4 | Any seed and club: positions and ages equal an independent copy of the S-002 age/overall draw sequence (names are pinned only by the R1-R3 goldens, not by an independent copy) | same | `@property @regression` | PBT |
+| A1 | Every player has exactly the four attributes | `player-attributes.test.ts` | `@property @driving_port` | PBT, all 8 clubs per seed |
+| A2 | Every attribute is a whole number 1-20 | same | `@property` | PBT |
+| A3 | Every condition is a whole percentage 75-100 (inside 0-100) | same | `@property` | PBT |
+| A4 | Overall equals the value derived from the attributes | same | `@property` | PBT |
+| A5 | Overall is whole, between lowest and highest attribute, 1-20 | same | `@property` | PBT |
+| A6 | The 18 players of a squad do not all share attribute values | same | `@property` | PBT |
+| A7 | Squads still hold 18 unique names | same | `@property` | PBT |
+| A8 | Same seed and club: deep-equal, attributes and condition included | same | `@property @determinism` | PBT |
+| A9 | No ambient randomness or wall-clock time in the squad or in `deriveOverall` | same | `@determinism` | example |
+| A10 | Conditions of exactly 75 and 100 both occur (200 seeds x 8 clubs) | same | `@boundary @design-derived` | survey, kills off-by-one; pins the DESIGN range, not an AC |
+| A11 | Attributes of exactly 1 and 20 both occur (clamp edges) | same | `@boundary @design-derived` | survey; pins DESIGN clamping, not an AC |
+| A12 | Goalkeepers lean to Goalkeeping, forwards to Shooting (on average) | same | `@position-lean @design-derived` | survey (guards offsets; DESIGN decision, not an AC) |
+| A13 | Display order and labels: Goalkeeping, Defending, Passing, Shooting | same | `@driving_port` | example |
+| A14 | The 17 stream numbers are distinct; the 17 derived seeds are pairwise distinct over sampled seeds (ADR-0006: not proven injective) | same | `@property` | example + PBT |
+| A15 | Club index -1, 8, 100, 1.5, NaN still raises RangeError (5 cases) | same | `@error` | example |
+| D1 | Weights per position non-negative, sum 10; equal the ADR-0006 table (8 cases) | `derive-overall.test.ts` | `@boundary` | example |
+| D2 | Exact overalls: 8 concrete (position, attributes, value) cases incl. both DISCUSS domain examples (GK 15/12/11/4 gives 14, FW 2/6/12/12 gives 11) | same | `@example` | example |
+| D3 | Round half up: DF with weighted sum 15 gives 2, sum 14 gives 1 | same | `@boundary` | example |
+| D4 | Equal attributes give that value, per position (4 cases) | same | `@property` | PBT |
+| D5 | Overall equals an independent copy of the formula, any position and attributes | same | `@property @driving_port` | PBT |
+| D6 | Overall within [min, max] | same | `@property` | PBT |
+| D7 | Raising an attribute never lowers the overall | same | `@property` | PBT |
+| D8 | A zero-weight attribute does not matter (GK shooting; DF, MF, FW goalkeeping) | same | `@property` | PBT |
+| N1 | Squad, tap row: that club's player 0 shown (whole `GameState` compared with `toEqual`) | `player-navigation.test.ts` | `@walking_skeleton @driving_port` | example |
+| N2 | Player screen, Back: same club's squad (whole `GameState` compared with `toEqual`) | same | `@walking_skeleton` | example |
+| N3 | Back twice: club home; squad, player 17, Back, Back: original state | same | | example |
+| N4 | Any row of any club, tap then Back: that squad | same | `@property` | PBT |
+| N5 | Row -1, 18, 100, 1.5, NaN, Infinity: no change (6 cases) | same | `@error` | example |
+| N6 | Squad of an unknown club, tap a row: no change | same | `@error` | example |
+| N7 | View-player from title, club list, club home, player: no change (4 cases) | same | `@error` | example |
+| N8 | Back on a player screen with invalid index (6 cases) or unknown club: no change | same | `@error` | example |
+| N9 | Inputs not mutated | same | | example |
+| E1 | Journey: 1 tap squad to player, 1 tap back, Back to club home; no console errors. Taps counted by a page-side capture-phase click listener (real clicks, not a test-side counter). Precondition asserted: page served under `/gaffer/` | `S-003-player.spec.ts` | `@walking_skeleton @kpi` | e2e |
+| E2 | Each of 18 rows holds exactly one button, 44px or taller; row text unchanged (two numbers) | same | | e2e |
+| E3 | All 18 players of club 0 and club 7 (`?seed=31`): one h1 = name; "Position/Age/Overall" lines equal the row; list "Attributes" has 4 items "Goalkeeping N"... in order, 1-20, one number each; one "Condition N%" line 0-100 outside the list; overall within min/max | same | | e2e (2 cases) |
+| E4 | One h1, one list named "Attributes", no other list | same | | e2e |
+| E5 | Back from row 17 of club 4: same squad (identical rows); Back: club home | same | | e2e |
+| E6 | Two fresh visits of `?seed=31`: all 18 screens identical; not all attribute tuples equal | same | `@determinism` | e2e |
+| E7 | `?seed=abc`, 8th club: GK and FW rows (found by position text only, no row-order assumption) open with 4 attributes and a condition, identical on a fresh visit | same | `@error` | e2e |
+| E8 | "Back" on the player screen is 44px or taller | same | | e2e |
+| E9 | No horizontal scroll at 390px on the squad and all 18 player screens of the 8th club | same | | e2e |
+| E10 | Focus on the h1 after tapping a row and after Back | same | | e2e |
+| E11 | No console errors across squad, player, back, back | same | | e2e |
+
+Counts: 7 committed now (R1-R4); 72 vitest cases held out (player-attributes 20, derive-overall 28, player-navigation 24); 12 e2e cases (E1-E11, E3 doubled). Measured error/edge share of the 84 held-out cases, by tag: 24 `@error` (A15 5, N5 6, N6 1, N7 4, N8 7, E7 1) = 29%; with the 7 `@boundary` cases (A10, A11, D1 weights 4, D3) 31/84 = 37%. This is under the 40% target. **Waiver:** the feature is a read-only display; every invalid input that can reach it (row index, unknown club, wrong screen, bad club index, invalid seed) is enumerated above, and further cases would repeat the same no-op. The e2e tier has a single sad path (E7, invalid seed); more e2e sad paths were not added because the other failure modes (index, club, screen) are unreachable from the UI and are covered at the `update` level (N5-N8), and invalid seeds are covered by the S-001 seed-parsing tests and S-002 e2e. **Waiver (environment):** E1-E11 run on local-preview and on a `BASE_URL` deployment; local-dev (`vite dev`, :5173) is not a supported target for the spec (the Playwright config starts `ci:serve`), so no local-dev run is promised. The viewport is the Pixel 7 profile at 390px from `playwright.config.ts`; the spec has no per-spec viewport override and "fresh visits" are new pages of the same browser context (nothing is persisted).
+
+### Wave: DISTILL / [REF] WS strategy (Architecture of Reference)
+- Driving ports: in-process pure calls (`generateSquad`, `deriveOverall`, `update`) and the built browser app at `http://localhost:4173/gaffer/`. All real; no DI container exists.
+- Driven internal and external ports: none (see adapter table). So there is nothing to fake: no clock, no random source (the seeded `createRng` is deterministic domain code), no storage.
+- Walking skeleton: extends the S-001/S-002 skeleton by one step. Browser proof: E1. Domain proof: N1+N2. Litmus: title is a user goal (tap a player, see them, go back), the Then is what Sam reads.
+- Infrastructure policy: no `docs/architecture/atdd-infrastructure-policy.md` is created. This repo has no driven ports, and its architecture SSOT is `docs/product/architecture/`; the policy for this project is "everything real, nothing faked", which this section records. Mandate 8 (state-delta helper) is met by the repo's own convention: navigation tests compare the whole `GameState` (league + screen) with `toEqual`, a closed universe, and a no-mutation check; no `tests/common/state_delta.ts` is bootstrapped (no TypeScript pilot exists, and S-001/S-002 tests don't use one).
+
+### Wave: DISTILL / [REF] Adapter coverage table
+There are no driven adapters (DESIGN, "Driven ports and adapters": none). Nothing is persisted, no clock, no network.
+
+| Adapter | @real-io scenario | Covered by |
+|---|---|---|
+| (none) | n/a | n/a; the only environmental assumption (button-as-grid layout at 390px, no overflow) is proven by E2, E8, E9 on the built app |
+
+### Wave: DISTILL / [REF] Scaffolds
+No `__SCAFFOLD__` stubs are written under `src/`: a throwing stub would turn the committed run red, which CI forbids. RED-readiness is instead guaranteed by the held-out files: each fails with a missing-symbol or missing-button assertion, never a setup error (checked in the scratch run). Symbols DELIVER must export, all used by the held-out tests:
+- `src/domain/squad.ts`: `ATTRIBUTE_ORDER`, `ATTRIBUTE_LABELS`, `ATTRIBUTE_STREAM_BASE` (=100), `CONDITION_MIN` (=75), `CONDITION_MAX` (=100), `OVERALL_WEIGHTS` (indexable by position; `Object.values(OVERALL_WEIGHTS[pos])` must list the 4 weights in `ATTRIBUTE_ORDER` order), `deriveOverall(position, attributes)`, `Player.attributes` (record keyed by `ATTRIBUTE_ORDER`), `Player.condition`.
+- `src/app/state.ts`: `Screen` `{ kind: "player"; clubId; playerIndex }`, `Action` `{ type: "ViewPlayer"; playerIndex }`.
+- UI (role/name contract, brief port 10): `<p>` lines "Position GK", "Age 27", "Overall 14", "Condition 92%" (innerText exactly this, on one line); `<ul role="list" aria-label="Attributes">` with four `<li>` "Goalkeeping 15"...; no other list on the player screen; button "Back".
+- Implementation hint learned from the scratch run: `oxlint` caps cyclomatic complexity at 15; adding `ViewPlayer` and the player `Back` to the single `update` switch tipped it to 19. Split per-action helpers. Test-side `max-params` is 3.
+
+### Wave: DISTILL / [REF] Test placement
+`tests/acceptance/S-003/` (vitest, same folder convention as `tests/acceptance/S-001|S-002`) and `tests/e2e/S-003-player.spec.ts` (DEVOPS coexistence matrix). Held-out sources live in `docs/feature/S-003/distill/pending/{acceptance,e2e}/` as `*.pending`. Existing tests are untouched, including `tests/e2e/S-002-squad.spec.ts`.
+
+### Wave: DISTILL / [REF] Driving port coverage
+| Port (brief 8-10) | Scenarios |
+|---|---|
+| 8 `generateSquad` extended; `deriveOverall` | R1-R4, A1-A15, D1-D8 |
+| 9 `update` with `ViewPlayer`, `Back` | N1-N9 |
+| 10 UI: row buttons, player screen, "Back" | E1-E11 |
+Ports 1-7 are unchanged and covered by S-001/S-002 tests; the S-002 e2e test of the same behaviour is replaced in step 02. Driving adapters (CLI/HTTP/hook): none; the browser app is covered by E1-E11.
+
+### Wave: DISTILL / [REF] DEVOPS monitoring-contract trace
+| Contract row | Scenario |
+|---|---|
+| KPI 1 tap each way | E1 (tap counter) |
+| Journey squad, player, Back, Back | E1, E5 |
+| h1 only heading; Position/Age/Overall equal row | E3, E4 |
+| 4 attributes in order, 1-20, no other number | E3, A1, A2, A13 |
+| Condition outside list | E3 (e2e), A3 (75-100) |
+| Overall within bounds; `OVERALL_WEIGHTS` | E3, A4, A5, D1-D8 |
+| Row/screen agreement, club 0 and 8th | E3 |
+| Same seed identical; players differ | E6, A6, A8 |
+| GK/FW with invalid seed | E7 |
+| 18 rows, one button each, 44px | E2 |
+| Back 44px; no sideways scroll; focus; no console errors | E8; E9; E10; E1, E11 |
+| `ViewPlayer`/`Back` no-ops (-1, 18, 1.5, NaN, unknown club, wrong screens) | N5-N8 |
+| Ages, names, positions unchanged vs S-002 | R1-R4 (committed) |
+| Stryker strength | D1-D3, A10-A11, A14 pin weights, edges, stream numbers |
+
+### Wave: DISTILL / [REF] DELIVER step plan (which files to add, and when)
+1. **Step 01, domain precursor commit** (first, before any production code: run `pnpm exec vitest run tests/acceptance/S-003/unchanged-identity.test.ts` and see it green; then `git mv` the two domain files in and run `pnpm run ci:typecheck`, `pnpm run ci:lint` and the files themselves, and confirm they fail RED for missing exports/members, not for setup; oxlint must already be clean on them): (developer-facing, not shipped alone): implement per ADR-0006 in `src/domain/squad.ts`. Add `acceptance/derive-overall.test.ts.pending` and `acceptance/player-attributes.test.ts.pending` to `tests/acceptance/S-003/` (drop `.pending`). `tests/acceptance/S-002/*` and `unchanged-identity.test.ts` must stay green. Gates: `ci:lint`, `ci:typecheck`, `ci:test`.
+2. **Step 02, rows, player screen, Back** (one commit, so the tree is never red): `update` cases and `player.ts`, row buttons, `main.ts` player case, CSS. In the same commit:
+   - add `acceptance/player-navigation.test.ts.pending` as `tests/acceptance/S-003/player-navigation.test.ts`;
+   - add `e2e/S-003-player.spec.ts.pending` as `tests/e2e/S-003-player.spec.ts`;
+   - rename the S-002 e2e test "squad rows are display-only, not buttons" to "each squad row is exactly one button" and replace its assertion with: 18 items, each holding exactly one button (ADR-0006 (6)); never delete it;
+   - add `src/app/state.ts` to Stryker `mutate` (agent-editable config).
+   `ci:e2e` and `tests/protected/S-001..S-003` must pass.
+3. Delete `docs/feature/S-003/distill/pending/` once all four files are moved (or leave it empty); zero `.pending` files remaining is the DISTILL-to-DELIVER completion check.
+
+### Wave: DISTILL / [REF] Pre-requisites
+DESIGN: ADR-0006 and brief ports 8-10 (read). DEVOPS: local-preview `http://localhost:4173/gaffer/` via `ci:serve`, Pixel 7 at 390px, `FC_SEED` per CI run, `BASE_URL` for post-deploy smoke (E-tests use `?seed=` and role/name queries only, so they hold on Pages). No new dependency.
+
+### Wave: DISTILL / [REF] Mandate checks (adapted)
+- CM-A: tests import only `generateSquad`, `deriveOverall`, constants, `update`, `generateLeague`, `deriveSeed`; UI tests enter through the built app by role and name. CM-B: titles use domain terms (row, squad, player, Back); technical words stay in code. CM-D: formula tested as a pure function with an independent reference copy. CM-F: PBT only in layer 1-2 files; e2e is example-only, each sad path named (E7, E9; N5-N8). Mandate-12 domain types/DSL and step-reuse-ratio do not apply: there are no Gherkin steps, no step-decorator layer; helpers (`openSquad`, `checkPlayerScreen`, `readPlayerScreen`) hold no business logic.
+- Open points for DELIVER: (1) `OVERALL_WEIGHTS` shape is free (see Scaffolds). (2) A12 (position lean) pins DESIGN's offsets, not an AC; if DELIVER changes the offsets by ADR note, A12 may be adjusted with that note. (3) Example attribute values in DISCUSS ("Tomas Brenning") are illustrative and are not asserted anywhere.
+- Peer review: the four-reviewer gate was not dispatched in this unattended run (no reviewer was asked for); the held-out files were instead executed against the reference above.
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+Two roadmap steps, each RED, GREEN, COMMIT (PASS in `deliver/execution-log.json`). Step 01-01 (b7a75e0): attributes, condition and `deriveOverall` per ADR-0006 in `src/domain/squad.ts`. Step 01-02 (d2986c3): one button per squad row, `ViewPlayer`/`Back` in `update`, player screen, `main.ts` case, CSS. Refactor e212f36 reuses `AttributeName` in the player screen.
+
+### Wave: DELIVER / [REF] Files modified
+`src/domain/squad.ts`, `src/app/state.ts`, `src/main.ts`, `src/ui/screens/player.ts` (new), `src/ui/screens/squad.ts`, `src/ui/styles.css`, `stryker.config.mjs` (adds `src/app/state.ts`), `tests/acceptance/S-003/*` (4 files moved in, `.pending` dropped), `tests/e2e/S-003-player.spec.ts`, `tests/e2e/S-002-squad.spec.ts` (test renamed "each squad row is exactly one button").
+
+### Wave: DELIVER / [REF] Scenarios green
+`ci:test` 163 tests, `ci:e2e` 40, plus `ci:lint` and `ci:typecheck`; `tests/protected/S-001..S-003` pass.
+
+### Wave: DELIVER / [REF] Definition of Done
+All roadmap criteria met; zero `.pending` files; no locked paths touched; no new dependency.
+
+### Wave: DELIVER / [REF] Quality gates
+- Crafter-reviewer rejected on test budget (40 test bodies versus about 22) and on a stream-distinctness test that uses a local copy of the stream logic.
+- The orchestrator declined test consolidation because repo CI forbids reducing test counts.
+- Mutation is nightly-delta, so `/nw-deliver` Phase 5 was skipped.
+- Evolution record: `docs/evolution/2026-10-16-S-003.md`.

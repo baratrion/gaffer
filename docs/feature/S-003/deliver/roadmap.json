@@ -1,0 +1,64 @@
+{
+  "roadmap": {
+    "project_id": "S-003",
+    "created_at": "2026-10-16T21:47:37Z",
+    "total_steps": 2
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Player details: derived attributes, then rows, player screen and Back",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Domain precursor: attributes, condition and derived overall in src/domain/squad.ts (about 3h, no dependencies; not shipped alone)",
+          "criteria": [
+            "Every generated player has exactly four attributes (goalkeeping, defending, passing, shooting), each a whole number from 1 to 20, and a whole-number condition from 75 to 100, for any seed and all 8 clubs",
+            "Overall equals deriveOverall(position, attributes) (non-negative weights per position summing to 10, round half up) and lies between the lowest and highest attribute, so it stays a whole number from 1 to 20",
+            "The same seed and club give a deep-equal squad; the 18 players of a squad do not all share the same attribute values; names, positions and ages are identical to S-002 for every seed",
+            "Attributes and condition come from the separate stream deriveSeed(seed, 100 + clubIndex) with 5 draws per player; an invalid club index still raises RangeError; no ambient randomness or wall-clock time in src/domain/",
+            "ci:lint, ci:typecheck and ci:test are green; tests/acceptance/S-002/* and unchanged-identity.test.ts stay green; derive-overall.test.ts and player-attributes.test.ts are moved into tests/acceptance/S-003/ (git mv, .pending dropped) in the same commit as the code"
+          ],
+          "test_file": "tests/acceptance/S-003/player-attributes.test.ts",
+          "scenario_name": "Given any 32-bit seed, when all 8 clubs' squads are generated (also tests/acceptance/S-003/derive-overall.test.ts: Given any position and any attributes from 1 to 20)"
+        },
+        {
+          "id": "01-02",
+          "name": "Tappable squad rows, player screen and Back: update cases, player.ts, row buttons, main.ts, CSS, e2e (about 5h, depends on 01-01)",
+          "criteria": [
+            "Tapping a squad row (exactly one button per list item, 44px or taller, row text unchanged) opens the player screen in 1 tap: one h1 with the player name, lines Position, Age and Overall equal to the row, a list named Attributes with four items in order, a Condition N% line outside the list, and focus on the h1",
+            "Back on the player screen returns to the same club's squad (18 items) and Back again returns to the club home; the Back button is 44px or taller",
+            "ViewPlayer is a no-op from any screen but the squad, for an unknown club, and for an index of -1, 18, 1.5, NaN or Infinity; Back from a player screen with an unknown club or invalid index is a no-op; inputs are never mutated; update is split into per-action helpers to stay under the oxlint complexity cap of 15",
+            "The same seed gives identical player screens on fresh visits, goalkeepers and forwards open with an invalid seed, no horizontal scroll at 390px and no console errors; generated text enters the DOM only through el()/textContent",
+            "player-navigation.test.ts and S-003-player.spec.ts are moved into tests/ (.pending dropped); the S-002 e2e test 'squad rows are display-only, not buttons' is renamed 'each squad row is exactly one button' and asserts 18 items each holding exactly one button (never deleted); src/app/state.ts is added to the Stryker mutate list",
+            "ci:lint, ci:typecheck, ci:test and ci:e2e are green; tests/protected/S-001..S-003 pass; zero .pending files remain under docs/feature/S-003/distill/pending/"
+          ],
+          "test_file": "tests/e2e/S-003-player.spec.ts",
+          "scenario_name": "@walking_skeleton @kpi Sam taps a player's row in 1 tap, sees the player, taps Back in 1 tap, then Back to the club home (also tests/acceptance/S-003/player-navigation.test.ts: Given the squad, when Sam taps the first player's row, then that club's player 0 is shown)"
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/domain/",
+      "src/app/",
+      "src/ui/",
+      "src/main.ts"
+    ],
+    "test_directories": [
+      "tests/acceptance/S-003/",
+      "tests/e2e/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**",
+      "tests/protected/**"
+    ]
+  },
+  "validation": {
+    "status": "pending",
+    "reviewer": "nw-software-crafter-reviewer",
+    "approved_at": null
+  }
+}

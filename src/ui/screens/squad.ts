@@ -3,15 +3,18 @@ import type { Club } from "../../app/types";
 import type { Player } from "../../domain/squad";
 import { el } from "../dom";
 
-const playerRow = ({ name, position, age, overall }: Player): HTMLElement =>
-  el(
-    "li",
-    { class: "player-row" },
+const playerRow = ({ name, position, age, overall }: Player, playerIndex: number, dispatch: (action: Action) => void): HTMLElement => {
+  const button = el(
+    "button",
+    { type: "button", class: "player-row" },
     el("span", { class: "player-name" }, name),
     el("span", { class: "player-position" }, position),
     el("span", { class: "player-age" }, String(age)),
     el("span", { class: "player-overall" }, String(overall)),
   );
+  button.addEventListener("click", () => dispatch({ type: "ViewPlayer", playerIndex }));
+  return el("li", {}, button);
+};
 
 export interface SquadView {
   readonly club: Club;
@@ -26,7 +29,7 @@ export const renderSquad = (root: HTMLElement, { club, squad }: SquadView, dispa
       "section",
       { class: "squad" },
       el("h1", { tabindex: "-1" }, club.name),
-      el("ul", { "aria-label": "Squad", class: "squad-list" }, ...squad.map(playerRow)),
+      el("ul", { "aria-label": "Squad", class: "squad-list" }, ...squad.map((player, index) => playerRow(player, index, dispatch))),
       back,
     ),
   );
