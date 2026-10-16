@@ -5,6 +5,7 @@ import { generateLeague, type League } from "./domain/league";
 import { generateSquad } from "./domain/squad";
 import { renderClubHome } from "./ui/screens/club-home";
 import { renderPickClub } from "./ui/screens/pick-club";
+import { renderPlayer } from "./ui/screens/player";
 import { renderSquad } from "./ui/screens/squad";
 import { renderTitle } from "./ui/screens/title";
 
@@ -32,6 +33,13 @@ const render = (root: HTMLElement, state: GameState, dispatch: (action: Action) 
     case "squad": {
       const { club, clubIndex } = findClub(league, screen.clubId);
       renderSquad(root, { club, squad: generateSquad(league.seed, clubIndex) }, dispatch);
+      break;
+    }
+    case "player": {
+      const { clubIndex } = findClub(league, screen.clubId);
+      const player = generateSquad(league.seed, clubIndex)[screen.playerIndex];
+      if (!player) throw new Error(`Unknown player in game state: ${screen.playerIndex}`);
+      renderPlayer(root, player, dispatch);
       break;
     }
   }

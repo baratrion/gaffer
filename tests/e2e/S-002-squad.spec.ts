@@ -71,9 +71,11 @@ test.describe("@US-1 S-002 view my squad", () => {
     }
   });
 
-  test("squad rows are display-only, not buttons", async ({ page }) => {
+  test("each squad row is exactly one button", async ({ page }) => {
     const { squad } = await openSquad(page);
-    await expect(squad.getByRole("button")).toHaveCount(0);
+    await expect(squad.getByRole("listitem")).toHaveCount(18);
+    await expect(squad.getByRole("button")).toHaveCount(18);
+    for (let i = 0; i < 18; i++) await expect(squad.getByRole("listitem").nth(i).getByRole("button")).toHaveCount(1);
   });
 
   test("@determinism the same seed gives the same squad, in the same order, on two fresh visits", async ({ browser }) => {
