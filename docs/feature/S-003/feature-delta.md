@@ -164,3 +164,95 @@ No new technology or dependency (ADR-0001, 0002, 0004, 0005 apply; all OSS).
 ### Wave: DESIGN / [REF] Open questions
 - None blocking. Accepted: returning to the squad re-renders from the top, so scroll position is not restored (not in the AC; revisit if Sam finds it annoying).
 - Handoff for DISTILL: property tests over all 8 clubs per seed; formula test via `deriveOverall`/`OVERALL_WEIGHTS`; an optional golden of (name, position, age) for one seed captured from the pre-change code; unit tests for `ViewPlayer` index bounds (-1, 18, 1.5, NaN) and unknown club; e2e for rows holding one button, label and value on one line, "Attributes" list with no other digits, and Back, Back. Pin the 8th-club `?seed=abc` first (GK) and last (FW) rows.
+
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope, `tests/protected/`) are read-only. Machine-readable environments: `docs/feature/S-003/environments.yaml`. Inherits the S-001/S-002 DEVOPS setup; only the deltas are recorded.
+
+Checklist: ✓ existing infra reused | ✓ KPI mapped to instrument | ✓ rollback defined | ✓ mutation strategy (nightly-delta, inherited) | ⊘ new IaC/containers (none) | ⊘ server-side observability (no backend) | ⊘ continuous learning | ⊘ CLAUDE.md edit (already states strategy)
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test; unit, property, e2e and `tests/protected/S-001..S-003/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke via `BASE_URL` |
+
+No staging (static site, recreate). Client: Chromium, Pixel 7 profile, 390px viewport. Squad and player are derived from `?seed=` on render (ADR-0005 (d), ADR-0006), so the same seed gives the same player screen in every environment.
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch): PR guards, roadmap lint, `ci:lint`, `ci:typecheck`, `ci:test` (fresh `FC_SEED`; the S-003 property tests on `generateSquad` and `deriveOverall` honour it), `ci:build`, `ci:e2e`, protected-scenario no-regression check vs main.
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` runs `ci:e2e` against the live URL (includes the new S-003 spec).
+- `nightly`: `ci:mutation`; failure opens a `mutation-alarm` issue.
+- `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- S-003 needs no pipeline change: it adds unit, property and e2e specs run by the existing scripts, and no new dependency (ADR-0006: no new technology).
+- Local gate: `pnpm run check` mirrors the commit stage. No git hooks (locked paths; CI is the gate).
+- Security: no secrets, no runtime deps, no network. Player name and all numbers enter the DOM only via `el()`/`textContent` (ADR-0002, never `innerHTML`); that is a review check, not a scenario. SAST/SCA/SBOM not added (workflows locked; see Open questions).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI/AC to instrument)
+E2E instrument is the new `tests/e2e/S-003-player.spec.ts` (Pixel 7, 390px), run by `ci:e2e` on PR and main and by `smoke` on the live URL after each deploy. "Unit/property" rows run in `ci:test` (fresh `FC_SEED`).
+
+| KPI / criterion (DISCUSS) | Instrument | Pass condition |
+|---|---|---|
+| KPI: squad to player in 1 tap, and back in 1 tap | e2e: count clicks on a row button, assert `<h1>` is the player name; count clicks on "Back", assert list "Squad" with 18 items | Exactly 1 click each way |
+| Journey squad, player, Back, Back | e2e: after the second "Back", `<h1>` is club name, list "Squad" gone, "Squad" button visible | holds |
+| Player name as only heading; Position/Age/Overall equal the tapped row | e2e: read row text, tap, compare "Position GK", "Age 27", "Overall 14" by visible text; exactly one `<h1>` | equal to row |
+| 4 attributes in order, values 1-20, no other number | e2e: list "Attributes" has exactly 4 items "Goalkeeping", "Defending", "Passing", "Shooting" in order, each one integer 1-20; unit/property on `generateSquad` (ranges, `ATTRIBUTE_ORDER`) | holds, all 18 rows |
+| Condition 0-100% outside the list | e2e regexp `Condition (\d+)%` outside list "Attributes"; property: integer 75-100 (ADR-0006, inside the AC's 0-100) | holds |
+| Overall within attribute bounds | e2e: min <= overall <= max; property: `overall === deriveOverall(position, attributes)` and bounds; unit test of `OVERALL_WEIGHTS` (non-negative, sum 10) | holds |
+| Row/screen agreement | e2e: row overall equals player-screen overall for all 18 rows (club 0 and 8th club) | equal |
+| Same seed, identical player screens; players differ | e2e: `?seed=31` two visits, compare all 18 screens; at least 2 distinct attribute tuples. Property: deep-equal on same `(seed, clubIndex)` | identical; not all equal |
+| GK and FW open, invalid seed | e2e: `?seed=abc`, 8th club, first row (GK) and last row (FW) | Position GK and FW, 4 attributes, condition |
+| Each of 18 rows holds exactly one button, 44px or taller | e2e: `listitem` count 18, each holds one `button`, `boundingBox().height >= 44` | holds (replaces the S-002 "display-only" assertion in `S-002-squad.spec.ts`) |
+| "Back" 44px or taller | e2e `boundingBox().height >= 44` on the player screen | holds |
+| No horizontal scroll at 390px | `scrollWidth <= clientWidth` on squad and player screens | holds |
+| Focus on the player `<h1>` | e2e: `document.activeElement` is the `<h1>` after tapping a row | holds |
+| No console errors | `page.on("console"/"pageerror")` across squad, player, back, back | zero |
+| `ViewPlayer`/`Back` navigation, no-ops | vitest on `update` (index -1, 18, 1.5, NaN; unknown club; wrong screens) | holds |
+| Ages, names, positions unchanged vs S-002 | vitest optional golden (DISTILL) plus unchanged S-002 acceptance tests | holds |
+| Domain test strength | Stryker on `src/domain/**` (now covers `deriveOverall`, weights, attribute stream in `squad.ts`) | nightly, at or above break threshold (70) |
+
+No analytics (POC). The e2e tap count is the KPI's sole measurement.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact. Idempotent: redeploying the same ref yields the same artifact.
+- Rollback (designed first): `workflow_dispatch` of `deploy.yml` on a known-good ref (the S-002 commit before the S-003 squash); `smoke` validates the restored site. Fallback: fix-forward on a `claude/*` branch. `git revert` of the squash is blocked by the append-only protected-tests and no-regression guards (owner action). Time to restore: one deploy cycle (about 5 minutes).
+- Failure detection: a red `smoke` job marks the deploy run red.
+- Data: the overall now changes for every seed versus S-002 (derived from attributes, ADR-0006). Nothing is persisted and the player is derived on render, so no data migration and no user data at risk. Rolling back restores the S-002 stored overalls and removes the player screen and the row buttons. Names, positions and ages are identical in both versions.
+- Blast radius: one static page.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` mutates `src/domain/**/*.ts` except `names.ts`, thresholds high 85, low 70, break 70. The new domain code (`deriveOverall`, `OVERALL_WEIGHTS`, attribute and condition generation, stream constants) is in `squad.ts`, so it is covered with no config change. Run by `nightly.yml` via `ci:mutation`; failure opens `mutation-alarm`, `needs-human`. `src/app/state.ts` (`ViewPlayer`/`Back` from player) is outside Stryker scope (`mutate` does not list `src/app/**`). Extending the scope to `src/app/state.ts` is an optional agent decision for DELIVER (the config is agent-editable per ADR-0001); not blocking. Tests that kill mutants must pin the formula and bounds: exact `deriveOverall` values per position, the clamp edges, the condition 75/100 edges, and the 5-draws-per-slot stream.
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy. Alerting: a red `deploy` run. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-003-*` branches, PR to main, squash merge. CI green and protected scenarios not regressing. Deploy fires on merge. No release branches.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-003 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml` | none; run existing `ci:*` scripts | reuse |
+| `ci:*` scripts, `playwright.config.ts`, `stryker.config.mjs` | none required; Pixel 7, `BASE_URL`, and the `src/domain/**` glob already fit | reuse |
+| `tests/e2e/S-002-squad.spec.ts` | the "squad rows are display-only, not buttons" test contradicts ADR-0006 (6) | replace its assertion with "each of the 18 rows holds exactly one button" (same test, count does not drop); other assertions unchanged |
+| `tests/e2e/S-001-pick-club.spec.ts`, `shell.spec.ts` | untouched | regression-watch |
+| `tests/e2e/S-003-player.spec.ts` | new spec | add (DISTILL) |
+| `tests/protected/S-001/`, `tests/protected/S-002/` | locked runner on `localhost:4173/gaffer/`; roles and names; rows read via `listitem` inner text (still valid with a button inside the `li`); assert properties only | must stay green |
+| `tests/protected/S-003/` | locked scenario for this story | must pass on main |
+| `tests/acceptance/S-002/*` | assert overall is an integer 1-20 only (range still holds; derived overall is within attribute bounds, hence 1-20); no test pins stored-overall values | unchanged, regression-watch |
+| `src/domain/squad.ts`, `src/app/state.ts`, `src/ui/screens/squad.ts`, `src/main.ts`, `src/ui/styles.css` | extended; `player.ts` new | S-001/S-002 tests guard |
+| Pages artifact | grows slightly; base path `/gaffer/` unchanged | none |
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-002 delivered and deployed; GitHub Pages source "GitHub Actions" enabled (✓).
+- Node 22 or later, pnpm 10.12.4 pinned, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0006 accepted (✓; ADR-0006 landed before DELIVER, as DISCUSS required).
+- `BASE_URL` derived from repository owner and name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001/S-002 (smoke `sleep 20`, no security scanning, smoke has no commit-SHA check, deploy not gated on `ci`, squash revert blocked, no uptime probe) are unchanged and none block S-003. New:
+1. No `.github/` change is needed for S-003.
+2. Agent decision for DELIVER: extend Stryker scope to `src/app/state.ts` (navigation logic now has `ViewSquad`, `ViewPlayer`, `Back`); optional, not blocking.
+3. Smoke on the live URL runs the S-003 e2e spec too; it relies on `?seed=` being honoured on Pages (same as S-001/S-002).
+4. The overall of any existing `?seed=` link changes on deploy (accepted in ADR-0006; no persistence). Rollback restores the S-002 values.

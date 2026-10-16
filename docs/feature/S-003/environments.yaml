@@ -1,0 +1,54 @@
+# S-003 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Inherits S-001/S-002.
+base_path: /gaffer/
+client:
+  browser: chromium
+  device: Pixel 7        # Playwright devices["Pixel 7"]
+  viewport_width_px: 390
+target_environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+deployment_strategy: recreate
+container_orchestration: none
+observability: browser console + Playwright smoke on deployed URL
+mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts; src/app/state.ts out of scope (optional DELIVER extension)
+branching: trunk-based, short-lived claude/* branches, squash merge
+deployment_assumptions:
+  artifact: static (dist/index.html under /gaffer/)
+  strategy: recreate
+  persistence: none         # squad and player derived from ?seed= on render; nothing stored
+  data_migration: none      # overall values change for every seed vs S-002 (derived, ADR-0006)
+  deploy_idempotent: true   # redeploying a ref yields the same artifact
+kpi_instrument:
+  - kpi: squad to player in 1 tap, and back in 1 tap
+    spec: tests/e2e/S-003-player.spec.ts
+    runs_on: [local-preview, production]
+coexistence_matrix:
+  - component: tests/e2e/S-002-squad.spec.ts
+    impact: "display-only rows" test contradicts ADR-0006 (6)
+    action: replace assertion with "each of the 18 rows holds exactly one button"; same test, count does not drop
+  - component: tests/protected/S-001/, tests/protected/S-002/
+    impact: roles and accessible names; properties only
+    action: must stay green
+  - component: tests/protected/S-003/
+    impact: this story's locked scenario
+    action: must pass on main
+  - component: tests/e2e/S-001-pick-club.spec.ts, tests/e2e/shell.spec.ts
+    impact: none
+    action: regression-watch
+  - component: tests/acceptance/S-002/
+    impact: assert overall integer 1-20 only
+    action: unchanged, regression-watch
+  - component: .github/workflows/*, ci:* scripts, playwright.config.ts, stryker.config.mjs
+    impact: none
+    action: reuse
+rollback: workflow_dispatch of deploy.yml on a known-good ref (pre-S-003 commit); fallback fix-forward; restores S-002 overalls
+rollback_owner: owner
