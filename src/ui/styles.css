@@ -126,7 +126,9 @@ h1:focus { outline: none; }
 .player-age, .player-overall { text-align: right; font-variant-numeric: tabular-nums; }
 
 .player h1 { font-size: 1.75rem; margin-bottom: 16px; overflow-wrap: anywhere; }
-.player-line { margin: 0 0 6px; font-size: 1.1rem; }
+.player-line { margin: 0 0 4px; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.player-line:nth-of-type(3) { margin-bottom: 8px; padding-bottom: 12px; border-bottom: 1px solid rgba(244, 241, 232, 0.25); }
+.player-line:last-of-type { margin: 4px 0 20px; color: var(--accent); }
 
 .attribute-list {
   list-style: none;
@@ -140,6 +142,7 @@ h1:focus { outline: none; }
   padding: 8px 12px;
   border: 1px solid rgba(244, 241, 232, 0.25);
   border-radius: 10px;
+  border-left: 4px solid var(--accent);
   background: rgba(244, 241, 232, 0.08);
   font-variant-numeric: tabular-nums;
 }
