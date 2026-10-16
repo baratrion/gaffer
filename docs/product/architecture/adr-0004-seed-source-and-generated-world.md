@@ -32,6 +32,9 @@ and ADR. The narrower choice ships now.
   town list of at least 24 entries, so names stay unique whatever suffix is drawn. Suffixes may repeat.
   No retry loops.
 - `generateSquad(seed, clubIndex) => Player[]`: 18 players from `deriveSeed(seed, clubIndex)`.
+  *Refinement note 2026-10-16 (ADR-0005 (a), (c)): the return type is `readonly Player[]`; names come from a
+  league-wide name stream `deriveSeed(seed, -1)` sliced per club (for league-wide uniqueness), while per-club
+  age and overall draws still use `deriveSeed(seed, clubIndex)`. Quota and 17-35 age range unchanged.*
   `deriveSeed` is a pure integer hash (for example one mulberry32 step over `seed ^ (clubIndex * 0x9e3779b9)`),
   the same helper ADR-0003 names. Position quota: exactly 2 GK, 6 DF, 6 MF, 4 FW. Age 17-35, which is
   deliberately narrower than the 16-40 the S-002 outcome allows. `overall` is an integer from 1 to 20,
