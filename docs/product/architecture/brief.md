@@ -60,7 +60,7 @@ S-001 has no external adapters. The only environment dependency is `location.sea
 
 ### Squad (S-002, ADR-0005)
 - Domain: `Player { name, position: GK|DF|MF|FW, age, overall }`; `generateSquad(seed, clubIndex) => readonly Player[]` in `src/domain/squad.ts`; `deriveSeed(seed, stream) => number` in `rng.ts`.
-- Different players per club by construction: one league-wide draw of 144 names without replacement from `FIRST_NAMES x SURNAMES`, sliced per club. Quota 2/6/6/4, ages 17-35, overall 1-20 stored.
+- Different players per club by construction: one league-wide draw of 144 names without replacement from `FIRST_NAMES x SURNAMES`, sliced per club (stream `deriveSeed(seed, -1)`). Name-list entries are single words; pools are frozen after S-002 (changes reshuffle all squads). `clubIndex` not an integer 0..7 throws `RangeError`. Quota 2/6/6/4, ages 17-35, overall 1-20 stored.
 - Squad is derived on render from `league.seed` and the club's index; it is not in `GameState`.
 - App: `Screen` adds `{ kind: "squad", clubId }`; `Action` adds `ViewSquad` (clubHome to squad) and `Back` (squad to clubHome); both are no-ops from other screens.
 - UI: `ui/screens/squad.ts` `renderSquad(root, club, squad, dispatch)`; `club-home.ts` gains a "Squad" button and takes `dispatch`.
@@ -140,7 +140,7 @@ Cross-cutting: the shell (`main.ts`, not the renderers) moves focus to the new `
 | Screen | Contract |
 |---|---|
 | Club home | Adds a `button` named "Squad" (44px or taller); `<h1>` is still the club name |
-| Squad | One `<h1>`; a `list` named "Squad" (`aria-labelledby` on the h1, or `aria-label`) with exactly 18 `listitem`s, not buttons; row text order: name, position, age, overall (age and overall are the first two numbers); `button` named exactly "Back" (44px or taller) returns to club home |
+| Squad | One `<h1>`; `<h1>` text = the club name; a `list` with `aria-label="Squad"` and exactly 18 `listitem`s, not buttons; row text order: name, position, age, overall (age and overall are the first two numbers); `button` named exactly "Back" (44px or taller) returns to club home |
 
 ### Observable acceptance (behavioural)
 - S-002: club home to "Squad" shows 18 rows; every row is name, position in GK/DF/MF/FW, age 16-40, overall 1-20; the quota is 2/6/6/4; two clubs of one league share no name; `?seed=31` twice gives identical rows in identical order; "Back" shows the club name as heading; no horizontal scroll or console errors at 390px; Squad is reached in 1 tap from club home.

@@ -24,6 +24,8 @@ touching `document`, `window` or `localStorage`.
   only from `src/domain/rng.ts` (mulberry32). Every draw returns `{ value, next }` and the caller threads
   `next` onward. Generators take an `Rng` and return `{ result, next }`, or derive per-entity seeds
   (`deriveSeed(leagueSeed, clubIndex)`, see ADR-0004) so that adding a field to one club doesn't reshuffle every other club.
+  *Refinement note 2026-10-16: for squad player names, ADR-0005 (a)/(c) deliberately uses a league-wide name stream
+  `deriveSeed(seed, -1)` sliced per club, trading this isolation for league-wide uniqueness (see ADR-0005 Consequences).*
   No `Date`, `Math.random`, DOM or storage.
 - **`src/app/`** (shell state): one `GameState` value plus `Screen` (a tagged union such as
   `{ kind: "title" } | { kind: "pickClub" } | { kind: "clubHome", clubId } | { kind: "squad", clubId }`)

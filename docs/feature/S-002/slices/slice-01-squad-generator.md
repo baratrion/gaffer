@@ -6,7 +6,7 @@
 Given a seed and a club index, the domain returns the same 18 players every time, and different clubs get different players.
 
 ## Scope
-- `deriveSeed(seed, clubIndex) => number`, a pure integer hash (ADR-0003/0004).
+- `deriveSeed(seed, stream) => number`, a pure integer hash (ADR-0003/0004; stream semantics per ADR-0005, league-wide name stream -1).
 - `generateSquad(seed, clubIndex) => readonly Player[]` in `src/domain/` (ADR-0004).
 - `Player { name, position, age, overall }`, `position` one of GK, DF, MF, FW.
 - Exact quota: 2 GK, 6 DF, 6 MF, 4 FW. Age 17-35. Overall integer 1-20.
