@@ -396,3 +396,23 @@ DESIGN: ADR-0006 and brief ports 8-10 (read). DEVOPS: local-preview `http://loca
 - CM-A: tests import only `generateSquad`, `deriveOverall`, constants, `update`, `generateLeague`, `deriveSeed`; UI tests enter through the built app by role and name. CM-B: titles use domain terms (row, squad, player, Back); technical words stay in code. CM-D: formula tested as a pure function with an independent reference copy. CM-F: PBT only in layer 1-2 files; e2e is example-only, each sad path named (E7, E9; N5-N8). Mandate-12 domain types/DSL and step-reuse-ratio do not apply: there are no Gherkin steps, no step-decorator layer; helpers (`openSquad`, `checkPlayerScreen`, `readPlayerScreen`) hold no business logic.
 - Open points for DELIVER: (1) `OVERALL_WEIGHTS` shape is free (see Scaffolds). (2) A12 (position lean) pins DESIGN's offsets, not an AC; if DELIVER changes the offsets by ADR note, A12 may be adjusted with that note. (3) Example attribute values in DISCUSS ("Tomas Brenning") are illustrative and are not asserted anywhere.
 - Peer review: the four-reviewer gate was not dispatched in this unattended run (no reviewer was asked for); the held-out files were instead executed against the reference above.
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+Two roadmap steps, each RED, GREEN, COMMIT (PASS in `deliver/execution-log.json`). Step 01-01 (b7a75e0): attributes, condition and `deriveOverall` per ADR-0006 in `src/domain/squad.ts`. Step 01-02 (d2986c3): one button per squad row, `ViewPlayer`/`Back` in `update`, player screen, `main.ts` case, CSS. Refactor e212f36 reuses `AttributeName` in the player screen.
+
+### Wave: DELIVER / [REF] Files modified
+`src/domain/squad.ts`, `src/app/state.ts`, `src/main.ts`, `src/ui/screens/player.ts` (new), `src/ui/screens/squad.ts`, `src/ui/styles.css`, `stryker.config.mjs` (adds `src/app/state.ts`), `tests/acceptance/S-003/*` (4 files moved in, `.pending` dropped), `tests/e2e/S-003-player.spec.ts`, `tests/e2e/S-002-squad.spec.ts` (test renamed "each squad row is exactly one button").
+
+### Wave: DELIVER / [REF] Scenarios green
+`ci:test` 163 tests, `ci:e2e` 40, plus `ci:lint` and `ci:typecheck`; `tests/protected/S-001..S-003` pass.
+
+### Wave: DELIVER / [REF] Definition of Done
+All roadmap criteria met; zero `.pending` files; no locked paths touched; no new dependency.
+
+### Wave: DELIVER / [REF] Quality gates
+- Crafter-reviewer rejected on test budget (40 test bodies versus about 22) and on a stream-distinctness test that uses a local copy of the stream logic.
+- The orchestrator declined test consolidation because repo CI forbids reducing test counts.
+- Mutation is nightly-delta, so `/nw-deliver` Phase 5 was skipped.
+- Evolution record: `docs/evolution/2026-10-16-S-003.md`.
