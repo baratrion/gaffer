@@ -1,10 +1,19 @@
 import "./ui/styles.css";
 import { parseSeed } from "./app/seed";
 import { update, type Action, type GameState } from "./app/state";
-import { generateLeague } from "./domain/league";
+import { generateLeague, type League } from "./domain/league";
+import { generateSquad } from "./domain/squad";
 import { renderClubHome } from "./ui/screens/club-home";
 import { renderPickClub } from "./ui/screens/pick-club";
+import { renderSquad } from "./ui/screens/squad";
 import { renderTitle } from "./ui/screens/title";
+
+const findClub = (league: League, clubId: string) => {
+  const clubIndex = league.clubs.findIndex((candidate) => candidate.id === clubId);
+  const club = league.clubs[clubIndex];
+  if (!club) throw new Error(`Unknown club in game state: ${clubId}`);
+  return { club, clubIndex };
+};
 
 const render = (root: HTMLElement, state: GameState, dispatch: (action: Action) => void): void => {
   const { screen, league } = state;
@@ -16,9 +25,13 @@ const render = (root: HTMLElement, state: GameState, dispatch: (action: Action) 
       renderPickClub(root, league, dispatch);
       break;
     case "clubHome": {
-      const club = league.clubs.find((candidate) => candidate.id === screen.clubId);
-      if (!club) throw new Error(`Unknown club in game state: ${screen.clubId}`);
-      renderClubHome(root, club);
+      const { club } = findClub(league, screen.clubId);
+      renderClubHome(root, club, dispatch);
+      break;
+    }
+    case "squad": {
+      const { club, clubIndex } = findClub(league, screen.clubId);
+      renderSquad(root, { club, squad: generateSquad(league.seed, clubIndex) }, dispatch);
       break;
     }
   }
