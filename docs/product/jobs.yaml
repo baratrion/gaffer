@@ -19,3 +19,20 @@ jobs:
       functional: See every player's name, position, age and overall rating at a glance on a phone.
       emotional: Feel the club is real and that I can spot my best player and my weak position.
       social: Be able to talk about "my lads" by name with other football fans.
+  - id: J-03
+    name: judge-a-player
+    statement: >-
+      When I am weighing up who should play, I want to see what each player
+      is good at and how fit they are, so that I can pick a team I believe in.
+    dimensions:
+      functional: Open any player from the squad in one tap and read their attributes and condition, then get back to the squad.
+      emotional: Feel my selection is a judgement, not a guess, because I know why one player beats another.
+      social: Be able to argue for "my" pick with other football fans ("he's the best passer we have").
+    forces:
+      push: An overall rating alone hides why a player is good; two 14s can be very different players.
+      pull: A short, familiar card of football attributes, as in the management games Sam grew up with.
+      anxiety: Too many numbers on a small screen; getting lost away from the squad list.
+      habit: Picking by the overall number and position code only.
+    opportunity: >-
+      Few attributes on one phone screen, one tap in and one tap back, sets up the
+      starting-XI and match stories, where attributes start to matter.
