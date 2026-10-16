@@ -73,7 +73,7 @@ S-001 has no external adapters. The only environment dependency is `location.sea
 - `overall` is derived, not drawn: `deriveOverall(position, attributes)` = round-half-up of a per-position weighted mean, in integer tenths (GK 7/1/2/0, DF 0/6/3/1, MF 0/2/5/3, FW 0/1/3/6 over goalkeeping/defending/passing/shooting). Weights are non-negative and sum to 10, so `min attribute <= overall <= max attribute`, always within 1-20.
 - Generation: the club stream `deriveSeed(seed, clubIndex)` still draws age then a 1-20 internal `quality` (so names, positions, ages and order are unchanged from S-002); attributes (quality plus a position offset plus noise -2..+2, clamped 1-20) and condition come from `deriveSeed(seed, 100 + clubIndex)`, five draws per player. Stream numbers in use: -1 names, 0..7 clubs, 100..107 attributes. Overall values differ from S-002 (no persistence; accepted).
 - App: `Screen` adds `{ kind: "player", clubId, playerIndex }`; `Action` adds `{ type: "ViewPlayer", playerIndex }`, valid only from `squad` with a known club and an integer index 0..17, else a no-op. `Back`: player to squad (same club), squad to clubHome; no-op elsewhere. The player is derived on render (`generateSquad(league.seed, clubIndex)[playerIndex]`), not stored.
-- UI: squad rows are `<li>` holding one `<button>` (the same four spans, 44px or taller); `renderPlayer(root, { club, player }, dispatch)` in `ui/screens/player.ts`. Label and value read on one line with a single space ("Position GK", "Goalkeeping 14", "Condition 92%"): inline flow only, no flex or grid on the pairs. Any attribute bar is a CSS pseudo-element (no DOM node, no text).
+- UI: squad rows are `<li>` holding one `<button>` (the same four spans, 44px or taller); `renderPlayer(root, player, dispatch)` in `ui/screens/player.ts`. Label and value read on one line with a single space ("Position GK", "Goalkeeping 14", "Condition 92%"): inline flow only, no flex or grid on the pairs. Any attribute bar is a CSS pseudo-element (no DOM node, no text).
 - Contract shapes: `generateSquad`, `deriveOverall`, `update` pure return-only; `renderPlayer`/`renderSquad` bounded-change (root's children only). No new adapters, so no new probe; no new C4 container.
 
 ### C4 level 1: System context
@@ -96,13 +96,14 @@ C4Container
     Container(main, "Shell: main.ts", "TypeScript", "Reads the URL seed, owns state, runs the dispatch/update/render loop")
     Container(ui, "UI: src/ui", "TypeScript, DOM, el()", "Renders screens and emits actions")
     Container(appl, "App state: src/app", "TypeScript, pure", "Holds Screen, Action, update and parseSeed")
-    Container(dom, "Domain: src/domain", "TypeScript, pure", "Generates the league, with seeded RNG")
+    Container(dom, "Domain: src/domain", "TypeScript, pure", "Generates the league, squads and players (derived overall), with seeded RNG")
   }
   System_Ext(pages, "GitHub Pages", "Static host")
   Rel(sam, ui, "Taps buttons on")
   Rel(ui, main, "Dispatches actions to")
   Rel(main, appl, "Applies actions through update in")
   Rel(appl, dom, "Requests the generated league from")
+  Rel(main, dom, "Derives the league, squad and player on render from")
   Rel(main, ui, "Renders the current state with")
   Rel(pages, main, "Delivers the bundle to")
 ```

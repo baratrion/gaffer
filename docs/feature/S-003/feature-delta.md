@@ -5,10 +5,10 @@
 Lean, unattended. Reuses `discuss/journey.md`. The outcome is the owner draft for S-003 ("Tapping a player in the squad shows their attributes (4-6 numeric attributes on a 1-20 scale) and current condition (0-100%), with a way back to the squad list"), narrowed by scope.md precedence (ship less). Feature type: user-facing. UX depth: lightweight. No DIVERGE artifact (accepted as lean, as for S-002).
 
 ### Wave: DISCUSS / [REF] Scope Assessment
-PASS: 1 story, 1 context ("League setup", extended), 2 carpaccio slices, about 2-3 days. Walking skeleton extends S-002 by one step (squad, player, back). No oversized signal.
+PASS: 1 story, 1 context ("League setup", extended), 1 releasable carpaccio slice (domain precursor commit plus screen commit), about 2-3 days. Walking skeleton extends S-002 by one step (squad, player, back). No oversized signal.
 
 ### Wave: DISCUSS / [REF] Persona
-Sam, 34, a lapsed Championship Manager fan. Plays on the bus, one-handed, on a mid-range Android phone at 390px wide, with 5 minutes to spare (brief.md, "Player"). Has just looked at the squad and wants to know why one player is better than another before picking a team.
+Sam, 34, a lapsed Championship Manager fan. Plays on the bus, one-handed, on a mid-range Android phone at 390px wide, with 5 minutes to spare (persona established in `docs/feature/S-001/feature-delta.md`; player from brief.md, "Player"). Has just looked at the squad and wants to know why one player is better than another before picking a team.
 
 ### Wave: DISCUSS / [REF] JTBD one-liner
 When I am weighing up who should play, I want to see what each player is good at and how fit they are, so that I can pick a team I believe in. (Recorded as J-03 `judge-a-player` in `docs/product/jobs.yaml`; it follows J-02.)
@@ -25,7 +25,7 @@ When I am weighing up who should play, I want to see what each player is good at
 - UX depth: no mockups beyond the journey table.
 
 ### Wave: DISCUSS / [REF] Story map and priority
-Backbone: pick club, club home, squad, **player**, back. Walking skeleton = the existing S-001/S-002 path plus one step (squad row to player screen and back). One release, one story; slices in dependency order: slice 01 (domain: attributes, condition, derived overall) then slice 02 (tappable rows, player screen, Back). Priority rationale: S-004/S-005 (formation, starting XI) need attributes to make "best rating per position" meaningful, so this story comes first in week 1.
+Backbone: pick club, club home, squad, **player**, back. Walking skeleton = the existing S-001/S-002 path plus one step (squad row to player screen and back). One release, one story, one releasable slice (`slices/slice-01-player-details.md`), delivered as a domain precursor commit (attributes, condition, derived overall; not shipped alone) followed by the tappable rows, player screen and Back. Priority rationale: S-004/S-005 (formation, starting XI) need attributes to make "best rating per position" meaningful, so this story comes first in week 1.
 
 ### Wave: DISCUSS / [REF] User stories
 
@@ -38,9 +38,9 @@ Backbone: pick club, club home, squad, **player**, back. Walking skeleton = the 
 - Decision enabled: is this player good enough, and fit enough, to start in that position?
 
 **Domain examples**
-1. Sam opens `?seed=31`, picks the first club, taps "Squad" and taps the row "Tomas Brenning GK 27 14". The heading reads "Tomas Brenning"; Position GK, Age 27, Overall 14; Attributes: Goalkeeping 17, Defending 12, Passing 11, Shooting 4; Condition 92%. (Illustrative values: the generator fixes the real ones. Overall 14 lies between 4 and 17.)
-2. Sam taps "Back", sees the same club's 18-player squad, taps the last row, a forward "Ivo Marsh FW 22 11", and sees Goalkeeping 2, Defending 6, Passing 12, Shooting 16, Condition 85%. Sam taps "Back" twice and is on the club home, headed by the club's name.
-3. Sam opens `?seed=abc` (invalid, so the default seed is used), picks the 8th club and taps the first row (a goalkeeper): the player screen still shows Position GK, four attributes and a condition. Opening the same link and row in a fresh visit shows the identical screen.
+1. Sam opens `?seed=31`, picks the first club, taps "Squad" and taps the row "Tomas Brenning GK 27 14". The heading reads "Tomas Brenning"; Position GK, Age 27, Overall 14; Attributes: Goalkeeping 15, Defending 12, Passing 11, Shooting 4; Condition 92%. (Illustrative values, not fixtures: the generator fixes the real ones. They agree with the ADR-0006 formula: (7x15 + 1x12 + 2x11 + 0x4 + 5) / 10 rounds down to 14, which lies between 4 and 15.)
+2. Sam taps "Back", sees the same club's 18-player squad, taps the last row, a forward "Ivo Marsh FW 22 11", and sees Goalkeeping 2, Defending 6, Passing 12, Shooting 12, Condition 85% ((0x2 + 1x6 + 3x12 + 6x12 + 5) / 10 rounds down to 11, between 2 and 12). Sam taps "Back" twice and is on the club home, headed by the club's name.
+3. Sam opens `?seed=abc` (invalid, so the default seed is used), picks the 8th club and taps a goalkeeper's row: the player screen still shows Position GK, four attributes and a condition. Opening the same link and row in a fresh visit shows the identical screen.
 
 **Acceptance criteria (embedded UAT)**
 - Scenario: Tapping a player shows who they are.
@@ -54,11 +54,11 @@ Backbone: pick club, club home, squad, **player**, back. Walking skeleton = the 
 - Scenario: Back goes from the player to the squad, then to the club home.
   Given Sam is on a player's screen, when Sam taps the button named "Back", then the heading is the club's name and the list named "Squad" has 18 items; and when Sam taps "Back" again, the heading is the club's name, the "Squad" list is gone and the "Squad" button is visible.
 - Scenario: Goalkeepers and forwards open, even with an invalid seed.
-  Given Sam opens `?seed=abc` (invalid, so the default-seed league is used) and views the 8th club's squad, when Sam taps the first row (a goalkeeper) and, after "Back", the last row (a forward), then the player screens show Position GK and Position FW respectively, each with exactly 4 attributes and a condition.
+  Given Sam opens `?seed=abc` (invalid, so the default-seed league is used) and views the 8th club's squad, when Sam taps a goalkeeper's row (position GK) and, after "Back", a forward's row (position FW), then the player screens show Position GK and Position FW respectively, each with exactly 4 attributes and a condition.
 - Scenario: The squad and player screens fit a phone.
   Given Sam is on a 390px-wide phone viewport, when Sam taps "Squad" and then a player's row, then each of the 18 rows in the list "Squad" holds exactly one button at least 44px tall, the "Back" button on the player screen is at least 44px tall, neither screen scrolls sideways, focus is on the player screen's heading, and no errors appear in the browser console.
 
-Notes for DESIGN and DISTILL (not part of the AC): labelled values are checked by visible text ("Position GK", "Age 27", "Overall 14", "Condition 92%"). D7 wrong-screen no-ops (view-player from any screen but the squad, `Back` from the player screen with an unknown club or a player index outside 0-17) are unit tests on `update`, as in S-002. D8's `el()`/`textContent` rule is a code-review and ADR-0002 check, not a scenario. The domain property (4 attributes 1-20, condition 0-100 inside the DESIGN range, overall within [min, max] attribute, deep-equal for the same seed and club) is covered by property tests on the squad generator. The S-002 e2e test "squad rows are display-only, not buttons" (`tests/e2e/S-002-squad.spec.ts`) contradicts D1: DELIVER must replace it with an equal-or-stronger assertion "each of the 18 rows holds exactly one button" so the e2e test count does not drop.
+Notes for DESIGN and DISTILL (not part of the AC): labelled values are checked by visible text ("Position GK", "Age 27", "Overall 14", "Condition 92%"). D7 wrong-screen no-ops (view-player from any screen but the squad, `Back` from the player screen with an unknown club or a player index outside 0-17) are unit tests on `update`, as in S-002. D8's `el()`/`textContent` rule is a code-review and ADR-0002 check, not a scenario. The domain property (4 attributes 1-20, condition 0-100 inside the DESIGN range, overall within [min, max] attribute, deep-equal for the same seed and club) is covered by property tests on the squad generator. The S-002 e2e test "squad rows are display-only, not buttons" (`tests/e2e/S-002-squad.spec.ts`) contradicts D1: DELIVER must replace it (renamed, never deleted) with a stronger per-row assertion: the list has 18 items and each item holds exactly one button, so the e2e test count does not drop.
 
 **Outcome KPI:** Sam goes from the squad list to a player's details in 1 tap, and back in 1 tap (measured by the e2e smoke tap count; no analytics in the POC). Baseline: not possible (no player screen).
 **Technical notes:** squad generator and `Player` in `src/domain/squad.ts` (ADR-0004, ADR-0005). `Screen`/`Action`/`update` in `src/app/state.ts` (ADR-0003). `el()` for the player view and row buttons (ADR-0002). Depends on S-002 (squad list, Back).
@@ -73,7 +73,7 @@ Notes for DESIGN and DISTILL (not part of the AC): labelled values are checked b
 Editing anything, sorting or filtering, condition changing over time, injuries, morale, form, player development or training (OUT tag `training`), photos, kits, more than 4 attributes, swiping to the previous or next player, condition or attributes in the squad row.
 
 ### Wave: DISCUSS / [REF] WS strategy
-Extends the S-002 walking skeleton (club home, squad, back) by one step: squad, player, back. The e2e journey "Squad, tap a row, Back, Back" is the end-to-end proof. Two carpaccio slices: `slices/slice-01-player-attributes.md` (an `@infrastructure` precursor commit, not releasable alone since nothing new is visible) then `slices/slice-02-player-screen.md`, the only releasable slice.
+Extends the S-002 walking skeleton (club home, squad, back) by one step: squad, player, back. The e2e journey "Squad, tap a row, Back, Back" is the end-to-end proof. One releasable carpaccio slice, `slices/slice-01-player-details.md`, delivered as two commits: a domain precursor commit (attributes, condition, derived overall; developer-facing, never shipped alone) then the tappable rows, player screen and Back. (Peer review: an `@infrastructure`-only slice is not allowed, so the earlier two-slice split was merged.)
 
 ### Wave: DISCUSS / [REF] Driving ports
 - Squad generator `generateSquad(seed, clubIndex)`: each `Player` gains the 4 attributes and condition; `overall` derived (shape for DESIGN).
@@ -94,10 +94,13 @@ Extends the S-002 walking skeleton (club home, squad, back) by one step: squad, 
 | 3 | 3+ domain examples, real data | PASS | Examples 1-3: `?seed=31` GK Tomas Brenning, FW Ivo Marsh, `?seed=abc` 8th club |
 | 4 | UAT Given/When/Then, 3-7 | PASS | 7 scenarios |
 | 5 | AC derived from UAT | PASS | Embedded scenarios are the AC; D1-D6 and D8's phone rules by scenario; D7 no-ops and D8 `el()` by unit tests and review (Notes) |
-| 6 | Right-sized | PASS | 2 slices, about 2-3 days, 7 scenarios |
+| 6 | Right-sized | PASS | 1 slice (2 commits), about 2-3 days, 7 scenarios |
 | 7 | Technical notes | PASS | Ports, ADR-0002..0005, superseded S-002 decision, e2e test replacement |
 | 8 | Dependencies tracked | PASS | S-002 delivered; DESIGN ADR expected; open items listed |
 | 9 | Outcome KPI measurable | PASS | Squad to player in 1 tap and back in 1, e2e tap count |
+
+### Wave: DISCUSS / [REF] Peer review
+`nw-product-owner-reviewer`, cycle 1 (in plan run): rejected with C1 (the precursor slice held only `@infrastructure` work) and H1-H3. Resolved: C1, by merging into one releasable slice, `slices/slice-01-player-details.md`, with the domain work as a precursor commit. H1/H2: the roadmap outcome now spells out the one-line "label, space, value" format, the 44px "Back", "any position opens" and "no console errors". H3: the example attributes now agree with the ADR-0006 formula and are marked as non-fixtures. M3: persona citation. M4: journey wording. M5: GK/FW rows are found by position text, not row order. Accepted as is: M1 (the KPI is measured by the e2e tap count, because the POC has no analytics, as in S-001/S-002), M7 (ADR-backed technical terms stay in the locked decisions), and M9 (the `forces` block exists only on J-03; J-01/J-02 are left untouched).
 
 ## Wave: DESIGN
 
@@ -118,7 +121,7 @@ Mode: propose. Scope: application. One solo team. Paradigm: functional (ADR-0003
 | D5 | Player derived on render, not stored | ADR-0005 (d); DISCUSS D6 |
 | D6 | Squad row = `<li>` with one `<button>` (same spans, 44px or taller). Supersedes the S-002 "not buttons" line in the brief | ADR-0006 (4, 6); DISCUSS D1 |
 | D7 | Player screen via `el()`: h1 name; `<p>` lines "Position GK", "Age 27", "Overall 14"; `<ul aria-label="Attributes">` of four items in `ATTRIBUTE_ORDER`; `<p>` "Condition 92%"; "Back" button. Label and value on one line, inline flow only; any bar is CSS-only. Rejected: `<dl>`, table | ADR-0006 (4); DISCUSS D5, D8 |
-| D8 | DELIVER replaces the S-002 e2e "display-only" assertion with "each of the 18 rows holds exactly one button" (same test, never deleted) | ADR-0006 (6); DISCUSS notes |
+| D8 | DELIVER renames the S-002 e2e "display-only" test and replaces its assertion with a per-row check (18 items, each holding exactly one button); same test, never deleted | ADR-0006 (6); DISCUSS notes |
 
 ### Wave: DESIGN / [REF] Component decomposition
 | Component | Layer | Responsibility |
@@ -126,7 +129,7 @@ Mode: propose. Scope: application. One solo team. Paradigm: functional (ADR-0003
 | `domain/squad.ts` | domain | `Player` gains `attributes`, `condition`; exports `ATTRIBUTE_ORDER`, `ATTRIBUTE_LABELS`, `Attributes`, `OVERALL_WEIGHTS`, `deriveOverall`, `CONDITION_MIN/MAX`, `ATTRIBUTE_STREAM_BASE`; `generateSquad` extended |
 | `app/state.ts` | app | `Screen` + `player`; `Action` + `ViewPlayer`; `update` cases |
 | `ui/screens/squad.ts` | ui | Row becomes `<li><button>`; click dispatches `ViewPlayer(index)` |
-| `ui/screens/player.ts` | ui | `renderPlayer(root, { club, player }, dispatch)` |
+| `ui/screens/player.ts` | ui | `renderPlayer(root, player, dispatch)` |
 | `main.ts` | shell | Player render case: `generateSquad(league.seed, clubIndex)[playerIndex]` |
 | `ui/styles.css` | ui | Row button (grid, 44px or taller), player screen layout, CSS-only attribute bar |
 
@@ -152,18 +155,21 @@ No new technology or dependency (ADR-0001, 0002, 0004, 0005 apply; all OSS).
 | `src/ui/dom.ts` `el()` | REUSE | bounded-change; detached nodes only |
 | `src/main.ts` | EXTEND: player case; `findClub` reused | unbounded shell, universe unchanged |
 | `src/ui/styles.css` | EXTEND: move row grid from `li` to the row button; player layout | n/a |
-| `tests/e2e/S-002-squad.spec.ts` | EXTEND: replace the "display-only" assertion by "each of the 18 rows holds exactly one button" (same count) | black-box |
+| `tests/e2e/S-002-squad.spec.ts` | EXTEND: rename the "display-only" test and replace its assertion by a per-row check (18 items, each exactly one button; same count) | black-box |
 | `tests/e2e/S-003-player.spec.ts`, `tests/acceptance/S-003/` | CREATE NEW (DISTILL): new story's tests | black-box / property |
 | `tests/acceptance/S-002/*` | REUSE unchanged; they assert overall 1-20 only | regression |
 
 ### Wave: DESIGN / [REF] Changed Assumptions
-- DISCUSS slice 01: "Drawn from the per-club seed (`deriveSeed(seed, clubIndex)`), pure, no `Date`, `Math.random` or DOM." Changed: attributes and condition come from a separate per-club stream `deriveSeed(seed, 100 + clubIndex)`; only age and the internal `quality` stay on `deriveSeed(seed, clubIndex)`. Reason: keeps every S-002 age, name and position identical for every seed (ADR-0006 (2)).
+- DISCUSS slice 01 (precursor commit): "Drawn from the per-club seed (`deriveSeed(seed, clubIndex)`), pure, no `Date`, `Math.random` or DOM." Changed: attributes and condition come from a separate per-club stream `deriveSeed(seed, 100 + clubIndex)`; only age and the internal `quality` stay on `deriveSeed(seed, clubIndex)`. Reason: keeps every S-002 age, name and position identical for every seed (ADR-0006 (2)).
 - DISCUSS D3: "The generator range ... may be narrower than 0-100". Decided: 75-100.
 - DISCUSS D1/brief: "squad rows are display-only / listitems, not buttons". Superseded as DISCUSS expected (ADR-0006 (6)).
 
 ### Wave: DESIGN / [REF] Open questions
 - None blocking. Accepted: returning to the squad re-renders from the top, so scroll position is not restored (not in the AC; revisit if Sam finds it annoying).
 - Handoff for DISTILL: property tests over all 8 clubs per seed; formula test via `deriveOverall`/`OVERALL_WEIGHTS`; an optional golden of (name, position, age) for one seed captured from the pre-change code; unit tests for `ViewPlayer` index bounds (-1, 18, 1.5, NaN) and unknown club; e2e for rows holding one button, label and value on one line, "Attributes" list with no other digits, and Back, Back. Pin the 8th-club `?seed=abc` first (GK) and last (FW) rows.
+
+### Wave: DESIGN / [REF] Peer review
+`nw-solution-architect-reviewer`: approved, with no critical or high issues. Medium findings folded into ADR-0006 and the brief: M1, the stream-collision wording, plus a property test on the derived seeds. M2, the `makePlayer` sole constructor. M3, `renderPlayer(root, player, dispatch)`. M4, a per-row button assertion and a renamed test. M5, `src/app/state.ts` added to Stryker in DELIVER. M6, navigation options. M7, the C4 L2 `main -> domain` arrow. L2, the supersedes wording. L3, an explicit `role="list"`.
 
 ## Wave: DEVOPS
 
@@ -202,7 +208,7 @@ E2E instrument is the new `tests/e2e/S-003-player.spec.ts` (Pixel 7, 390px), run
 | Overall within attribute bounds | e2e: min <= overall <= max; property: `overall === deriveOverall(position, attributes)` and bounds; unit test of `OVERALL_WEIGHTS` (non-negative, sum 10) | holds |
 | Row/screen agreement | e2e: row overall equals player-screen overall for all 18 rows (club 0 and 8th club) | equal |
 | Same seed, identical player screens; players differ | e2e: `?seed=31` two visits, compare all 18 screens; at least 2 distinct attribute tuples. Property: deep-equal on same `(seed, clubIndex)` | identical; not all equal |
-| GK and FW open, invalid seed | e2e: `?seed=abc`, 8th club, first row (GK) and last row (FW) | Position GK and FW, 4 attributes, condition |
+| GK and FW open, invalid seed | e2e: `?seed=abc`, 8th club, a GK row and a FW row (found by position text) | Position GK and FW, 4 attributes, condition |
 | Each of 18 rows holds exactly one button, 44px or taller | e2e: `listitem` count 18, each holds one `button`, `boundingBox().height >= 44` | holds (replaces the S-002 "display-only" assertion in `S-002-squad.spec.ts`) |
 | "Back" 44px or taller | e2e `boundingBox().height >= 44` on the player screen | holds |
 | No horizontal scroll at 390px | `scrollWidth <= clientWidth` on squad and player screens | holds |
@@ -222,7 +228,7 @@ No analytics (POC). The e2e tap count is the KPI's sole measurement.
 - Blast radius: one static page.
 
 ### Wave: DEVOPS / [REF] Mutation testing strategy
-nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` mutates `src/domain/**/*.ts` except `names.ts`, thresholds high 85, low 70, break 70. The new domain code (`deriveOverall`, `OVERALL_WEIGHTS`, attribute and condition generation, stream constants) is in `squad.ts`, so it is covered with no config change. Run by `nightly.yml` via `ci:mutation`; failure opens `mutation-alarm`, `needs-human`. `src/app/state.ts` (`ViewPlayer`/`Back` from player) is outside Stryker scope (`mutate` does not list `src/app/**`). Extending the scope to `src/app/state.ts` is an optional agent decision for DELIVER (the config is agent-editable per ADR-0001); not blocking. Tests that kill mutants must pin the formula and bounds: exact `deriveOverall` values per position, the clamp edges, the condition 75/100 edges, and the 5-draws-per-slot stream.
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` mutates `src/domain/**/*.ts` except `names.ts`, thresholds high 85, low 70, break 70. The new domain code (`deriveOverall`, `OVERALL_WEIGHTS`, attribute and condition generation, stream constants) is in `squad.ts`, so it is covered with no config change. Run by `nightly.yml` via `ci:mutation`; failure opens `mutation-alarm`, `needs-human`. `src/app/state.ts` (`ViewPlayer`/`Back` from player) is outside Stryker scope today (`mutate` does not list `src/app/**`). DELIVER adds `src/app/state.ts` to `mutate` (agent-editable per ADR-0001; required by ADR-0006 after architect review). Tests that kill mutants must pin the formula and bounds: exact `deriveOverall` values per position, the clamp edges, the condition 75/100 edges, and the 5-draws-per-slot stream.
 
 ### Wave: DEVOPS / [REF] Observability stack
 Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy. Alerting: a red `deploy` run. No dashboards.
@@ -235,7 +241,7 @@ Trunk-based. Short-lived `claude/S-003-*` branches, PR to main, squash merge. CI
 |---|---|---|
 | `ci.yml`, `deploy.yml`, `nightly.yml` | none; run existing `ci:*` scripts | reuse |
 | `ci:*` scripts, `playwright.config.ts`, `stryker.config.mjs` | none required; Pixel 7, `BASE_URL`, and the `src/domain/**` glob already fit | reuse |
-| `tests/e2e/S-002-squad.spec.ts` | the "squad rows are display-only, not buttons" test contradicts ADR-0006 (6) | replace its assertion with "each of the 18 rows holds exactly one button" (same test, count does not drop); other assertions unchanged |
+| `tests/e2e/S-002-squad.spec.ts` | the "squad rows are display-only, not buttons" test contradicts ADR-0006 (6) | rename it and replace its assertion with a per-row check (18 items, each holding exactly one button) (same test, count does not drop); other assertions unchanged |
 | `tests/e2e/S-001-pick-club.spec.ts`, `shell.spec.ts` | untouched | regression-watch |
 | `tests/e2e/S-003-player.spec.ts` | new spec | add (DISTILL) |
 | `tests/protected/S-001/`, `tests/protected/S-002/` | locked runner on `localhost:4173/gaffer/`; roles and names; rows read via `listitem` inner text (still valid with a button inside the `li`); assert properties only | must stay green |
@@ -253,6 +259,6 @@ Trunk-based. Short-lived `claude/S-003-*` branches, PR to main, squash merge. CI
 ### Wave: DEVOPS / [REF] Open questions
 Owner-only items inherited from S-001/S-002 (smoke `sleep 20`, no security scanning, smoke has no commit-SHA check, deploy not gated on `ci`, squash revert blocked, no uptime probe) are unchanged and none block S-003. New:
 1. No `.github/` change is needed for S-003.
-2. Agent decision for DELIVER: extend Stryker scope to `src/app/state.ts` (navigation logic now has `ViewSquad`, `ViewPlayer`, `Back`); optional, not blocking.
+2. DELIVER requirement (ADR-0006 Consequences, after architect review): add `src/app/state.ts` to the Stryker `mutate` list (agent-editable config; navigation logic now has `ViewSquad`, `ViewPlayer`, `Back` with index and club guards).
 3. Smoke on the live URL runs the S-003 e2e spec too; it relies on `?seed=` being honoured on Pages (same as S-001/S-002).
 4. The overall of any existing `?seed=` link changes on deploy (accepted in ADR-0006; no persistence). Rollback restores the S-002 values.

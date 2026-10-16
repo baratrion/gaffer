@@ -19,7 +19,7 @@ target_environments:
 deployment_strategy: recreate
 container_orchestration: none
 observability: browser console + Playwright smoke on deployed URL
-mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts; src/app/state.ts out of scope (optional DELIVER extension)
+mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts; DELIVER adds src/app/state.ts (ADR-0006)
 branching: trunk-based, short-lived claude/* branches, squash merge
 deployment_assumptions:
   artifact: static (dist/index.html under /gaffer/)
@@ -34,7 +34,7 @@ kpi_instrument:
 coexistence_matrix:
   - component: tests/e2e/S-002-squad.spec.ts
     impact: "display-only rows" test contradicts ADR-0006 (6)
-    action: replace assertion with "each of the 18 rows holds exactly one button"; same test, count does not drop
+    action: rename the test and replace its assertion with a per-row check (18 items, each exactly one button); same test, count does not drop
   - component: tests/protected/S-001/, tests/protected/S-002/
     impact: roles and accessible names; properties only
     action: must stay green

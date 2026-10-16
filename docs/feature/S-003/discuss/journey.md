@@ -28,7 +28,7 @@ to scroll sideways.
 | 4 | Taps "Back" again | Club home, headed by the club's name | Oriented |
 
 Emotional arc: curious, then informed, then in control. No step leaves Sam lost: every screen has
-one heading and one "Back".
+one heading; the player and squad screens each have one "Back", and the club home ends the journey.
 
 ## Shared artifacts (single source each)
 - **Seed**: `?seed=` read once by `parseSeed`, held as `league.seed`. Invalid seed gives the default.
@@ -42,7 +42,7 @@ one heading and one "Back".
 
 ## Error and boundary paths
 - Invalid or missing seed: the default-seed league is used; every player still opens (S-001 rule).
-- First row (a goalkeeper) and last row (a forward) of any club open like any other row.
+- A goalkeeper's row and a forward's row of any club open like any other row.
 - A view-player or Back action from the wrong screen, or a player index outside 0-17, changes
   nothing (as `ChooseClub` and `ViewSquad` do); details for DESIGN.
 - Long player names wrap within 390px; no sideways scroll.
@@ -55,19 +55,19 @@ one heading and one "Back".
 - The overall lies between the lowest and highest attribute.
 - Same seed, same club, same row gives the same screen; one squad's players do not all match.
 - "Back" goes player to squad, then squad to club home.
-- Each of the 18 rows is exactly one button; rows and "Back" are 44px or taller; no sideways
+- Each of the 18 rows holds exactly one button; rows and "Back" are 44px or taller; no sideways
   scroll at 390px; no console errors.
 
 ## Examples
-1. `?seed=31`, first club, row "Tomas Brenning GK 27 14": Goalkeeping 17, Defending 12, Passing 11,
-   Shooting 4, Condition 92% (illustrative values).
+1. `?seed=31`, first club, row "Tomas Brenning GK 27 14": Goalkeeping 15, Defending 12, Passing 11,
+   Shooting 4, Condition 92% (illustrative, not fixtures; agrees with the ADR-0006 formula: overall 14).
 2. "Back", then the last row "Ivo Marsh FW 22 11": Goalkeeping 2, Defending 6, Passing 12,
-   Shooting 16, Condition 85%. "Back" twice reaches club home.
-3. `?seed=abc`, 8th club, first row: a goalkeeper with 4 attributes and a condition, identical on a
+   Shooting 12, Condition 85% (overall 11 by the ADR-0006 formula). "Back" twice reaches club home.
+3. `?seed=abc`, 8th club, a goalkeeper's row: a goalkeeper with 4 attributes and a condition, identical on a
    fresh visit.
 
 ## Sizing
-About 300-350 changed lines over 2 slices (domain about 120, screen and navigation about 200),
+About 300-350 changed lines in 1 slice of 2 commits (domain about 120, screen and navigation about 200),
 2-3 days. 7 UAT scenarios.
 
 ## Out of this slice
