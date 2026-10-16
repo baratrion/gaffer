@@ -295,8 +295,9 @@ jobs:
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
           body=$( [ -f factory-out/summary.md ] && head -c 60000 factory-out/summary.md || echo "No summary written." )
           if [ "$MODE" != "fix" ]; then
-            PR=$(gh pr create --base main --head "$BRANCH" --title "$STORY: $TITLE ($MODE)" --body "$body" --label factory | grep -o '[0-9]*$')
-            # Auto-merge as the owner's PAT: GitHub ignores pushes made with GITHUB_TOKEN, so a merge by it never triggers deploy.yml.
+            # Open and auto-merge the PR with the owner's PAT. GitHub ignores events made with GITHUB_TOKEN, so a PR it opens
+            # parks its CI as "action_required" (PR #6 deadlocked on that) and a merge it makes never triggers deploy.yml.
+            PR=$(GH_TOKEN="$MERGE_TOKEN" gh pr create --base main --head "$BRANCH" --title "$STORY: $TITLE ($MODE)" --body "$body" --label factory | grep -o '[0-9]*$')
             GH_TOKEN="$MERGE_TOKEN" gh pr merge "$PR" --auto --squash
           fi
           # nWave governance: a PR whose session didn't invoke the required nWave commands is blocked by ai-review.
