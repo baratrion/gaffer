@@ -31,7 +31,7 @@ touching `document`, `window` or `localStorage`.
   `{ kind: "title" } | { kind: "pickClub" } | { kind: "clubHome", clubId } | { kind: "squad", clubId }`)
   and a pure `update(state, action) => state`. `main.ts` reads `location.search` once; the pure `parseSeed(search)` here turns it into a seed (ADR-0004).
 - **`src/ui/`** (shell view): screen renderers (ADR-0002) that receive state and a `dispatch(action)`
-  callback. `main.ts` wires `dispatch` to `update` and re-renders.
+  callback (optional second argument `focusId`, ADR-0008). `main.ts` wires `dispatch` to `update` and re-renders.
 - Dependencies point inward: `ui` → `app` → `domain`. Never the reverse. `.oxlintrc.json` enforces this:
   `domain` may not import `app` or `ui`, and `app` may not import `ui`. Domain code may not touch
   `Date`, `performance`, `crypto`, timers, `location` or the DOM. The PR guard additionally rejects `Math.random`, `Date.now` and `new Date(` in `src/domain/`.
@@ -45,7 +45,7 @@ touching `document`, `window` or `localStorage`.
 | `parseSeed` | app | pure | `search: string` → `number` (`DEFAULT_SEED` on invalid) |
 | `update` | app | pure | `(GameState, Action)` → `GameState` |
 | `main.ts` (`dispatch` loop) | shell | effectful | reads `location.search` once, owns the current state, calls `render` |
-| `render<Screen>` | ui | effectful (DOM writes) | `(root, props, dispatch)` → `void` |
+| `render<Screen>` | ui | effectful (DOM writes) | `(root, props, dispatch)` → `void`, where `dispatch` is `(action, focusId?) => void` |
 
 Future persistence (save and continue) follows the same split. A pure `toSave(state)` / `fromSave(data)`
 works over the seed plus the player's choices and results, and a separate storage port in the shell does the I/O.
@@ -55,6 +55,7 @@ Today `main.ts` renders the title screen directly. The first story (S-001) creat
 (`GameState`, `Screen`, `Action`, `update`, `parseSeed`) and the `dispatch` → `update` → `render` wiring
 in `main.ts`. After each navigation, the shell moves focus to the new screen's `<h1>` (`tabindex="-1"`)
 so screen-reader and keyboard users are not dropped on `<body>`.
+*Refinement note 2026-10-17: ADR-0008 narrows "after each navigation" to "after a render that changed the `Screen`"; a same-screen update (the S-004 formation radios) restores focus to the element whose `id` the dispatching renderer names (else the previously focused element's `id`) instead. Refinement note 2026-10-17 (contract): `dispatch` is `(action, focusId?: string) => void`; the optional second argument is the id of the control to refocus after a same-screen update, existing renderers pass none, and renderers still never call `.focus()` (see ADR-0008).*
 
 ## Consequences
 - Domain logic is unit- and property-tested in Node with no DOM. Mutation testing (`src/domain/**`) covers the rules.
