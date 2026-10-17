@@ -61,3 +61,5 @@ so screen-reader and keyboard users are not dropped on `<body>`.
 - Domain logic is unit- and property-tested in Node with no DOM. Mutation testing (`src/domain/**`) covers the rules.
 - The league and squads are derived data: they can be regenerated from the seed, so persistence (a later story)
   only needs the seed plus the player's choices and results.
+
+- 2026-10-17 note (S-004): focus after navigation is refined by ADR-0008; the shell focuses the heading only when the screen changed, else the control that named its id.
