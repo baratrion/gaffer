@@ -66,16 +66,17 @@ stories:
     title: Choose a formation
     tags: [tactics]
     outcome: >
-      From the club home screen the player taps a button named "Tactics" (44px or taller) and sees a
-      screen whose only heading is "Tactics". A radio group named "Formation" holds exactly three radio
-      buttons named "4-4-2", "4-3-3" and "4-2-3-1", in that order, each with a tappable label 44px or
-      taller; exactly one is checked, and in a new game it is "4-4-2". A list named "Line-up" holds
-      exactly 11 items, each reading exactly one position code (GK, DF, MF or FW), goalkeeper first, then
-      defenders, midfielders and forwards: 4-4-2 is 1 GK, 4 DF, 4 MF, 2 FW; 4-3-3 is 1 GK, 4 DF, 3 MF,
-      3 FW; 4-2-3-1 is 1 GK, 4 DF, 5 MF, 1 FW. Tapping a formation checks it, unchecks the others and
-      updates the list at once, while the heading stays "Tactics" and focus stays on the tapped option.
-      A button named exactly "Back" (44px or taller) returns to the club home (heading the club's name).
-      The choice is kept for the rest of the session: tapping "Tactics" again, also after visiting
-      "Squad", shows the same formation checked with its line-up. Reloading and starting a new game
-      begins at "4-4-2" again. Formations are the same for every seed. No horizontal scroll at 390px and
-      no console errors.
+      From the club home screen the player taps a button named exactly "Tactics" (44px or taller) and
+      sees a screen whose only heading is "Tactics", with focus on that heading. A radio group named
+      "Formation" holds exactly three radio buttons named "4-4-2", "4-3-3" and "4-2-3-1", in that order;
+      each radio's visible label is its formation name and is 44px or taller, and tapping the label
+      checks that radio. Exactly one is checked, and in a new game (from "New game" on the title screen)
+      it is "4-4-2". A list named "Line-up" holds exactly 11 items, each reading exactly one position code
+      (GK, DF, MF or FW), goalkeeper first, then defenders, midfielders and forwards: 4-4-2 is 1 GK, 4 DF,
+      4 MF, 2 FW; 4-3-3 is 1 GK, 4 DF, 3 MF, 3 FW; 4-2-3-1 is 1 GK, 4 DF, 5 MF, 1 FW. Tapping a formation
+      checks it, unchecks the others and updates the list at once, while the heading stays "Tactics" and
+      focus is on the tapped formation's radio button. A button named exactly "Back" (44px or taller)
+      returns to the club home (heading the club's name). The choice is kept for the rest of the session:
+      tapping "Tactics" again, also after visiting "Squad", shows the same formation checked with its
+      line-up. The line-ups do not depend on the seed (the same for "?seed=31" and "?seed=abc"). No
+      horizontal scroll at 390px and no console errors.

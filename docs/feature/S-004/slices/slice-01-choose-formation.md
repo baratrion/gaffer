@@ -13,7 +13,7 @@ Player-visible commit:
 - Club home gains a button named exactly "Tactics" (44px or taller) next to "Squad"; heading still the club's name.
 - Tactics screen: one heading "Tactics"; a radio group named "Formation" with radios "4-4-2", "4-3-3", "4-2-3-1" in that order, exactly one checked, each label 44px or taller; a list named "Line-up" of 11 items, each exactly one position code; a button named exactly "Back" (44px or taller) to the club home.
 - `GameState` holds the chosen formation, initially "4-4-2". Choosing updates the radios and the list at once; the heading stays "Tactics" and focus stays on the tapped option (no jump to the `<h1>`, the focused radio is not lost). Navigation to another screen still focuses the new `<h1>`.
-- The choice is kept in memory for the session (survives "Back", "Squad", a player, "Back"); a reload and "New game" start at "4-4-2".
+- The choice is kept in memory for the session (survives "Back", "Squad", a player, "Back"); every new game ("New game" on the title screen) starts at "4-4-2".
 - Wrong-screen actions and unknown formations are no-ops. No sideways scroll at 390px; no console errors.
 
 ## OUT
@@ -27,7 +27,7 @@ Disproves "a formation can live in the game state and be changed on the same scr
 - Tapping "4-3-3" checks only it, "Line-up" reads GK, 4 DF, 3 MF, 3 FW at once, heading unchanged, focus on "4-3-3".
 - `?seed=abc`, 8th club: "4-2-3-1" gives 1 GK, 4 DF, 5 MF, 1 FW; every formation's 11 items are in GK, DF, MF, FW order, the same as for `?seed=31`.
 - "Back", "Squad", "Back", "Tactics": the same formation is checked with its line-up.
-- Reload and "New game": "4-4-2" again.
+- A fresh visit and "New game": "4-4-2" checked.
 - "Tactics", "Back" and the three labels at least 44px; focus on the heading on arrival; no sideways scroll; no console errors.
 
 ## Developer criteria (precursor commit, not story AC)

@@ -57,7 +57,7 @@ heading, the choice takes effect at once without a confirm step, and focus stays
 - Tapping a formation checks only it and updates "Line-up" at once; heading and focus stay.
 - Every formation's line-up has 11 codes in GK, DF, MF, FW order: 1/4/4/2, 1/4/3/3, 1/4/5/1, for any seed.
 - The choice survives "Back", "Squad", "Back", "Tactics" in the same session.
-- Reload and "New game" start at "4-4-2".
+- Every new game ("New game" on the title screen) starts at "4-4-2".
 - "Tactics", "Back" and each formation label are 44px or taller; focus on the heading on arrival; no
   sideways scroll at 390px; no console errors.
 
@@ -65,7 +65,7 @@ heading, the choice takes effect at once without a confirm step, and focus stays
 1. `?seed=31`, first club, "Tactics": "4-4-2" checked; tap "4-3-3"; "Back", "Squad", "Back",
    "Tactics": "4-3-3" still checked, line-up GK, DF, DF, DF, DF, MF, MF, MF, FW, FW, FW.
 2. `?seed=abc`, 8th club, "Tactics", "4-2-3-1": 1 GK, 4 DF, 5 MF, 1 FW, as for any other seed.
-3. Choose "4-2-3-1", reload, "New game", first club, "Tactics": "4-4-2" checked again.
+3. Fresh visit, "New game", 8th club, "Tactics": "4-4-2" checked.
 
 ## Sizing
 About 300-400 changed lines in 1 slice (formation data about 60, state and navigation about 100,
