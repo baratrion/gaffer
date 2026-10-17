@@ -3,14 +3,15 @@
 // Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1): taps "Squad", then "Back" to the club's home
 import { describe, expect, it } from "vitest";
 import { update, type GameState } from "../../../src/app/state";
+import { DEFAULT_FORMATION } from "../../../src/domain/formation";
 import { generateLeague } from "../../../src/domain/league";
 
 const league = generateLeague(4242);
 const clubId = league.clubs[2]!.id;
-const onTitle: GameState = { league, screen: { kind: "title" } };
-const onPickClub: GameState = { league, screen: { kind: "pickClub" } };
-const onClubHome: GameState = { league, screen: { kind: "clubHome", clubId } };
-const onSquad: GameState = { league, screen: { kind: "squad", clubId } };
+const onTitle: GameState = { league, formation: DEFAULT_FORMATION, screen: { kind: "title" } };
+const onPickClub: GameState = { league, formation: DEFAULT_FORMATION, screen: { kind: "pickClub" } };
+const onClubHome: GameState = { league, formation: DEFAULT_FORMATION, screen: { kind: "clubHome", clubId } };
+const onSquad: GameState = { league, formation: DEFAULT_FORMATION, screen: { kind: "squad", clubId } };
 
 describe("@US-1 S-002 Sam moves between club home and the squad", () => {
   it("Given a club home, when Sam taps Squad, then that club's squad is shown @walking_skeleton @driving_port", () => {
@@ -43,12 +44,12 @@ describe("@US-1 S-002 Sam moves between club home and the squad", () => {
   });
 
   it("Given a club home for an unknown club, when Sam taps Squad, then nothing changes @error", () => {
-    const state: GameState = { league, screen: { kind: "clubHome", clubId: "no-such-club" } };
+    const state: GameState = { league, formation: DEFAULT_FORMATION, screen: { kind: "clubHome", clubId: "no-such-club" } };
     expect(update(state, { type: "ViewSquad" })).toEqual(state);
   });
 
   it("Given a squad for an unknown club, when Sam taps Back, then nothing changes @error", () => {
-    const state: GameState = { league, screen: { kind: "squad", clubId: "no-such-club" } };
+    const state: GameState = { league, formation: DEFAULT_FORMATION, screen: { kind: "squad", clubId: "no-such-club" } };
     expect(update(state, { type: "Back" })).toEqual(state);
   });
 

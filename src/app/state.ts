@@ -1,3 +1,4 @@
+import type { FormationId } from "../domain/formation";
 import type { League } from "../domain/league";
 import { PLAYERS_PER_SQUAD } from "../domain/squad";
 
@@ -6,11 +7,13 @@ export type Screen =
   | { readonly kind: "pickClub" }
   | { readonly kind: "clubHome"; readonly clubId: string }
   | { readonly kind: "squad"; readonly clubId: string }
-  | { readonly kind: "player"; readonly clubId: string; readonly playerIndex: number };
+  | { readonly kind: "player"; readonly clubId: string; readonly playerIndex: number }
+  | { readonly kind: "tactics"; readonly clubId: string };
 
 export interface GameState {
   readonly league: League;
   readonly screen: Screen;
+  readonly formation: FormationId;
 }
 
 export type Action =
@@ -18,6 +21,8 @@ export type Action =
   | { readonly type: "ChooseClub"; readonly clubId: string }
   | { readonly type: "ViewSquad" }
   | { readonly type: "ViewPlayer"; readonly playerIndex: number }
+  | { readonly type: "ViewTactics" }
+  | { readonly type: "ChooseFormation"; readonly formation: FormationId }
   | { readonly type: "Back" };
 
 type ActionOf<T extends Action["type"]> = Extract<Action, { readonly type: T }>;
@@ -58,6 +63,18 @@ const back = (state: GameState): GameState => {
   return state;
 };
 
+// __SCAFFOLD__ (S-004 DISTILL): RED-ready stubs for the new actions and helpers; DELIVER implements them per ADR-0007/0008.
+const scaffold = (name: string): never => {
+  throw new Error(`__SCAFFOLD__ ${name} is not implemented yet (S-004 DELIVER)`);
+};
+
+export type FocusPlan = { readonly kind: "heading" } | { readonly kind: "element"; readonly id: string };
+
+export const initialState = (_league: League): GameState => scaffold("initialState");
+
+export const focusPlan = (_previous: Screen | undefined, _next: Screen, _focusId: string | undefined): FocusPlan =>
+  scaffold("focusPlan");
+
 export const update = (state: GameState, action: Action): GameState => {
   switch (action.type) {
     case "NewGame":
@@ -68,6 +85,10 @@ export const update = (state: GameState, action: Action): GameState => {
       return viewSquad(state);
     case "ViewPlayer":
       return viewPlayer(state, action);
+    case "ViewTactics":
+      return scaffold("update ViewTactics");
+    case "ChooseFormation":
+      return scaffold("update ChooseFormation");
     case "Back":
       return back(state);
   }

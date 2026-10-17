@@ -1,6 +1,7 @@
 import "./ui/styles.css";
 import { parseSeed } from "./app/seed";
 import { update, type Action, type GameState } from "./app/state";
+import { DEFAULT_FORMATION } from "./domain/formation";
 import { generateLeague, type League } from "./domain/league";
 import { generateSquad } from "./domain/squad";
 import { renderClubHome } from "./ui/screens/club-home";
@@ -48,7 +49,7 @@ const render = (root: HTMLElement, state: GameState, dispatch: (action: Action) 
 
 const root = document.querySelector<HTMLElement>("#app");
 if (root) {
-  let state: GameState = { league: generateLeague(parseSeed(location.search)), screen: { kind: "title" } };
+  let state: GameState = { league: generateLeague(parseSeed(location.search)), screen: { kind: "title" }, formation: DEFAULT_FORMATION };
   const dispatch = (action: Action): void => {
     state = update(state, action);
     render(root, state, dispatch);

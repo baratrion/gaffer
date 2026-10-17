@@ -3,9 +3,10 @@
 // Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1)
 import { describe, expect, it } from "vitest";
 import { update, type GameState } from "../../../src/app/state";
+import { DEFAULT_FORMATION } from "../../../src/domain/formation";
 import { generateLeague } from "../../../src/domain/league";
 
-const onTitle = (seed: number): GameState => ({ league: generateLeague(seed), screen: { kind: "title" } });
+const onTitle = (seed: number): GameState => ({ league: generateLeague(seed), formation: DEFAULT_FORMATION, screen: { kind: "title" } });
 
 describe("@US-1 S-001 Sam moves from the title to a chosen club", () => {
   it("Given the title, when Sam taps New game, then the club list is shown @walking_skeleton @driving_port", () => {
