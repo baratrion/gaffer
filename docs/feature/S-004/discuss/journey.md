@@ -23,7 +23,7 @@ nothing to scroll sideways.
 | Step | Player does | Player sees | Feels |
 |---|---|---|---|
 | 1 | On the club home, taps "Tactics" | Heading "Tactics"; group "Formation" with "4-4-2" checked; list "Line-up": GK, 4 DF, 4 MF, 2 FW | Curious: "What shape are we?" |
-| 2 | Taps "4-3-3" | "4-3-3" checked, the others not; "Line-up": GK, 4 DF, 3 MF, 3 FW; heading and focus unchanged | In charge: "Three up front" |
+| 2 | Taps "4-3-3" | "4-3-3" checked, the others not; "Line-up": GK, 4 DF, 3 MF, 3 FW; heading stays "Tactics"; focus is on the tapped "4-3-3" radio | In charge: "Three up front" |
 | 3 | Taps "Back" | Club home, headed by the club's name, "Squad" and "Tactics" | Oriented |
 | 4 | Taps "Squad", "Back", then "Tactics" | "4-3-3" still checked with its line-up | Trusting: "It remembered" |
 
@@ -54,8 +54,8 @@ heading, the choice takes effect at once without a confirm step, and focus stays
 - Given a new game on a club home, when I tap "Tactics", then the only heading is "Tactics", the group
   "Formation" holds "4-4-2", "4-3-3", "4-2-3-1" in that order with "4-4-2" checked, and "Line-up"
   reads GK, 4 DF, 4 MF, 2 FW.
-- Tapping a formation checks only it and updates "Line-up" at once; heading and focus stay.
-- Every formation's line-up has 11 codes in GK, DF, MF, FW order: 1/4/4/2, 1/4/3/3, 1/4/5/1, for any seed.
+- Tapping a formation checks only it and updates "Line-up" at once; the heading stays "Tactics" and focus is on the tapped formation's radio button (not the heading).
+- Every formation's line-up has 11 codes in GK, DF, MF, FW order: 1/4/4/2, 1/4/3/3, 1/4/5/1, the same for `?seed=31` and `?seed=abc`.
 - The choice survives "Back", "Squad", "Back", "Tactics" in the same session.
 - Every new game ("New game" on the title screen) starts at "4-4-2".
 - "Tactics", "Back" and each formation label are 44px or taller; focus on the heading on arrival; no
@@ -64,7 +64,7 @@ heading, the choice takes effect at once without a confirm step, and focus stays
 ## Examples
 1. `?seed=31`, first club, "Tactics": "4-4-2" checked; tap "4-3-3"; "Back", "Squad", "Back",
    "Tactics": "4-3-3" still checked, line-up GK, DF, DF, DF, DF, MF, MF, MF, FW, FW, FW.
-2. `?seed=abc`, 8th club, "Tactics", "4-2-3-1": 1 GK, 4 DF, 5 MF, 1 FW, as for any other seed.
+2. `?seed=abc`, 8th club, "Tactics", "4-2-3-1": 1 GK, 4 DF, 5 MF, 1 FW, as for `?seed=31`.
 3. Fresh visit, "New game", 8th club, "Tactics": "4-4-2" checked.
 
 ## Sizing

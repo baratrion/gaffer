@@ -5,7 +5,7 @@ client:
   device: Pixel 7        # Playwright devices["Pixel 7"]
   viewport_width_px: 390
 platform_notes:
-  - "Safari/iOS touch does not focus a radio on tap (ADR-0008 accepted limitation): after choosing a formation, focus falls back to the Tactics heading. Not a tested target; Chromium covers tap and arrow-key focus."
+  - "Focus on the tapped radio does not depend on the platform focusing a radio on tap: the change listener passes its own input id and the shell refocuses it (ADR-0008). Chromium covers tap and arrow-key focus; iOS Safari needs no special handling."
 target_environments:
   local-dev:
     url: http://localhost:5173/gaffer/
@@ -21,7 +21,7 @@ target_environments:
 deployment_strategy: recreate
 container_orchestration: none
 observability: browser console + Playwright smoke on deployed URL
-mutation_testing: nightly-delta   # stryker mutates src/domain/** (covers formation.ts) except names.ts, plus src/app/state.ts; src/app/focus.ts NOT covered (stryker.config.mjs owner-locked)
+mutation_testing: nightly-delta   # stryker mutates src/domain/** (covers formation.ts) except names.ts, plus src/app/state.ts (covers update and focusPlan); no stryker.config.mjs change needed
 branching: trunk-based, short-lived claude/* branches, squash merge
 deployment_assumptions:
   artifact: static (dist/index.html under /gaffer/)
@@ -53,7 +53,7 @@ coexistence_matrix:
     impact: none
     action: reuse
   - component: stryker.config.mjs
-    impact: src/app/focus.ts not in mutate list; file is owner-locked
-    action: open question for the owner (unit tests carry focusPlan meanwhile)
+    impact: none; focusPlan lives in src/app/state.ts, already in the mutate list
+    action: none
 rollback: revert the S-004 squash commit on main (deploy fires on merge), or workflow_dispatch of deploy.yml on a known-good ref (pre-S-004 commit); fallback fix-forward
 rollback_owner: owner

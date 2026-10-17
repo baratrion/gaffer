@@ -10,7 +10,7 @@ Precursor commit (optional, developer-facing):
 - Fixed formation data: "4-4-2", "4-3-3", "4-2-3-1" in that order, each with 11 position codes (GK, DF, MF, FW) in GK, DF, MF, FW order: 1/4/4/2, 1/4/3/3, 1/4/5/1. Pure, no seed, no RNG, no `Date` or DOM. Ported and simplified from `salvage/tactics.ts`, not imported.
 
 Player-visible commit:
-- Club home gains a button named exactly "Tactics" (44px or taller) next to "Squad"; heading still the club's name.
+- Club home gains a button named exactly "Tactics" (44px or taller) in addition to "Squad" (layout is a DESIGN choice: stacked below it, ADR-0007/brief); heading still the club's name.
 - Tactics screen: one heading "Tactics"; a radio group named "Formation" with radios "4-4-2", "4-3-3", "4-2-3-1" in that order, exactly one checked, each label 44px or taller; a list named "Line-up" of 11 items, each exactly one position code; a button named exactly "Back" (44px or taller) to the club home.
 - `GameState` holds the chosen formation, initially "4-4-2". Choosing updates the radios and the list at once; the heading stays "Tactics" and focus stays on the tapped option (no jump to the `<h1>`, the focused radio is not lost). Navigation to another screen still focuses the new `<h1>`.
 - The choice is kept in memory for the session (survives "Back", "Squad", a player, "Back"); every new game ("New game" on the title screen) starts at "4-4-2".
