@@ -2,8 +2,6 @@
 // CONTRACT_SHAPE: pure-function (frozen constants and return-only functions; the data never depends on a seed)
 // Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1): after Sam taps "4-3-3" the list "Line-up" reads
 // GK, DF, DF, DF, DF, MF, MF, MF, FW, FW, FW.
-// Hand-off: every scenario is pending (it.skip) until DELIVER implements src/domain/formation.ts (scaffold today).
-// DELIVER: unskip ONE scenario at a time (it.skip becomes it), make it green, commit, repeat. Never edit an assertion to fit the code.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
@@ -27,12 +25,12 @@ const expand = (id: FormationId): Position[] =>
   formationLines(id).flatMap((line) => Array.from({ length: line.count }, () => line.position));
 
 describe("@US-1 S-004 the three formations and their 11-slot line-ups", () => {
-  it.skip("Given the game's formations, when Sam looks at the choices, then they are 4-4-2, 4-3-3 and 4-2-3-1 in that order, and a new game starts at 4-4-2 @driving_port @contract-shape:pure-function", () => {
+  it("Given the game's formations, when Sam looks at the choices, then they are 4-4-2, 4-3-3 and 4-2-3-1 in that order, and a new game starts at 4-4-2 @driving_port @contract-shape:pure-function", () => {
     expect([...FORMATIONS]).toEqual(["4-4-2", "4-3-3", "4-2-3-1"]);
     expect(DEFAULT_FORMATION).toBe("4-4-2");
   });
 
-  it.skip.each([
+  it.each([
     ["4-4-2", ["GK", "DF", "DF", "DF", "DF", "MF", "MF", "MF", "MF", "FW", "FW"]],
     ["4-3-3", ["GK", "DF", "DF", "DF", "DF", "MF", "MF", "MF", "FW", "FW", "FW"]],
     ["4-2-3-1", ["GK", "DF", "DF", "DF", "DF", "MF", "MF", "MF", "MF", "MF", "FW"]],
@@ -40,7 +38,7 @@ describe("@US-1 S-004 the three formations and their 11-slot line-ups", () => {
     expect([...lineUp(id)]).toEqual(codes);
   });
 
-  it.skip("Given any formation, when its line-up is read, then it has 11 codes, one GK first, then DF, MF, FW in that order, with the counts 1/4/4/2, 1/4/3/3 or 1/4/5/1 @property @contract-shape:pure-function", () => {
+  it("Given any formation, when its line-up is read, then it has 11 codes, one GK first, then DF, MF, FW in that order, with the counts 1/4/4/2, 1/4/3/3 or 1/4/5/1 @property @contract-shape:pure-function", () => {
     fc.assert(
       fc.property(ids, (id) => {
         const codes = lineUp(id);
@@ -54,7 +52,7 @@ describe("@US-1 S-004 the three formations and their 11-slot line-ups", () => {
     );
   });
 
-  it.skip("Given any formation, when its pitch lines are read, then expanding them gives exactly the line-up, GK line first, and 4-2-3-1 has two midfield lines of 2 and 3 @property @contract-shape:pure-function", () => {
+  it("Given any formation, when its pitch lines are read, then expanding them gives exactly the line-up, GK line first, and 4-2-3-1 has two midfield lines of 2 and 3 @property @contract-shape:pure-function", () => {
     fc.assert(
       fc.property(ids, (id) => {
         expect(expand(id)).toEqual([...lineUp(id)]);
@@ -66,7 +64,7 @@ describe("@US-1 S-004 the three formations and their 11-slot line-ups", () => {
     expect(midfield.map((line) => line.count)).toEqual([2, 3]);
   });
 
-  it.skip("Given the formation data, when it is read twice or tampered with, then it is the same and deeply frozen @property @contract-shape:pure-function", () => {
+  it("Given the formation data, when it is read twice or tampered with, then it is the same and deeply frozen @property @contract-shape:pure-function", () => {
     expect(Object.isFrozen(FORMATIONS)).toBe(true);
     fc.assert(
       fc.property(ids, (id) => {
@@ -79,18 +77,18 @@ describe("@US-1 S-004 the three formations and their 11-slot line-ups", () => {
     );
   });
 
-  it.skip("Given the three known names, when they are checked, then each is accepted @driving_port @contract-shape:pure-function", () => {
+  it("Given the three known names, when they are checked, then each is accepted @driving_port @contract-shape:pure-function", () => {
     for (const id of ["4-4-2", "4-3-3", "4-2-3-1"]) expect(isFormationId(id)).toBe(true);
   });
 
-  it.skip.each(["3-5-2", "", "4-4-2 ", " 4-4-2", "4-4-2\n", "4-3-3-0", "4-2-3-1-", "442", "4-4-2/4-3-3"])(
+  it.each(["3-5-2", "", "4-4-2 ", " 4-4-2", "4-4-2\n", "4-3-3-0", "4-2-3-1-", "442", "4-4-2/4-3-3"])(
     "Given the unknown formation name %j, when it is checked, then it is rejected @error @contract-shape:pure-function",
     (value) => {
       expect(isFormationId(value)).toBe(false);
     },
   );
 
-  it.skip("Given any text, when it is checked, then it is accepted only when it is one of the three names @property @error @contract-shape:pure-function", () => {
+  it("Given any text, when it is checked, then it is accepted only when it is one of the three names @property @error @contract-shape:pure-function", () => {
     fc.assert(
       fc.property(fc.string(), (value) => {
         expect(isFormationId(value)).toBe(["4-4-2", "4-3-3", "4-2-3-1"].includes(value));

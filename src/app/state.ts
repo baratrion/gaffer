@@ -1,4 +1,4 @@
-import type { FormationId } from "../domain/formation";
+import { DEFAULT_FORMATION, isFormationId, type FormationId } from "../domain/formation";
 import type { League } from "../domain/league";
 import { PLAYERS_PER_SQUAD } from "../domain/squad";
 
@@ -36,7 +36,7 @@ const isSquadIndex = (index: number): boolean =>
 const toScreen = (state: GameState, screen: Screen): GameState => ({ ...state, screen });
 
 const newGame = (state: GameState): GameState =>
-  state.screen.kind === "title" ? toScreen(state, { kind: "pickClub" }) : state;
+  state.screen.kind === "title" ? { ...state, screen: { kind: "pickClub" }, formation: DEFAULT_FORMATION } : state;
 
 const chooseClub = (state: GameState, { clubId }: ActionOf<"ChooseClub">): GameState =>
   state.screen.kind === "pickClub" && isKnownClub(state.league, clubId)
@@ -56,24 +56,37 @@ const viewPlayer = (state: GameState, { playerIndex }: ActionOf<"ViewPlayer">): 
 const back = (state: GameState): GameState => {
   const { screen, league } = state;
   if (!("clubId" in screen) || !isKnownClub(league, screen.clubId)) return state;
-  if (screen.kind === "squad") return toScreen(state, { kind: "clubHome", clubId: screen.clubId });
+  if (screen.kind === "squad" || screen.kind === "tactics") return toScreen(state, { kind: "clubHome", clubId: screen.clubId });
   if (screen.kind === "player" && isSquadIndex(screen.playerIndex)) {
     return toScreen(state, { kind: "squad", clubId: screen.clubId });
   }
   return state;
 };
 
-// __SCAFFOLD__ (S-004 DISTILL): RED-ready stubs for the new actions and helpers; DELIVER implements them per ADR-0007/0008.
-const scaffold = (name: string): never => {
-  throw new Error(`__SCAFFOLD__ ${name} is not implemented yet (S-004 DELIVER)`);
-};
+const viewTactics = (state: GameState): GameState =>
+  state.screen.kind === "clubHome" && isKnownClub(state.league, state.screen.clubId)
+    ? toScreen(state, { kind: "tactics", clubId: state.screen.clubId })
+    : state;
+
+const chooseFormation = (state: GameState, { formation }: ActionOf<"ChooseFormation">): GameState =>
+  state.screen.kind === "tactics" &&
+  isKnownClub(state.league, state.screen.clubId) &&
+  isFormationId(formation) &&
+  formation !== state.formation
+    ? { ...state, formation }
+    : state;
 
 export type FocusPlan = { readonly kind: "heading" } | { readonly kind: "element"; readonly id: string };
 
-export const initialState = (_league: League): GameState => scaffold("initialState");
+export const initialState = (league: League): GameState => ({ league, screen: { kind: "title" }, formation: DEFAULT_FORMATION });
 
-export const focusPlan = (_previous: Screen | undefined, _next: Screen, _focusId: string | undefined): FocusPlan =>
-  scaffold("focusPlan");
+const sameScreen = (a: Screen, b: Screen): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+/** Heading focus when the screen changed; otherwise the control that named its id (ADR-0008). */
+export const focusPlan = (previous: Screen | undefined, next: Screen, focusId: string | undefined): FocusPlan =>
+  previous !== undefined && sameScreen(previous, next) && focusId
+    ? { kind: "element", id: focusId }
+    : { kind: "heading" };
 
 export const update = (state: GameState, action: Action): GameState => {
   switch (action.type) {
@@ -86,9 +99,9 @@ export const update = (state: GameState, action: Action): GameState => {
     case "ViewPlayer":
       return viewPlayer(state, action);
     case "ViewTactics":
-      return scaffold("update ViewTactics");
+      return viewTactics(state);
     case "ChooseFormation":
-      return scaffold("update ChooseFormation");
+      return chooseFormation(state, action);
     case "Back":
       return back(state);
   }

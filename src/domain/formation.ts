@@ -1,5 +1,3 @@
-// __SCAFFOLD__ (S-004 DISTILL): RED-ready stub. DELIVER replaces every body per ADR-0007 and removes this marker.
-// DEFAULT_FORMATION is real (the app shell needs a working default until `initialState` lands); everything else is a stub.
 import type { Position } from "./squad";
 
 export type FormationId = "4-4-2" | "4-3-3" | "4-2-3-1";
@@ -11,15 +9,20 @@ export interface FormationLine {
 
 export const DEFAULT_FORMATION: FormationId = "4-4-2";
 
-/** __SCAFFOLD__: must become the frozen ordered list "4-4-2", "4-3-3", "4-2-3-1". */
-export const FORMATIONS: readonly FormationId[] = [];
+const line = (position: Position, count: number): FormationLine => Object.freeze({ position, count });
 
-const scaffold = (name: string): never => {
-  throw new Error(`__SCAFFOLD__ ${name} is not implemented yet (S-004 DELIVER)`);
-};
+/** Pitch lines per formation, goalkeeper first (ADR-0007). 4-2-3-1 has two midfield lines. */
+const LINES: Readonly<Record<FormationId, readonly FormationLine[]>> = Object.freeze({
+  "4-4-2": Object.freeze([line("GK", 1), line("DF", 4), line("MF", 4), line("FW", 2)]),
+  "4-3-3": Object.freeze([line("GK", 1), line("DF", 4), line("MF", 3), line("FW", 3)]),
+  "4-2-3-1": Object.freeze([line("GK", 1), line("DF", 4), line("MF", 2), line("MF", 3), line("FW", 1)]),
+});
 
-export const formationLines = (_formation: FormationId): readonly FormationLine[] => scaffold("formationLines");
+export const FORMATIONS: readonly FormationId[] = Object.freeze(["4-4-2", "4-3-3", "4-2-3-1"] as const);
 
-export const lineUp = (_formation: FormationId): readonly Position[] => scaffold("lineUp");
+export const formationLines = (formation: FormationId): readonly FormationLine[] => LINES[formation];
 
-export const isFormationId = (_value: string): _value is FormationId => scaffold("isFormationId");
+export const lineUp = (formation: FormationId): readonly Position[] =>
+  formationLines(formation).flatMap(({ position, count }) => Array.from({ length: count }, () => position));
+
+export const isFormationId = (value: string): value is FormationId => (FORMATIONS as readonly string[]).includes(value);

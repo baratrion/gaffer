@@ -5,8 +5,6 @@
 // Environment precondition: runs against local-preview (ci:serve, http://localhost:4173/gaffer/) or, via BASE_URL, the
 // deployed Pages site; both serve the production build under /gaffer/. Not meant for local-dev (vite dev, :5173): waived.
 // Viewport and device: the Pixel 7 profile at 390px comes from playwright.config.ts (no per-spec override).
-// Hand-off: every test is pending (test.skip) until DELIVER ships the Tactics screen. DELIVER: unskip ONE test at a time,
-// make it green, commit, repeat. Never edit an assertion to fit the code.
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const FORMATIONS = ["4-4-2", "4-3-3", "4-2-3-1"] as const;
@@ -65,7 +63,7 @@ const noSidewaysScroll = (page: Page): Promise<boolean> =>
   page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
 test.describe("@US-1 S-004 choose a formation", () => {
-  test.skip("@walking_skeleton @kpi Sam reaches a chosen formation in 2 taps from the club home, goes Back in 1 tap, and sees the choice kept after Squad @contract-shape:bounded-change", async ({ page }) => {
+  test("@walking_skeleton @kpi Sam reaches a chosen formation in 2 taps from the club home, goes Back in 1 tap, and sees the choice kept after Squad @contract-shape:bounded-change", async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     page.on("pageerror", (e) => errors.push(e.message));
@@ -91,7 +89,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
     expect(errors).toEqual([]);
   });
 
-  test.skip("the club home keeps its club name as the only heading and gains a Tactics button after Squad @contract-shape:bounded-change", async ({ page }) => {
+  test("the club home keeps its club name as the only heading and gains a Tactics button after Squad @contract-shape:bounded-change", async ({ page }) => {
     const club = await openClubHome(page, "?seed=31", 0);
     await expect(page.getByRole("heading")).toHaveCount(1);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(club);
@@ -101,7 +99,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
     expect(buttons.map((b) => b.trim()).filter((b) => b === "Squad" || b === "Tactics")).toEqual(["Squad", "Tactics"]);
   });
 
-  test.skip("a new game's Tactics screen has one heading, focused, a group Formation with 3 radios in order with only 4-4-2 checked, and a Line-up of 11 @contract-shape:bounded-change", async ({ page }) => {
+  test("a new game's Tactics screen has one heading, focused, a group Formation with 3 radios in order with only 4-4-2 checked, and a Line-up of 11 @contract-shape:bounded-change", async ({ page }) => {
     await openTactics(page);
     await expect(page.getByRole("heading")).toHaveCount(1);
     await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
@@ -118,7 +116,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
   });
 
   for (const [query, clubIndex] of [["?seed=31", 0], ["?seed=abc", 7]] as const) {
-    test.skip(`${query}, club ${clubIndex + 1}: every formation lines up GK first, then DF, MF, FW with the same counts at both seeds; the heading stays Tactics and focus is on the tapped radio @contract-shape:bounded-change`, async ({ page }) => {
+    test(`${query}, club ${clubIndex + 1}: every formation lines up GK first, then DF, MF, FW with the same counts at both seeds; the heading stays Tactics and focus is on the tapped radio @contract-shape:bounded-change`, async ({ page }) => {
       await openTactics(page, query, clubIndex);
       for (const formation of ["4-2-3-1", "4-3-3", "4-4-2"] as const) {
         await label(page, formation).click();
@@ -133,7 +131,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
     });
   }
 
-  test.skip("the Tactics button, the Back button and each formation label are 44px or taller, and tapping a label checks its radio @contract-shape:bounded-change", async ({ page }) => {
+  test("the Tactics button, the Back button and each formation label are 44px or taller, and tapping a label checks its radio @contract-shape:bounded-change", async ({ page }) => {
     await openClubHome(page, "?seed=31", 0);
     expect((await tacticsButton(page).boundingBox())?.height ?? 0, "Tactics button").toBeGreaterThanOrEqual(44);
     await tacticsButton(page).click();
@@ -146,7 +144,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
     }
   });
 
-  test.skip("the choice is kept: 4-3-3, Back, Squad, a player, Back, Back, Tactics shows 4-3-3 checked with its line-up @contract-shape:bounded-change", async ({ page }) => {
+  test("the choice is kept: 4-3-3, Back, Squad, a player, Back, Back, Tactics shows 4-3-3 checked with its line-up @contract-shape:bounded-change", async ({ page }) => {
     const club = await openTactics(page);
     await label(page, "4-3-3").click();
     await back(page).click();
@@ -161,13 +159,13 @@ test.describe("@US-1 S-004 choose a formation", () => {
   });
 
   for (const [query, clubIndex] of [["?seed=31", 7], ["?seed=abc", 0]] as const) {
-    test.skip(`a fresh visit of ${query}: New game, club ${clubIndex + 1}, Tactics shows only 4-4-2 checked with 1 GK, 4 DF, 4 MF, 2 FW @error @contract-shape:bounded-change`, async ({ page }) => {
+    test(`a fresh visit of ${query}: New game, club ${clubIndex + 1}, Tactics shows only 4-4-2 checked with 1 GK, 4 DF, 4 MF, 2 FW @error @contract-shape:bounded-change`, async ({ page }) => {
       await openTactics(page, query, clubIndex);
       await expectChosen(page, "4-4-2");
     });
   }
 
-  test.skip("pressing ArrowRight on the focused radio checks the next formation, shows its line-up, keeps the heading and keeps focus on that radio @contract-shape:bounded-change", async ({ page }) => {
+  test("pressing ArrowRight on the focused radio checks the next formation, shows its line-up, keeps the heading and keeps focus on that radio @contract-shape:bounded-change", async ({ page }) => {
     await openTactics(page);
     await radio(page, "4-4-2").focus();
     await page.keyboard.press("ArrowRight");
@@ -181,7 +179,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
     await expect(radio(page, "4-3-3")).toBeFocused();
   });
 
-  test.skip("@error tapping the formation that is already chosen changes nothing @contract-shape:bounded-change", async ({ page }) => {
+  test("@error tapping the formation that is already chosen changes nothing @contract-shape:bounded-change", async ({ page }) => {
     await openTactics(page);
     await label(page, "4-4-2").click();
     await expectChosen(page, "4-4-2");
@@ -190,7 +188,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
     await expectChosen(page, "4-3-3");
   });
 
-  test.skip("focus moves to the new heading when Sam navigates: Tactics, Back, Squad, Back @contract-shape:bounded-change", async ({ page }) => {
+  test("focus moves to the new heading when Sam navigates: Tactics, Back, Squad, Back @contract-shape:bounded-change", async ({ page }) => {
     const club = await openTactics(page);
     await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
     await back(page).click();
@@ -203,7 +201,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
   });
 
-  test.skip("neither the club home nor the Tactics screen scrolls sideways at 390px, whichever formation is chosen @contract-shape:bounded-change", async ({ page }) => {
+  test("neither the club home nor the Tactics screen scrolls sideways at 390px, whichever formation is chosen @contract-shape:bounded-change", async ({ page }) => {
     await openClubHome(page, "?seed=abc", 7);
     expect(await noSidewaysScroll(page), "club home").toBe(true);
     await tacticsButton(page).click();
@@ -215,7 +213,7 @@ test.describe("@US-1 S-004 choose a formation", () => {
     }
   });
 
-  test.skip("no console errors across club home, Tactics, each choice, Back, Squad, a player, Back, Back, Tactics @contract-shape:bounded-change", async ({ page }) => {
+  test("no console errors across club home, Tactics, each choice, Back, Squad, a player, Back, Back, Tactics @contract-shape:bounded-change", async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     page.on("pageerror", (e) => errors.push(e.message));

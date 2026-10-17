@@ -159,3 +159,66 @@ h1:focus { outline: none; }
 }
 
 .back-button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.club-home .primary + .primary { margin-top: 12px; }
+
+.tactics h1 { font-size: 1.75rem; margin-bottom: 16px; }
+
+.formation-group { display: grid; gap: 8px; margin-bottom: 16px; }
+
+.formation-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border: 1px solid rgba(244, 241, 232, 0.25);
+  border-radius: 12px;
+  background: rgba(244, 241, 232, 0.08);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.formation-option { position: relative; }
+
+/* The input covers the whole option so a tap lands on it directly (one click, no label retargeting). */
+.formation-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.formation-option .dot {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--chalk);
+  border-radius: 50%;
+}
+
+.formation-option:has(input:checked) .dot { background: radial-gradient(var(--accent) 45%, transparent 50%); border-color: var(--accent); }
+
+.formation-option:has(input:checked) { border-color: var(--accent); }
+
+.formation-option:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.lineup {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.slot {
+  padding: 10px 0;
+  border-radius: 999px;
+  background: var(--chalk);
+  color: #1d1d1d;
+  text-align: center;
+  font-weight: 700;
+}

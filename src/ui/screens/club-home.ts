@@ -6,6 +6,8 @@ import { COLOUR_HEX } from "./club-colours";
 export const renderClubHome = (root: HTMLElement, club: Club, dispatch: (action: Action) => void): void => {
   const squadButton = el("button", { type: "button", class: "primary" }, "Squad");
   squadButton.addEventListener("click", () => dispatch({ type: "ViewSquad" }));
+  const tacticsButton = el("button", { type: "button", class: "primary" }, "Tactics");
+  tacticsButton.addEventListener("click", () => dispatch({ type: "ViewTactics" }));
   const [first, second] = club.colours;
   root.replaceChildren(
     el(
@@ -18,6 +20,7 @@ export const renderClubHome = (root: HTMLElement, club: Club, dispatch: (action:
       }),
       el("h1", { tabindex: "-1" }, club.name),
       squadButton,
+      tacticsButton,
     ),
   );
 };
