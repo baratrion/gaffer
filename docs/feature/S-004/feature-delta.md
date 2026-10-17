@@ -172,4 +172,99 @@ No new technology or dependency (ADR-0001, 0002, 0003 apply; all OSS). `:has()` 
 - Outcome trace: "Tactics" button 44px: `button.primary` 48px. Only heading "Tactics" focused on arrival: `focusPlan` heading on a Screen change. Radiogroup "Formation" with three radios in order, one checked, "4-4-2" in a new game: D1, D2, D5. Label visible name and 44px, tap checks: label 48px with the input stretched over it. List "Line-up" of 11 codes with counts: D1, D5. Choosing updates at once, heading stays, focus on the radio: D3, D4. "Back" 44px to the club home: D3, D5. Kept for the session, also after "Squad": formation is state, not screen. Not seed-dependent: fixed data. No sideways scroll or console errors: D6 and e2e.
 - Handoff for DISTILL: unit and property tests on `formation.ts` (three ids in order; each `lineUp` 11 codes, GK first, non-decreasing order, counts 1/4/4/2, 1/4/3/3, 1/4/5/1; `lineUp` equals the expansion of `formationLines`; `Object.isFrozen`; `isFormationId` rejects `"3-5-2"`, `""`, `"4-4-2 "`); `update` tests (`ViewTactics` from each other screen and an unknown club; `ChooseFormation` off tactics, unknown club, unknown id, same formation returns the same object, whole-state equality except `formation`; `Back` from tactics incl. unknown club; `NewGame` reset; no mutation); `focusPlan` tests (first render, every screen pair incl. same club different screen, same screen with and without id); an `src/ui` grep test that no `.focus(` appears. E2E (Pixel 7, 390px): club home to Tactics (focus on `<h1>`), the group and 3 radios by role and name in order, one checked, "Line-up" items equal the expected codes for all three formations at `?seed=31` and `?seed=abc` (8th club), tap each label (label 44px or taller, radio focused, only that radio checked, heading text still "Tactics", exactly one heading), arrow-key path (focus the checked radio, press `ArrowRight`, next radio checked and focused), tap the checked one (no change), Back, Squad, a player, Back, Back, Tactics (choice kept), fresh page and "New game" shows 4-4-2, tap counts (2 to a chosen formation, 1 back), no horizontal scroll on club home and tactics, no console errors, S-001..S-003 e2e unchanged. Existing suites that build `GameState` literals need `formation` added (see Reuse Analysis). Held-out `.pending` mechanics as in S-003 DISTILL if new scenarios cannot pass before DELIVER. The protected-test runner finds radios by role and name, so the radio `input` must stay native and unique per name; do not add a second element named "4-4-2" (for example a visible caption outside the label).
 
-<!-- DEVOPS, DISTILL and DELIVER sections are appended below by later waves. -->
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered. No platform change: phone-viewport Chromium in CI and the deployed Pages URL. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope, `tests/protected/`, `stryker.config.mjs`) are read-only. Machine-readable environments: `docs/feature/S-004/environments.yaml`. Inherits the S-003 DEVOPS setup (`docs/feature/S-003/environments.yaml`); only the deltas are recorded.
+
+Checklist: ✓ existing infra reused | ✓ KPI mapped to instrument | ✓ rollback defined | ✓ mutation strategy (nightly-delta, inherited) | ⊘ new IaC/containers (none) | ⊘ server-side observability (no backend) | ⊘ continuous learning | ⊘ CLAUDE.md edit (already states strategy) | ⊘ `docs/product/kpi-contracts.yaml` (not created by S-001..S-003)
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test; unit, property, e2e and `tests/protected/S-001..S-004/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke via `BASE_URL` |
+
+No staging (static site, recreate). Client: Chromium, Pixel 7 profile, 390px viewport, in local-preview and production. Formation data is fixed and seed-independent, and the chosen formation lives in memory only, so every environment behaves the same. Platform note, not a tested target: Safari/iOS touch does not focus a radio on tap, so after choosing a formation focus falls back to the "Tactics" heading (ADR-0008 accepted limitation). Chromium covers the tap and arrow-key focus paths.
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch): PR guards, roadmap lint, `ci:lint`, `ci:typecheck`, `ci:test` (fresh `FC_SEED`; the S-004 formation property tests honour it), `ci:build`, `ci:e2e`, protected-scenario no-regression check vs main.
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` runs `ci:e2e` against the live URL (includes the new S-004 spec).
+- `nightly`: `ci:mutation`; failure opens a `mutation-alarm` issue.
+- `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- S-004 needs no pipeline change: it adds unit, property and e2e specs run by the existing scripts, and no new dependency (ADR-0007, ADR-0008: no new technology).
+- Local gate: `pnpm run check` mirrors the commit stage. No git hooks (locked paths; CI is the gate).
+- Security: no secrets, no runtime deps, no network. Formation names and position codes enter the DOM only via `el()`/`textContent` (ADR-0002); a review check, not a scenario. SAST/SCA/SBOM not added (workflows locked; inherited open question).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI/AC to instrument)
+E2E instrument is the new `tests/e2e/S-004-tactics.spec.ts` (Pixel 7, 390px), run by `ci:e2e` on PR and main and by `smoke` on the live URL after each deploy. "Unit" rows run in `ci:test` (fresh `FC_SEED`). `tests/protected/S-004/` runs on local-preview in `ci` and must pass on main.
+
+| KPI / criterion (DISCUSS) | Instrument | Pass condition |
+|---|---|---|
+| KPI: club home to a chosen formation in 2 taps ("Tactics", then one formation) | e2e: page-side capture-phase click counter (as S-003 E1); assert heading "Tactics", then a formation checked | Exactly 2 clicks |
+| KPI: back in 1 tap | e2e: count clicks on "Back"; assert heading is the club's name | Exactly 1 click |
+| Tactics screen shape (new game) | e2e + `tests/protected/S-004/`: exactly one heading "Tactics", radiogroup "Formation" with 3 radios "4-4-2", "4-3-3", "4-2-3-1" in order, only "4-4-2" checked | holds |
+| Focus on the `<h1>` on arrival | e2e: `document.activeElement` is the "Tactics" heading after tapping "Tactics"; `focusPlan` unit tests (Screen change gives heading) | holds |
+| Focus on the tapped radio after choosing; heading stays | e2e: tap each label, assert the radio is the focused element, only it is checked, exactly one heading still "Tactics"; arrow-key path (`ArrowRight`: next radio checked and focused); `focusPlan` unit tests (same screen with id gives element, without id gives heading); unit grep test that no `.focus(` appears under `src/ui/` | holds (Chromium) |
+| Line-up counts for the three formations | e2e + protected: list "Line-up" has 11 items, goalkeeper first then DF, MF, FW; 1/4/4/2, 1/4/3/3, 1/4/5/1 at `?seed=31` and `?seed=abc` (8th club). Unit: `lineUp` for each id (11 codes, GK first, non-decreasing order, counts), equals expansion of `formationLines`, frozen, `isFormationId` rejects `"3-5-2"`, `""`, `"4-4-2 "` | holds |
+| Session memory across Squad | e2e: choose "4-3-3", Back, Squad, a player, Back, Back, Tactics: "4-3-3" checked, same line-up. Unit: `update` keeps `formation` across navigation | holds |
+| New game starts at 4-4-2 | e2e + protected: fresh page, "New game" (`?seed=31` and `?seed=abc`), club, Tactics: only "4-4-2" checked. Unit: `NewGame` resets to `DEFAULT_FORMATION`; `initialState` | holds |
+| Tapping the checked formation changes nothing | unit: `ChooseFormation` with the same formation returns the same object; e2e: tap the checked label, no change | holds |
+| D7 no-ops | vitest on `update`: `ViewTactics` from each other screen and unknown club; `ChooseFormation` off tactics, unknown club, unknown id; `Back` from tactics incl. unknown club; whole state equal except `formation`; no mutation | holds |
+| 44px labels and buttons | e2e: `boundingBox().height >= 44` on "Tactics" (club home), "Back", and each formation label; tapping a label checks its radio | holds |
+| No horizontal scroll at 390px | `scrollWidth <= clientWidth` on club home and tactics | holds |
+| No console errors | `page.on("console"/"pageerror")` across club home, Tactics, each choice, Back, Squad, player, Back, Back, Tactics | zero |
+| S-001..S-003 unchanged | existing e2e specs, acceptance tests and `tests/protected/S-001..S-003/` | green |
+| Domain test strength | Stryker on `src/domain/**` (covers `formation.ts`) and `src/app/state.ts` | nightly, at or above break threshold (70) |
+
+No analytics (POC). The e2e tap count is the KPI's sole measurement.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact. Idempotent: redeploying the same ref yields the same artifact.
+- Rollback (designed first): revert the S-004 squash commit on main; the merge triggers `deploy` and `smoke` validates the restored site. Alternative: `workflow_dispatch` of `deploy.yml` on a known-good ref (the commit before the S-004 squash). Fallback: fix-forward on a `claude/*` branch. Per the S-003 record, the append-only protected-tests and no-regression guards may block a plain revert of a squash that added `tests/protected/S-004/`; if so, the dispatch route is the owner action. Time to restore: one deploy cycle (about 5 minutes).
+- Failure detection: a red `smoke` job marks the deploy run red.
+- Data: nothing is persisted and the formation is fixed data plus in-memory state, so no migration and no user data at risk. Rolling back removes the "Tactics" button and screen only.
+- Blast radius: one static page.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` mutates `src/domain/**/*.ts` except `names.ts`, plus `src/app/state.ts`; thresholds high 85, low 70, break 70.
+- `src/domain/formation.ts` (new): covered by the existing `src/domain/**` glob. Tests that kill mutants must pin the three ids and their order, `DEFAULT_FORMATION`, each line count (1/4/4/2, 1/4/3/3, 1/4/5/1 with the two MF lines of 4-2-3-1), `lineUp` order and length 11, and `isFormationId` edge inputs.
+- `src/app/state.ts` (`ViewTactics`, `ChooseFormation`, `Back` from tactics, `initialState`, `NewGame` reset): already listed; the no-op, same-object and whole-state-except-`formation` tests carry it.
+- `src/app/focus.ts` (new, pure `focusPlan`): NOT covered. `stryker.config.mjs` is owner-locked, so the factory cannot add it. Recorded as an open question; the `focusPlan` unit tests (first render, each screen pair, same screen with and without id) must pin it meanwhile.
+- Run by `nightly.yml` via `ci:mutation`; failure opens `mutation-alarm`, `needs-human`.
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy. Alerting: a red `deploy` run. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-004-*` branches, PR to main, squash merge. CI green and protected scenarios not regressing. Deploy fires on merge. No release branches.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-004 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml` | none; run existing `ci:*` scripts | reuse |
+| `ci:*` scripts, `playwright.config.ts` | none; Pixel 7, 390px, `BASE_URL` already fit | reuse |
+| `stryker.config.mjs` | `src/domain/**` covers `formation.ts`; `src/app/focus.ts` not listed; owner-locked | open question 1 |
+| `tests/protected/S-001..S-003/` | club home gains a "Tactics" button; they find "Squad" and "Back" by name and do not count club home buttons | must stay green |
+| `tests/protected/S-004/` | locked scenario for this story | must pass on main |
+| `tests/acceptance/S-001/navigation.test.ts`, `S-002/navigation.test.ts`, `S-003/player-navigation.test.ts` | `GameState` fixtures need the new required `formation` field (types only) | add `formation: DEFAULT_FORMATION` or use `initialState`; assertions and counts unchanged |
+| `tests/e2e/S-001..S-003*.spec.ts`, `shell.spec.ts` | focus on `<h1>` after navigation still holds (ADR-0008) | reuse unchanged, regression-watch |
+| `tests/e2e/S-004-tactics.spec.ts`, `tests/acceptance/S-004/` | new specs | add (DISTILL) |
+| `src/domain/formation.ts`, `src/app/focus.ts`, `src/ui/screens/tactics.ts` | new | S-004 tests guard |
+| `src/app/state.ts`, `src/ui/screens/club-home.ts`, `src/main.ts`, `src/ui/styles.css` | extended | S-001..S-003 tests guard |
+| Pages artifact | grows slightly; base path `/gaffer/` unchanged | none |
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-003 delivered and deployed; GitHub Pages source "GitHub Actions" enabled (✓).
+- Node 22 or later, pnpm 10.12.4 pinned, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0008 accepted (✓; ADR-0007 and ADR-0008 landed in DESIGN, before DELIVER).
+- `BASE_URL` derived from repository owner and name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001..S-003 (smoke `sleep 20`, no security scanning, smoke has no commit-SHA check, deploy not gated on `ci`, squash revert possibly blocked by the append-only guards, no uptime probe) are unchanged and none block S-004. New:
+1. Owner: add `src/app/focus.ts` to the `mutate` list in `stryker.config.mjs` (ADR-0008 recommends it; the file is owner-locked, so the factory cannot). Until then `focusPlan` is guarded by unit tests only, outside the nightly mutation score.
+2. No `.github/` change is needed for S-004.
+3. Smoke on the live URL runs the S-004 e2e spec too; it relies on `?seed=` being honoured on Pages (same as S-001..S-003).
+4. Safari/iOS touch focus fallback (ADR-0008) is accepted and untested; revisit only if a real-device report shows it hurts.
+
+<!-- DISTILL and DELIVER sections are appended below by later waves. -->

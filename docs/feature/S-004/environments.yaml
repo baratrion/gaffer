@@ -1,0 +1,59 @@
+# S-004 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Inherits S-003 (and S-001/S-002); no platform change.
+base_path: /gaffer/
+client:
+  browser: chromium
+  device: Pixel 7        # Playwright devices["Pixel 7"]
+  viewport_width_px: 390
+platform_notes:
+  - "Safari/iOS touch does not focus a radio on tap (ADR-0008 accepted limitation): after choosing a formation, focus falls back to the Tactics heading. Not a tested target; Chromium covers tap and arrow-key focus."
+target_environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+deployment_strategy: recreate
+container_orchestration: none
+observability: browser console + Playwright smoke on deployed URL
+mutation_testing: nightly-delta   # stryker mutates src/domain/** (covers formation.ts) except names.ts, plus src/app/state.ts; src/app/focus.ts NOT covered (stryker.config.mjs owner-locked)
+branching: trunk-based, short-lived claude/* branches, squash merge
+deployment_assumptions:
+  artifact: static (dist/index.html under /gaffer/)
+  strategy: recreate
+  persistence: none         # chosen formation is in memory only; fresh page starts at 4-4-2
+  data_migration: none      # formation data is fixed and seed-independent
+  deploy_idempotent: true   # redeploying a ref yields the same artifact
+kpi_instrument:
+  - kpi: club home to a chosen formation in 2 taps ("Tactics", then one formation), and back in 1 ("Back")
+    spec: tests/e2e/S-004-tactics.spec.ts
+    runs_on: [local-preview, production]
+coexistence_matrix:
+  - component: tests/protected/S-001/, tests/protected/S-002/, tests/protected/S-003/
+    impact: club home gains a "Tactics" button (they find "Squad" and "Back" by name and do not count club home buttons)
+    action: must stay green
+  - component: tests/protected/S-004/
+    impact: this story's locked scenario
+    action: must pass on main
+  - component: tests/acceptance/S-001/navigation.test.ts, S-002/navigation.test.ts, S-003/player-navigation.test.ts
+    impact: GameState fixtures need the new required formation field (types only)
+    action: add formation (DEFAULT_FORMATION or initialState); assertions and counts unchanged
+  - component: tests/e2e/S-001..S-003 specs, shell.spec.ts
+    impact: focus on h1 after navigation still holds (ADR-0008)
+    action: reuse unchanged, regression-watch
+  - component: tests/e2e/S-004-tactics.spec.ts
+    impact: new spec
+    action: add (DISTILL)
+  - component: .github/workflows/*, ci:* scripts, playwright.config.ts
+    impact: none
+    action: reuse
+  - component: stryker.config.mjs
+    impact: src/app/focus.ts not in mutate list; file is owner-locked
+    action: open question for the owner (unit tests carry focusPlan meanwhile)
+rollback: revert the S-004 squash commit on main (deploy fires on merge), or workflow_dispatch of deploy.yml on a known-good ref (pre-S-004 commit); fallback fix-forward
+rollback_owner: owner
