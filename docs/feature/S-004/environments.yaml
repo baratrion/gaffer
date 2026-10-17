@@ -5,7 +5,7 @@ client:
   device: Pixel 7        # Playwright devices["Pixel 7"]
   viewport_width_px: 390
 platform_notes:
-  - "Focus on the tapped radio does not depend on the platform focusing a radio on tap: the change listener passes its own input id and the shell refocuses it (ADR-0008). Chromium covers tap and arrow-key focus; iOS Safari needs no special handling."
+  - "Focus on the tapped radio does not depend on the platform focusing a radio on tap: the change listener passes its own input id and the shell refocuses it (ADR-0008). Chromium covers tap and arrow-key focus; iOS Safari is expected to behave the same (programmatic focus) but is not probed in CI."
 target_environments:
   local-dev:
     url: http://localhost:5173/gaffer/
