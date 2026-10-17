@@ -101,4 +101,75 @@ Extends the S-001..S-003 walking skeleton by one branch from the club home: club
 ### Wave: DISCUSS / [REF] Peer review
 `nw-product-owner-reviewer`, cycle 1 (plan run): rejected pending revisions on three high findings about the roadmap outcome, which becomes permanent protected tests. Resolved: RO-1, the outcome now says focus is on the "Tactics" heading on arrival. RO-2, the outcome names the measured element: each radio's visible label (its formation name) is 44px or taller, tapping the label checks that radio, and focus is on the tapped formation's radio button. RO-3, "Reloading and starting a new game" removed: the default is checked through "New game" in a fresh page, so the later "Save and continue" story cannot contradict a permanent S-004 scenario (D3). Medium: RO-4, "for any seed" replaced by the named seeds `?seed=31` and `?seed=abc`; RO-5, the arrow-key path is e2e and review only, and the re-tap no-op a unit test (D5). Low: RO-6 "named exactly \"Tactics\""; D1 now says "in addition to Squad", layout for DESIGN. Accepted as is: examples name clubs by ordinal (generated names are seed-dependent fixtures), the bold "Elevator Pitch" label (same as S-003), and DESIGN-level names in D5/D7 (DESIGN owns them, as accepted in S-003 review M7). The focus-contract risk (ADR-0003 "focus after each navigation", brief "renderers do not move focus") is handed to DESIGN for ADR-0007.
 
-<!-- DESIGN, DEVOPS, DISTILL and DELIVER sections are appended below by later waves. -->
+## Wave: DESIGN
+
+Mode: propose. Scope: application. One solo team (no Conway constraint). Paradigm: functional (ADR-0003). New ADRs: `adr-0007-formation-data-and-tactics-state.md` and `adr-0008-focus-on-same-screen-update.md` (refines ADR-0003's focus note and the brief's "renderers do not move focus" contract; ADR-0003 got a refinement note, not a supersession). Architecture: `docs/product/architecture/brief.md` ("Tactics (S-004)", "For Acceptance Designer" ports 11-14). No new C4 container: the S-001 L1/L2 still hold (two descriptions updated). Outcomes-registry collision check: skipped: no registry (`docs/product/outcomes/` does not exist).
+
+### Wave: DESIGN / [REF] DDD list
+- New small context, "Tactics" (supporting; formation data only), sharing the `Position` codes of "League setup" (shared kernel by type import from `squad.ts`). Language: Formation, Line, Slot, Line-up, Position code.
+- Value objects: `FormationId`; `FormationLine { position, count }`; the line-up is a derived `readonly Position[]` of 11. No aggregates, no events.
+- Invariants by construction: 11 slots; one GK first; lines in GK, DF, MF, FW order; counts 1/4/4/2, 1/4/3/3, 1/4/5/1; data independent of any seed. State invariant: `GameState.formation` is always a known `FormationId` (enforced by the `ChooseFormation` guard).
+
+### Wave: DESIGN / [REF] Decisions
+| # | Decision | Source |
+|---|---|---|
+| D1 | `src/domain/formation.ts`: frozen line structure is the source (`{ position, count }` lines; 4-2-3-1 has two MF lines, 2 and 3); `lineUp(f)` (11 codes) derived from it; `formationLines(f)` for layout; `FORMATIONS`, `DEFAULT_FORMATION`, `isFormationId`. Ported from salvage: names only. Rejected: literal 11-arrays; port of roles and coordinates; UI-local data | ADR-0007 (1); DISCUSS D4, D9 |
+| D2 | `GameState.formation` (required), `initialState(league)` in `app/state.ts` replaces the literal in `main.ts`; `NewGame` also resets it to 4-4-2. Rejected: formation in the Screen or UI-local; optional field | ADR-0007 (2); DISCUSS D3, D6, D7 |
+| D3 | `Screen` + `tactics{clubId}`; `Action` + `ViewTactics` (known club's home only) and `ChooseFormation{formation}` (tactics, known club, known id; same formation returns the same object; only `formation` changes); `Back` tactics to clubHome, no-op for an unknown club | ADR-0007 (2); DISCUSS D7 |
+| D4 | Focus: pure `focusPlan(previous, next, focusedId)` in `app/focus.ts`; shell focuses `<h1>` only when the Screen changed, else restores focus to the element with the previously focused `id` (fallback `<h1>`). Renderers never move focus; radios have ids `formation-<id>` and dispatch on `change`. Rejected: in-place patch and skipped render; keyed DOM diff; renderer-owned focus | ADR-0008; DISCUSS D5 |
+| D5 | Markup via `el()`: one `<h1 tabindex="-1">`; `div role="radiogroup" aria-labelledby` with a visible non-heading label; three `<label>`s each holding a native radio (stretched over the label, transparent), an `aria-hidden` mark and the formation name as a direct text node, 48px; `ul role="list" aria-labelledby` of 11 `<li>`, `textContent` exactly the code; `Back` button 48px. Rejected: `fieldset`/`legend`; `select` | ADR-0007 consequences; brief "Tactics"; DISCUSS D2, D4 |
+| D6 | Line-up layout: flat 12-column CSS grid, `--row` and `--span` custom properties from `formationLines`; forwards on the top row, GK on the bottom row (pitch view), DOM order GK first. Pitch green, chalk, gold | brief "Tactics"; DISCUSS D4 (layout is DESIGN) |
+| D7 | Club home: "Tactics" after "Squad", stacked in `div.club-actions` (full width, 48px). Rejected: side by side (two 200px buttons do not fit at 358px) | DISCUSS D1 |
+| D8 | `main.ts` tactics case: `renderTactics(root, { formation }, dispatch)` with `formation` from state | DISCUSS D7 |
+
+### Wave: DESIGN / [REF] Component decomposition
+| Component | Layer | Responsibility |
+|---|---|---|
+| `domain/formation.ts` | domain | New: ids, order, default, guard, line structure, `lineUp`, `formationLines` |
+| `app/state.ts` | app | `GameState.formation`; `Screen` + tactics; `Action` + `ViewTactics`, `ChooseFormation`; `initialState`; `update` cases (one helper per action) |
+| `app/focus.ts` | app | New: pure `focusPlan` |
+| `ui/screens/tactics.ts` | ui | New: `renderTactics(root, { formation }, dispatch)` |
+| `ui/screens/club-home.ts` | ui | Adds the "Tactics" button, wraps both buttons in `div.club-actions` |
+| `main.ts` | shell | `initialState`, tactics render case, previous-screen memory, reads `document.activeElement.id`, executes the focus plan |
+| `ui/styles.css` | ui | Club actions stack, radio cards (stretched transparent input, gold mark, focus ring), line-up pitch grid, `.tactics h1` size |
+
+### Wave: DESIGN / [REF] Driving ports
+- Formation data (`FORMATIONS`, `DEFAULT_FORMATION`, `lineUp`, `formationLines`, `isFormationId`), `update(GameState, Action) => GameState` with `ViewTactics`, `ChooseFormation`, `Back`, `initialState`, and `focusPlan`.
+- Browser: the "Tactics" button on the club home; the tactics screen (`<h1>`, radiogroup "Formation" with three radios, list "Line-up" of 11, "Back"). Detail in the brief, "For Acceptance Designer" ports 11-14.
+
+### Wave: DESIGN / [REF] Driven ports and adapters
+None: no storage, clock or network; the formation is in memory only (persistence is the later "Save and continue" story and gets its own probe then). The one environmental assumption is browser focus and native radio behaviour; it is probed by e2e (tap and arrow key keep focus on the radio; fault: the re-render destroys the focused node; fallback to the heading) per ADR-0008. No external integrations, so no contract tests. Enforcement: oxlint boundary rules unchanged; a unit test that fails if `.focus(` appears under `src/ui/`; Stryker already mutates `src/domain/**` and `src/app/state.ts` (adding `src/app/focus.ts` is recommended if `stryker.config.mjs` is editable by the factory; its comment says it is not, so unit tests carry that logic).
+
+### Wave: DESIGN / [REF] Technology choices
+No new technology or dependency (ADR-0001, 0002, 0003 apply; all OSS). `:has()` and other newer CSS is not relied on.
+
+### Wave: DESIGN / [REF] Reuse Analysis
+| Existing | Action | Contract shape / assertion |
+|---|---|---|
+| `src/domain/squad.ts` (`Position`) | REUSE (type import) | pure types; no change |
+| `salvage/tactics.ts` | REFERENCE only: names 4-4-2 and 4-3-3 | not built, not imported |
+| `src/domain/formation.ts` | CREATE NEW (no existing alternative: no formation data exists outside salvage) | pure data constants and pure return-only functions; unit tests (counts, order, derivation, frozen) |
+| `src/app/state.ts` (`update`, `isKnownClub`, `toScreen`) | EXTEND: field, variants, cases, `initialState`, `NewGame` reset | pure return-only; unit tests incl. no-ops, same-object choice, only-formation-changes, no mutation |
+| `src/app/focus.ts` | CREATE NEW (no existing alternative: the focus rule is inline in `main.ts`) | pure return-only plan value; unit tests |
+| `src/ui/screens/tactics.ts` | CREATE NEW (no existing screen) | bounded-change (root's children only; never moves focus); e2e |
+| `src/ui/screens/club-home.ts` | EXTEND: second button and wrapper | bounded-change; e2e |
+| `src/ui/dom.ts` `el()` | REUSE (attribute `checked: ""` sets the default checked state on fresh nodes) | bounded-change; detached nodes only |
+| `src/main.ts` | EXTEND: `initialState`, tactics case, focus execution | unbounded shell; universe widened by `document.activeElement.id` read; e2e |
+| `src/ui/styles.css` | EXTEND: reuse `.back-button`, `button.primary`, tokens | n/a |
+| `tests/acceptance/S-001/navigation.test.ts`, `S-002/navigation.test.ts`, `S-003/player-navigation.test.ts` | EXTEND: `GameState` fixtures gain `formation: DEFAULT_FORMATION` (or use `initialState`); assertions and counts unchanged | pure return-only; required by the new field |
+| `tests/e2e/S-001..S-003*.spec.ts` | REUSE unchanged (focus on `<h1>` after navigation still holds) | black-box regression |
+| `tests/acceptance/S-004/`, `tests/e2e/S-004-tactics.spec.ts` | CREATE NEW (DISTILL) | unit/property and black-box |
+
+### Wave: DESIGN / [REF] Changed Assumptions
+- DISCUSS slice 01 IN: "Club home gains a button named exactly 'Tactics' (44px or taller) next to 'Squad'". Changed: stacked below "Squad" (D1 leaves layout to DESIGN; two 200px buttons do not fit side by side at 390px).
+- DISCUSS notes: "D7 no-ops ... are unit tests on `update`" and "a whole-state check that only the formation changes". Unchanged, but the new required `GameState.formation` forces DELIVER to touch three existing acceptance fixtures (types only).
+- DISCUSS D5 / ADR-0003 / brief: "the shell focuses the `<h1>` after every render" and "after navigation". Changed (ADR-0008): after a render that changed the Screen; same-screen updates restore focus to the previously focused element's `id`.
+- DISCUSS D5: "focus is on the tapped formation's radio". Holds wherever the platform focuses a radio on tap or arrow key (Chromium e2e, keyboard, screen readers). Where it does not (Safari/iOS touch), focus falls back to the heading (ADR-0008).
+- No change to the roadmap outcome text; every sentence is covered (see Open questions, "Outcome trace").
+
+### Wave: DESIGN / [REF] Open questions
+- None blocking. Accepted: returning to the tactics screen re-renders from the top (no scroll restore); reading order (GK first) differs from the visual order (forwards on top) by design, because each slot is a static label.
+- Outcome trace: "Tactics" button 44px: `button.primary` 48px. Only heading "Tactics" focused on arrival: `focusPlan` heading on a Screen change. Radiogroup "Formation" with three radios in order, one checked, "4-4-2" in a new game: D1, D2, D5. Label visible name and 44px, tap checks: label 48px with the input stretched over it. List "Line-up" of 11 codes with counts: D1, D5. Choosing updates at once, heading stays, focus on the radio: D3, D4. "Back" 44px to the club home: D3, D5. Kept for the session, also after "Squad": formation is state, not screen. Not seed-dependent: fixed data. No sideways scroll or console errors: D6 and e2e.
+- Handoff for DISTILL: unit and property tests on `formation.ts` (three ids in order; each `lineUp` 11 codes, GK first, non-decreasing order, counts 1/4/4/2, 1/4/3/3, 1/4/5/1; `lineUp` equals the expansion of `formationLines`; `Object.isFrozen`; `isFormationId` rejects `"3-5-2"`, `""`, `"4-4-2 "`); `update` tests (`ViewTactics` from each other screen and an unknown club; `ChooseFormation` off tactics, unknown club, unknown id, same formation returns the same object, whole-state equality except `formation`; `Back` from tactics incl. unknown club; `NewGame` reset; no mutation); `focusPlan` tests (first render, every screen pair incl. same club different screen, same screen with and without id); an `src/ui` grep test that no `.focus(` appears. E2E (Pixel 7, 390px): club home to Tactics (focus on `<h1>`), the group and 3 radios by role and name in order, one checked, "Line-up" items equal the expected codes for all three formations at `?seed=31` and `?seed=abc` (8th club), tap each label (label 44px or taller, radio focused, only that radio checked, heading text still "Tactics", exactly one heading), arrow-key path (focus the checked radio, press `ArrowRight`, next radio checked and focused), tap the checked one (no change), Back, Squad, a player, Back, Back, Tactics (choice kept), fresh page and "New game" shows 4-4-2, tap counts (2 to a chosen formation, 1 back), no horizontal scroll on club home and tactics, no console errors, S-001..S-003 e2e unchanged. Existing suites that build `GameState` literals need `formation` added (see Reuse Analysis). Held-out `.pending` mechanics as in S-003 DISTILL if new scenarios cannot pass before DELIVER. The protected-test runner finds radios by role and name, so the radio `input` must stay native and unique per name; do not add a second element named "4-4-2" (for example a visible caption outside the label).
+
+<!-- DEVOPS, DISTILL and DELIVER sections are appended below by later waves. -->

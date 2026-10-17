@@ -55,6 +55,7 @@ Today `main.ts` renders the title screen directly. The first story (S-001) creat
 (`GameState`, `Screen`, `Action`, `update`, `parseSeed`) and the `dispatch` → `update` → `render` wiring
 in `main.ts`. After each navigation, the shell moves focus to the new screen's `<h1>` (`tabindex="-1"`)
 so screen-reader and keyboard users are not dropped on `<body>`.
+*Refinement note 2026-10-17: ADR-0008 narrows "after each navigation" to "after a render that changed the `Screen`"; a same-screen update (the S-004 formation radios) restores focus to the element with the previously focused `id` instead.*
 
 ## Consequences
 - Domain logic is unit- and property-tested in Node with no DOM. Mutation testing (`src/domain/**`) covers the rules.
