@@ -36,3 +36,20 @@ jobs:
     opportunity: >-
       Few attributes on one phone screen, one tap in and one tap back, sets up the
       starting-XI and match stories, where attributes start to matter.
+  - id: J-04
+    name: set-up-my-team
+    statement: >-
+      When I am getting my team ready for the next match, I want to choose how
+      my side lines up, so that I can play to my squad's strengths.
+    dimensions:
+      functional: Pick one of a few familiar formations in one tap and see the 11 positions it needs, kept for the rest of the session.
+      emotional: Feel that the shape of the team is my call, and that the game remembers it.
+      social: Be able to say "we play 4-3-3" and defend the choice with other football fans.
+    forces:
+      push: Without a formation there is nothing to pick a team into, and no way to use a squad that is strong in one line.
+      pull: The classic formation choice of the management games Sam grew up with, one tap per option.
+      anxiety: Losing the choice when leaving the screen; a confusing pitch diagram on a small phone.
+      habit: Thinking in a default 4-4-2 and never changing it.
+    opportunity: >-
+      Three formations shown as a plain line-up of position codes, one tap to change,
+      gives the starting-XI story its 11 slots and the match stories a tactic to use.
