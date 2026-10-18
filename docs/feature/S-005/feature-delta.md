@@ -376,6 +376,17 @@ No new technology or dependency (ADR-0001, 0002, 0003 apply; all OSS). No newer 
 | M13 banned-word lists differ | Aligned to DISCUSS D12's nine words (ADR-0009, brief) |
 | M14 ADR status Accepted before review | Kept Accepted: the review approved it in cycle 1, and the date is that of approval |
 
+`nw-solution-architect-reviewer`, independent dispatch by the plan run on the final DESIGN (cycle 2): **approved with notes** (0 critical, 0 high, 1 medium, 5 low). Folded in:
+
+| Finding | How it landed |
+|---|---|
+| Medium: ADR-0007 still states eager storage | ADR-0007's S-005 note now points to ADR-0009 ("amended by ADR-0009"); ADR-0009 says "Amends the S-005 storage note of ADR-0007" |
+| Low: unknown club in the render cases | ADR-0009 Shell: throws "Unknown club in game state", as `findClub`; unreachable by the guards |
+| Low: goldens for 4-3-3 and 4-2-3-1 | ADR-0009 Consequences: seed 31 club 0 4-3-3 `[0, 7, 3, 6, 2, 9, 12, 8, 17, 14, 16]`; seed 20260 club 7 4-2-3-1 `[1, 5, 2, 6, 7, 12, 9, 10, 8, 11, 17]` (checked against the generator output) |
+| Low: inline-block spans not caught | ADR-0009: every span in the slot and choose buttons keeps `display: inline` (CSS review check) |
+| Low: budget estimate | Accepted: about 330-350 code plus 710 test lines, still under 1200; DELIVER records the measured count |
+| Note: reader rule for `xi` | ADR-0009: readers test `state.xi === undefined`, never `in` or `Object.hasOwn` |
+
 ## Wave: DEVOPS
 
 Lean, unattended. All nine decisions pre-answered. No platform change: phone-viewport Chromium in CI and the deployed Pages URL. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope, `tests/protected/`, `stryker.config.mjs`) are read-only. Machine-readable environments: `docs/feature/S-005/environments.yaml`. Inherits the S-004 DEVOPS setup (`docs/feature/S-004/environments.yaml`); only the deltas are recorded.

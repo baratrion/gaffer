@@ -17,7 +17,7 @@ S-004 adds a "Tactics" screen where the player picks 4-4-2, 4-3-3 or 4-2-3-1 and
 - Everything is deeply frozen: the `FORMATIONS` array, each formation's lines array and every `FormationLine` object (`Object.isFrozen` on each level).
 - `Position` is imported as a type from `squad.ts` (shared kernel between the squad and tactics; no move needed until a third consumer exists).
 - Ported from `salvage/tactics.ts`: the formation names 4-4-2 and 4-3-3 only. Not ported: coordinates (the screen is a CSS line layout; pitch coordinates belong to `match-2d`, OUT), finer roles (the outcome fixes position codes only; S-005 matches players to GK/DF/MF/FW, so LB/CB/ST would be unused data), `Mentality` and `TeamTactics` (OUT). 4-2-3-1 is new. Salvage is not imported (not built).
-- S-005 reuse: a slot is its index 0..10 in `lineUp(formation)`; its position code is the element at that index and its row is derived from `formationLines`. S-005 stores "slot index to player index" in state, with no change to this module. Finer roles, if S-005 needs them, arrive through a new ADR that extends the line structure.
+- S-005 reuse: a slot is its index 0..10 in `lineUp(formation)`; its position code is the element at that index and its row is derived from `formationLines`. S-005 stores "slot index to player index" in state, with no change to this module (amended by ADR-0009: the map is stored only after the player's first pick; an XI never changed is derived on demand). Finer roles, if S-005 needs them, arrive through a new ADR that extends the line structure.
 - The data is frozen after S-004: changing a count or the order changes every line-up and needs an ADR note (as the name pools in ADR-0005).
 
 ### 2. State and navigation (`src/app/state.ts`)
