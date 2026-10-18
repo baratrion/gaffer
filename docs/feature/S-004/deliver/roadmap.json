@@ -1,0 +1,103 @@
+{
+  "roadmap": {
+    "project_id": "S-004",
+    "created_at": "2026-10-18T18:41:15Z",
+    "total_steps": 3
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Choose a formation: formation data, then state and focus plan, then tactics screen",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Domain precursor: formation data in src/domain/formation.ts (about 2h, no dependencies; not shipped alone)",
+          "criteria": [
+            "FORMATIONS is 4-4-2, 4-3-3, 4-2-3-1 in that order and DEFAULT_FORMATION is 4-4-2; isFormationId is a type guard that accepts exactly those three names and rejects 3-5-2, the empty string, names with surrounding whitespace and Object.prototype keys such as constructor and __proto__",
+            "lineUp(f) returns exactly 11 position codes: one GK first, then DF, MF, FW in non-decreasing order, with counts 1/4/4/2 for 4-4-2, 1/4/3/3 for 4-3-3 and 1/4/5/1 for 4-2-3-1; it equals the expansion of formationLines(f), whose 4-2-3-1 has two MF lines (2 then 3)",
+            "The formation data is deeply frozen (the list, every formation's lines array and every line), reading it twice gives equal answers, and it uses no ambient randomness or wall-clock time and no seed",
+            "ci:lint, ci:typecheck and ci:test are green; formation.test.ts is moved into tests/acceptance/S-004/ (git mv, .pending dropped) in the same commit as the code"
+          ],
+          "test_file": "tests/acceptance/S-004/formation.test.ts",
+          "scenario_name": "Given the three formations Sam can choose from, then they are 4-4-2, 4-3-3 and 4-2-3-1, in that order, and a new game starts at 4-4-2 (also every other scenario in formation.test.ts)",
+          "files_to_modify": [
+            "src/domain/formation.ts",
+            "tests/acceptance/S-004/formation.test.ts"
+          ]
+        },
+        {
+          "id": "01-02",
+          "name": "State: formation field, initialState, ViewTactics, ChooseFormation, Back from tactics and focusPlan in src/app/state.ts (about 4h, depends on 01-01; not shipped alone)",
+          "criteria": [
+            "GameState holds a required formation, always a known FormationId; initialState(league) starts on the title screen at 4-4-2 and NewGame resets the formation to DEFAULT_FORMATION; main.ts uses initialState instead of its state literal",
+            "ViewTactics from a known club's home opens that club's tactics screen with the formation unchanged; it is a no-op from every other screen and for an unknown club",
+            "ChooseFormation on the tactics screen of a known club with a known formation changes only the formation and keeps the screen; choosing the formation already held returns the very same state object; it is a no-op off the tactics screen, for an unknown club and for any unknown text",
+            "Back from the tactics screen returns to the same club's home with the formation kept (also after Squad, a player, Back, Back, Tactics); Back with an unknown club is a no-op; no input state is ever mutated",
+            "focusPlan(previous, next, focusId) is pure: it focuses the named element exactly when the screen is unchanged and the id is non-empty, else the heading (first render, any other screen change including a different club or player)",
+            "update stays split into per-action helpers under the oxlint complexity cap of 15; tests/acceptance/S-001/navigation.test.ts, S-002/navigation.test.ts and S-003/player-navigation.test.ts gain formation: DEFAULT_FORMATION in their GameState fixtures with assertions unchanged",
+            "tactics-navigation.test.ts and focus-plan.test.ts are moved into tests/acceptance/S-004/ (git mv, .pending dropped) in the same commit as the code; ci:lint, ci:typecheck and ci:test are green and tests/acceptance/S-004/existing-navigation-unchanged.test.ts stays green"
+          ],
+          "test_file": "tests/acceptance/S-004/tactics-navigation.test.ts",
+          "scenario_name": "Given the tactics screen, when Sam taps 4-3-3, then only the formation changes and the screen stays Tactics (also every other scenario in tactics-navigation.test.ts and focus-plan.test.ts: Given the screen stays the same, then the element is focused exactly when the screen is the same and the id is non-empty, otherwise the heading)",
+          "files_to_modify": [
+            "src/app/state.ts",
+            "src/main.ts",
+            "tests/acceptance/S-001/navigation.test.ts",
+            "tests/acceptance/S-002/navigation.test.ts",
+            "tests/acceptance/S-003/player-navigation.test.ts",
+            "tests/acceptance/S-004/tactics-navigation.test.ts",
+            "tests/acceptance/S-004/focus-plan.test.ts"
+          ]
+        },
+        {
+          "id": "01-03",
+          "name": "Tactics screen: tactics.ts renderer, Tactics button on the club home, main.ts wiring and focus, CSS, e2e (about 5h, depends on 01-02)",
+          "criteria": [
+            "The club home has a button named Tactics after Squad, stacked, full width and 44px or taller; its h1 is still the club name; from the club home Sam reaches a chosen formation in 2 taps and the club home again in 1 (Back)",
+            "The tactics screen has exactly one h1 Tactics, focused on arrival; a radio group named Formation holds native radios 4-4-2, 4-3-3, 4-2-3-1 in order with only 4-4-2 checked for a new game; each visible label is 44px or taller and tapping it checks its radio; a list named Line-up holds 11 items, each exactly one position code, in order for all three formations and the same at ?seed=31 and ?seed=abc",
+            "Choosing a formation (tap or arrow key) checks only that radio, updates Line-up at once, keeps the single heading Tactics and leaves focus on the tapped or arrowed radio; tapping the checked formation changes nothing",
+            "The choice is kept after Back, Squad, a player and Back again, and is lost only on a fresh page where New game starts at 4-4-2; Back is 44px or taller",
+            "main.ts dispatches with (action, focusId?) and executes focusPlan; no file under src/ui calls .focus(); generated text enters the DOM only through el()/textContent; the Line-up and Formation labels are non-heading elements and the radios are never display:none, visibility:hidden or hidden",
+            "No horizontal scroll at 390px on the club home and the tactics screen, and no console errors; the S-001..S-003 e2e specs and tests/protected/S-001..S-004 pass",
+            "S-004-tactics.spec.ts is moved into tests/e2e/ (git mv, .pending dropped) in the same commit as the code; ci:lint, ci:typecheck, ci:test, ci:build and ci:e2e are green; zero .pending files remain under docs/feature/S-004/distill/pending/",
+            "Committed guards stay green: tests/e2e/S-004-club-home-regression.spec.ts (R5) and tests/unit/ui/renderers-never-move-focus.test.ts (R4)"
+          ],
+          "test_file": "tests/e2e/S-004-tactics.spec.ts",
+          "scenario_name": "@walking_skeleton @kpi Sam taps Tactics, taps 4-3-3 (2 taps), sees it checked with its line-up, taps Back (1 tap) to the club home (also every other scenario in S-004-tactics.spec.ts, E2-E12)",
+          "files_to_modify": [
+            "src/ui/screens/tactics.ts",
+            "src/ui/screens/club-home.ts",
+            "src/main.ts",
+            "src/ui/styles.css",
+            "tests/e2e/S-004-tactics.spec.ts",
+            "tests/e2e/S-004-club-home-regression.spec.ts",
+            "tests/unit/ui/renderers-never-move-focus.test.ts"
+          ]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/domain/",
+      "src/app/",
+      "src/ui/",
+      "src/main.ts"
+    ],
+    "test_directories": [
+      "tests/acceptance/S-004/",
+      "tests/e2e/",
+      "tests/unit/ui/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**",
+      "tests/protected/**"
+    ]
+  },
+  "validation": {
+    "status": "pending",
+    "reviewer": "nw-software-crafter-reviewer",
+    "approved_at": null
+  }
+}
