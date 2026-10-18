@@ -281,3 +281,97 @@ DoR status: PASSED (all 3 stories). Every story has `job_id` J-05 and an Elevato
 | L5 example vs scenario | US-3 scenario now taps the "Calder Redfern" row, as the example |
 | L6 club key | D9 says the XI belongs to the session's one club |
 | L7 K3 | Kept; the e2e walk is the user-facing measure alongside the property tests |
+
+## Wave: DESIGN
+
+Mode: propose. Scope: application. One solo team (no Conway constraint). Paradigm: functional core, imperative shell (ADR-0003; recorded in the ADR and the brief, not in CLAUDE.md). New ADR: `adr-0009-starting-xi-selection-and-state.md` (one decision cluster: XI representation, rules placement, screens, button text). It refines ADR-0007's S-005 note: the slot-to-player map is stored only after the first pick. Architecture: `docs/product/architecture/brief.md` ("Starting XI (S-005, ADR-0009)", effect-isolation rows, inventory, C4 L2 descriptions, "For Acceptance Designer" ports 15-18). No new C4 container. Outcomes-registry collision check: skipped, because there is no registry (`docs/product/outcomes/` does not exist).
+
+### Wave: DESIGN / [REF] DDD list
+- New small context, "Selection" (supporting), over "League setup" (the squad, by type import from `squad.ts`) and "Tactics" (`lineUp`, `FormationId` from `formation.ts`). Language: Starting XI, Slot, Automatic XI, Pick, Swap, Starter, Squad order.
+- Value objects: `StartingXI` (readonly 11 squad indices in slot order); the selection context `{ squad, formation, xi }`. No aggregate, no events, no identity beyond the squad index (frozen order, ADR-0005/0006).
+- Invariants by construction: 11 distinct players; each slot's player has the slot's position (D5); the automatic XI is the top n per position by overall, ties in squad order (D6); a pick replaces or swaps, never duplicates (D8). State invariant: an absent `xi` means "never changed", and the effective XI is derived (`currentXI`). A formation change and `NewGame` drop a stored `xi` (D10, D9).
+
+### Wave: DESIGN / [REF] Decisions
+| # | Decision | Source |
+|---|---|---|
+| D1 | XI in state: optional `GameState.xi?: StartingXI \| undefined`, stored only after the first real pick. Absent means never changed; the effective XI is `currentXI(state, squad)` = stored, else `automaticXI(squad, formation)`, derived like the squad (ADR-0005 (d)). `initialState` unchanged. Rejected: required `xi: StartingXI \| null` (vitest `toEqual` treats a `null` key as different from a missing one, so S-004's `initialState` assertion and S-003's literal whole states would fail: forbidden by the DoD); a required key `xi: StartingXI \| undefined` (passes `toEqual`, but every typed `GameState` literal in the S-001..S-003 tests must add `xi: undefined`: same semantics as the chosen option, more edits); an eager XI stored on `ChooseClub` and `ChooseFormation` (stores derived data, and `ChooseFormation` would change more than `formation`); a sparse override map (two sources of truth) | ADR-0009 (1); DISCUSS D9, D10, DoD |
+| D2 | XI shape: `readonly number[]`, 11 squad indices in slot order; slot `i` = index `i` of `lineUp(formation)`. Rejected: slot-to-name map (names are not keys); stored `Player`s | ADR-0009 (2); ADR-0007; DISCUSS D4, D11 |
+| D3 | Rules in new pure `src/domain/selection.ts`: `isSlotIndex`, `automaticXI(squad, formation)`, `playersForPosition(squad, position)`, `pickForSlot({ squad, formation, xi }, slot, playerIndex) => StartingXI \| undefined` (`undefined` = invalid pick, the same object = own player, else replace or swap). A context object keeps oxlint `max-params` 3. Rejected: rules inline in `update`; an index-only swap in domain with eligibility in app (splits D5/D8 across layers) | ADR-0009 (3); DISCUSS D5, D6, D8 |
+| D4 | Formation re-pick and reset: private `withoutPicks(state)` (same state when nothing stored, else `xi: undefined`). `ChooseFormation` returns `{ ...withoutPicks(state), formation }` after its unchanged guards, so a never-changed XI gives exactly `{ ...state, formation }`. `NewGame` keeps its title-only guard and drops a stored XI too. One club per session: `pickClub` is reachable only through `NewGame`, so `xi` is never stale (unit-pinned) | ADR-0009; DISCUSS D9, D10, DoD |
+| D5 | Navigation: `Screen` + `startingXI{clubId}`, `choosePlayer{clubId, slot}`; `Action` + `ViewStartingXI` (known club's home), `ChooseSlot{slot}` (startingXI, known club, `isSlotIndex`), `PickPlayer{playerIndex}` (choosePlayer, known club, valid slot; squad from the exported `squadOf(league, clubId)`, shared with `main.ts`; `undefined` = no-op, own player = back to startingXI with no `xi` stored, else back with `xi` set). `Back`: choosePlayer to startingXI, startingXI to clubHome; unknown club or invalid slot = no-op. One helper per action (complexity cap 15). The screen is named `choosePlayer` (it chooses a player for a slot), not `chooseSlot` | ADR-0009; DISCUSS D11 |
+| D6 | Focus: `sameScreen` adds startingXI (by `clubId`) and choosePlayer (by `clubId` and `slot`); the switch stays exhaustive (typecheck). Every S-005 navigation changes the screen, so focus goes to the new `<h1>` (ADR-0008); no focus ids | ADR-0008; DISCUSS D3, D7, D8 |
+| D7 | UI: club home third `button.primary` "Starting XI" after "Tactics". `ui/screens/starting-xi.ts`: `<h1 id="starting-xi-title" tabindex="-1">`, `<ul role="list" aria-labelledby="starting-xi-title">`, 11 `<li>` with one `button.xi-slot` each, `.back-button`. `ui/screens/choose-player.ts`: `<h1 tabindex="-1">Choose MF</h1>`, `<ul role="list" aria-label="Players">`, one `button.xi-choice` per player, `.back-button`. Layout: one flat stacked list. Rejected: pitch-row chips (about 80px per name at 358px); inline expansion (a same-screen update with focus ids; D7 wants its own heading) | ADR-0009 (4); DISCUSS D1, D3, D7, open item |
+| D8 | Button text: inline spans with literal single-space text nodes (code, " ", name, " ", overall; name, " ", overall, then " " and "Starting" for starters), so `textContent` and the accessible name read exactly "MF Ivo Elderkin 18". No flex, grid or float on these buttons or spans (the brief's S-003 inline-flow rule: blockified children drop the space nodes and split `innerText`); `display: block`, full width, `min-height: 48px`, `overflow-wrap: anywhere`. Rejected: grid spans as in squad rows (no spaces in the name); one bare text node (no styling of code or "Starting") | ADR-0009; DISCUSS D3, D7, D13 |
+| D9 | `main.ts`: `render` gains a `never`-typed exhaustiveness guard; two render cases derive the squad (`squadOf`), `currentXI`, `lineUp`, `playersForPosition`, and pass plain view props (`{ slots: { position, player }[] }`; `{ position, players: { playerIndex, name, overall, starting }[] }`). A missing player or code throws, as for the player screen | ADR-0009; ADR-0005 (d) |
+
+### Wave: DESIGN / [REF] Component decomposition
+| Component | Layer | Responsibility |
+|---|---|---|
+| `domain/selection.ts` | domain | New: `StartingXI`, `isSlotIndex`, `automaticXI`, `playersForPosition`, `pickForSlot` |
+| `app/state.ts` | app | `GameState.xi?`; `Screen` + startingXI, choosePlayer; `Action` + `ViewStartingXI`, `ChooseSlot`, `PickPlayer`; `currentXI`, `squadOf`; private `withoutPicks` used by `ChooseFormation` and `NewGame`; `Back` cases; `sameScreen` cases |
+| `ui/screens/starting-xi.ts` | ui | New: `renderStartingXI(root, { slots }, dispatch)` |
+| `ui/screens/choose-player.ts` | ui | New: `renderChoosePlayer(root, { position, players }, dispatch)` |
+| `ui/screens/club-home.ts` | ui | Third button "Starting XI" in `div.club-actions` |
+| `main.ts` | shell | Two render cases deriving view props |
+| `ui/styles.css` | ui | `.xi-slot`, `.xi-choice` (block, 48px, inline-flow text, wrap), code and "Starting" span accents, `.starting-xi h1`, `.choose-player h1` size; reuses `.back-button`, `button.primary`, list reset as `.squad-list` |
+
+Indicative code budget: selection 70, state 70, starting-xi 40, choose-player 45, club-home 3, main 30, CSS 35, so about 295 lines (DISCUSS 330). Existing fixtures need 0 lines (D1), so the DISCUSS total of 1040 drops to about 1000 with tests at 710.
+
+### Wave: DESIGN / [REF] Driving ports
+- Selection rules (`isSlotIndex`, `automaticXI`, `playersForPosition`, `pickForSlot`), `update(GameState, Action) => GameState` with `ViewStartingXI`, `ChooseSlot`, `PickPlayer`, `Back`, the `ChooseFormation` re-pick and the `NewGame` reset, `currentXI`, and `focusPlan` (extended).
+- Browser: "Starting XI" on the club home; the Starting XI screen (`<h1>`, list "Starting XI" of 11 buttons, "Back"); the choose-player screen (`<h1>` "Choose GK|DF|MF|FW", list "Players", "Back"). Detail in the brief, "For Acceptance Designer" ports 15-18.
+
+### Wave: DESIGN / [REF] Driven ports and adapters
+None. There is no storage, clock or network: the XI is in memory only, and persistence ("Save and continue") gets its own probe. The environment assumption is that inline spans with single-space text nodes give an accessible name, `textContent` and `innerText` with single spaces on one line, and that long names wrap within 390px. The e2e probes it with exact-name queries, `textContent` and `innerText` equality on an apostrophe name and a hyphenated name, and a scroll-width check. Faults to inject in DISTILL's reference: spans without the space nodes must turn the name and `textContent` checks red; `display: grid` or flex on the button must turn the `innerText` check red (blockified items get line breaks in `innerText`). No external integrations, so no contract tests. Enforcement: oxlint boundaries unchanged (`selection.ts` imports only domain modules); `max-params` 3 respected; the PR guard keeps RNG and `Date` out of `src/domain/`; Stryker covers `selection.ts` (domain glob) and `state.ts` (`currentXI`, `withoutPicks`, new cases) with no config change; the `.focus(` grep unit test covers the new renderers.
+
+### Wave: DESIGN / [REF] Technology choices
+No new technology or dependency (ADR-0001, 0002, 0003 apply; all OSS). No newer CSS (`:has()` and so on) is relied on.
+
+### Wave: DESIGN / [REF] Reuse Analysis
+| Existing | Action | Contract shape / universe / assertion |
+|---|---|---|
+| `src/domain/squad.ts` (`Player`, `Position`, `PLAYERS_PER_SQUAD`, `generateSquad`) | REUSE (type import in domain; `generateSquad` called by `update` and `main.ts`) | pure return-only; no change; S-002/S-003 property tests |
+| `src/domain/formation.ts` (`lineUp`, `FormationId`) | REUSE unchanged | pure, frozen; S-004 tests |
+| `src/domain/selection.ts` | CREATE NEW (no existing alternative: no selection logic exists; `salvage/` has none) | pure return-only; universe = the returned array only; fast-check properties and goldens (ADR-0009 Consequences), freeze-and-compare for no input mutation |
+| `src/app/state.ts` (`update`, `isKnownClub`, `isSquadIndex`, `toScreen`, `focusPlan`, `chooseFormation`, `newGame`, `back`) | EXTEND: optional field, two screens, three actions, `currentXI`, `squadOf`, `withoutPicks`, `Back` and `sameScreen` cases | pure return-only. Universe of the returned state: `{ league, screen, formation, xi }`; whole-state `toEqual` with an explicit expected `xi` (or no `xi` key), same-object `toBe` for no-ops, deep-freeze for no mutation |
+| `tests/acceptance/S-004/tactics-navigation.test.ts`, `S-003/player-navigation.test.ts`, `S-001`/`S-002` navigation tests | REUSE unchanged (no fixture or assertion edit; D1) | regression guard; must stay green |
+| `src/ui/screens/club-home.ts` | EXTEND: third button | bounded-change (root's children); e2e |
+| `src/ui/screens/squad.ts` (row markup) | REFERENCE only (not reused: its grid spans have no space nodes, so its name reads without spaces) | n/a |
+| `src/ui/screens/starting-xi.ts`, `choose-player.ts` | CREATE NEW (no existing screen) | bounded-change; universe = root's children; never moves focus (grep unit test); e2e |
+| `src/ui/dom.ts` `el()` | REUSE (string children become text nodes, used for the single-space separators) | bounded-change; detached nodes only |
+| `src/main.ts` (`render`, `findClub`) | EXTEND: two render cases (using `squadOf`), `never` exhaustiveness guard; `findClub` kept for the existing cases | unbounded shell; universe unchanged (reads `location.search` once, writes root and focus); e2e |
+| `src/ui/styles.css` | EXTEND: reuse `.back-button`, `button.primary`, tokens; new `.xi-slot`, `.xi-choice` | n/a |
+| `tests/e2e/S-001..S-004*.spec.ts`, `tests/protected/S-001..S-004/` | REUSE unchanged (the new button does not collide with "Squad", "Tactics" or "Back") | black-box regression |
+
+### Wave: DESIGN / [REF] Changed Assumptions
+- DISCUSS line budget row "Existing acceptance fixtures (only if `GameState` gains a required field), 40": not needed. `xi` is optional (D1), so no existing fixture or assertion changes.
+- DISCUSS D11 "a choose-slot variant": named `choosePlayer{clubId, slot}`, after what the screen does; the action that opens it is `ChooseSlot{slot}`. A naming choice, not a behaviour change.
+- DISCUSS D8 "tapping the slot's own player changes nothing": the XI and its never-changed status are untouched, and the screen returns to Starting XI (as D8 says, "tapping a player returns to the Starting XI screen"). So `update` returns a new state with only `screen` changed, not the same object.
+- US-3 technical note (M5), "one option: ... picks stored apart and cleared by a formation change": adopted as D1/D4, with the stored value being the whole XI (not a partial pick set), so there is one source for the effective XI once changed.
+- DISCUSS open item (layout of the 11 slot buttons): a flat stacked list (D7); the Tactics pitch rows stay on the Tactics screen only.
+- No change to the roadmap outcome text.
+
+### Wave: DESIGN / [REF] Open questions
+- None blocking. Accepted: the Starting XI screen re-renders from the top on return (no scroll restore); with 11 buttons of 48px plus gaps, the 11th slot sits below the fold on short phones (it is reachable by scroll, never sideways).
+- Outcome trace: "Starting XI" button 44px: `button.primary` 48px (D7). One heading, focused on arrival and return: every S-005 navigation changes the `Screen` (D6). List "Starting XI" of 11 one-button items in `lineUp` order reading "CODE Name OVERALL": D2, D7, D8. Automatic XI by overall, ties in squad order: D3. Never-changed XI follows the formation: D1 (derived). Choose screen heading, list "Players" in squad order with "Starting" marks: D3 (`playersForPosition`), D7, D8. Replace, swap, own player, Back: D3, D5. Kept for the session: `xi` is state, not screen. Formation re-pick and the `NewGame` reset: D4. No sideways scroll and no console errors: D8 and the e2e.
+- Handoff for DISTILL: goldens for `automaticXI` (seed 31 club 0 for all 3 formations; `?seed=abc` = 20260, club 7, 4-4-2 and 4-2-3-1, from DISCUSS); properties per ADR-0009 Consequences (fast-check honours `FC_SEED`); `update` tests per brief port 16, including "`ChooseFormation` with no stored `xi` adds no `xi` key" (`Object.hasOwn`) and "with a stored `xi` it is `undefined`"; `focusPlan` cases per port 17; D12 unit check over every string array in `names.ts` (case-insensitive substrings "back", "squad", "tactics", "starting", "players", "formation", "line-up", "clubs", "choose"); e2e per DISCUSS DoD with exact names (`exact: true`) and `textContent` and `innerText` equality, including an apostrophe name and a hyphenated name; unit tests that `ChooseClub` is a no-op off `pickClub` and that `NewGame` from a title with a stored `xi` drops it. The held-out `.pending` mechanics are as in S-004 DISTILL.
+
+### Wave: DESIGN / [REF] Peer review
+`nw-solution-architect-reviewer`, cycle 1: **approved** (0 critical, 0 high, 3 medium, 11 low). Verified: the optional `xi` keeps the S-004 and S-003 `toEqual` assertions green under `exactOptionalPropertyTypes`, and rejecting `null` is correctly reasoned. The goldens match the DISCUSS rows by hand. The `pickForSlot` contract and involution, the no-op rules, the `sameScreen` extension and the enforcement claims are sound. Folded in (approved, so no second cycle):
+
+| Finding | How it landed |
+|---|---|
+| M1 grid fault not caught by the name or `textContent` probe | Probe adds `innerText` equality and states the mechanism (blockified items get line breaks); grid or flex turns `innerText` red, missing spaces turn name and `textContent` red (ADR-0009 Earned Trust, brief, Driven ports) |
+| M2 required-`undefined` variant not evaluated | Option B2 added to ADR-0009 Options 1 and to D1, rejected for fixture churn with the same semantics |
+| M3 `render` in `main.ts` not exhaustive | `never`-typed guard required (ADR-0009 Shell, D9, brief) |
+| M4 `currentXI` enforcement | Enforcers named: review, `update` unit tests, and the e2e (a direct `xi[slot]` read throws on a never-changed XI) |
+| M5 `NewGame` title-only guard | Restated (ADR-0009, D4, brief) |
+| M6 `update` shape | Pure return-only; the universe is a separate note |
+| M7 renderer closed world | `replaceChildren` is the only write; `.focus(` grep and review; no DOM-diff harness (recorded in ADR-0009) |
+| M8 focus on an invalid pick | Stated: never dispatched by the UI; it would be `heading` (ADR-0008 default) |
+| M9 single-club invariant | Reachability argument recorded; two unit tests (DISTILL handoff) |
+| M10 duplicated club lookup | Exported `squadOf(league, clubId)` shared by `update` and `main.ts` |
+| M11 wrong "ADR-0006 rule" citation | Cites the brief's S-003 inline-flow rule |
+| M12 Earned Trust wording | The environment assumption and its probe are named in the Earned Trust entry |
+| M13 banned-word lists differ | Aligned to DISCUSS D12's nine words (ADR-0009, brief) |
+| M14 ADR status Accepted before review | Kept Accepted: the review approved it in cycle 1, and the date is that of approval |
