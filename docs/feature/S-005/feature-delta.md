@@ -5,7 +5,7 @@
 Lean, unattended, revision 1. Reuses `discuss/journey.md` and `slices/slice-01..02`. The outcome is the owner draft for S-005 ("The player fills the 11 slots from the squad by tapping (tap slot, tap player). A suggested XI is pre-filled by best rating per position. Exactly 11 starters with exactly 1 goalkeeper are required to continue."), narrowed by scope.md precedence (ship less). The XI is always full: it starts automatic, and the player can only swap within a position. So "required to continue" needs no gate, and there is nothing to continue to yet (no match). "Exactly 1 goalkeeper" holds by construction: every formation has one GK slot, and only goalkeepers fill it. The XI is kept for the session only ("Save and continue" is its own later story). Keeping the player's picks through a formation change is deferred to a later story; here a formation change re-picks the automatic XI (D10). Feature type: user-facing. UX depth: lightweight. Walking skeleton: no (brownfield, extends S-001..S-004). No DIVERGE artifact (accepted as lean, as for S-002..S-004).
 
 ### Wave: DISCUSS / [REF] Scope Assessment
-PASS: 3 small user stories, 1 roadmap story, 1 new small context ("Selection": the XI over squad and formation) plus the app navigation. 2 releasable carpaccio slices shipped in one DELIVER, about 2-3 days. Under 1200 changed lines including tests (budget below). Integration points: squad (S-002/S-003), formation and `lineUp` (S-004), club home actions, shell focus (ADR-0008): 4, within the limit of 5. No oversized signal: each story has 3-5 scenarios, and the keep-picks rule is cut (C1).
+PASS: 3 small user stories with 7 scenarios in total (2, 3, 2; consolidated after review cycle 2), 1 roadmap story and one demonstrable outcome ("my eleven, my picks"), 1 new small context ("Selection": the XI over squad and formation) plus the app navigation. 2 demonstrable carpaccio slices, one release (one DELIVER), about 2-3 days. Under 1200 changed lines including tests (budget below). Integration points: squad (S-002/S-003), formation and `lineUp` (S-004), club home actions, shell focus (ADR-0008): 4, within the limit of 5. No oversized signal: 7 scenarios for the whole roadmap story, and the keep-picks rule is cut (C1).
 
 Line budget (changed lines, code plus tests; file names are indicative, DESIGN names the files):
 
@@ -28,7 +28,7 @@ Line budget (changed lines, code plus tests; file names are indicative, DESIGN n
 Sam, 34, a lapsed Championship Manager fan. Plays on the bus, one-handed, on a mid-range Android phone at 390px wide, with 5 minutes to spare (persona from `docs/feature/S-001/feature-delta.md`; player from brief.md). Has looked at the squad and its players and chosen a formation. Now Sam wants names in the 11 slots: a sensible XI without filling 11 slots by hand, and the final say on who starts.
 
 ### Wave: DISCUSS / [REF] JTBD one-liner
-When I have set how my side lines up, I want to choose which players start, so that I field the team I believe in. (Recorded as J-05 `pick-my-starting-eleven` in `docs/product/jobs.yaml`; it follows J-04.)
+When I have set how my side lines up, I want to choose which players start, so that I field the team I believe in. (Recorded as J-05 `pick-my-starting-eleven` in `docs/product/jobs.yaml`; it follows J-04.) S-005 serves J-05 in part: its "picks that survive a formation change" opportunity and the "losing picks when changing the formation" anxiety are deferred to the D15 candidate; here picks survive every visit except a formation change.
 
 ### Wave: DISCUSS / [REF] Glossary
 - **Squad order**: the order of the club's "Squad" list (S-002: GK, DF, MF, FW, then generation order); the index of a player is his row 0..17.
@@ -46,7 +46,7 @@ When I have set how my side lines up, I want to choose which players start, so t
 - D6 Automatic XI: for each position, the formation's n slots of that position hold the n players of that position with the highest overall. They are listed from highest to lowest overall, ties in squad order. Equivalently, no player of a position who is not in the XI has a higher overall than a starter of that position. The XI is derived from the generated squad only, with no RNG draw of its own. So the same `?seed=` always gives the same XI, and `?seed=abc` gives the default seed's XI (the same as no seed).
 - D7 Choose screen: tapping a slot opens a screen with exactly one `<h1>`, focused on arrival: "Choose GK", "Choose DF", "Choose MF" or "Choose FW" (the slot's code). A list named "Players" holds one button (44px or taller) per squad player of that position (2 GK, 6 DF, 6 MF or 4 FW), in squad order. Each button reads the player's name, one space, then the overall. For each player currently in the XI, one space and "Starting" follow, for example "Ivo Elderkin 18 Starting". So exactly as many buttons read "Starting" as the formation has slots of that position, the tapped slot's own player included. The screen shows no age, attributes or condition. A button named exactly "Back" (44px or taller) returns to the Starting XI screen, heading focused, with the XI unchanged.
 - D8 Picking: tapping a player returns to the Starting XI screen (heading focused, as for any screen change, ADR-0008), with that player in the tapped slot. A player not in the XI replaces the slot's player, who leaves the XI. A player already in another slot (of the same position, by D5) swaps with the slot's player. Tapping the slot's own player changes nothing. There is no confirm or save button.
-- D9 Session memory: the XI is kept in the game state for the rest of the session. After "Back", "Squad" (and a player), "Back", or "Tactics" without choosing another formation (including a tap on the already checked formation), then "Back", it is unchanged. It is not persisted across reloads. "New game" (title screen) starts from the automatic XI again. The protected scenario checks this in a fresh page, not by reloading after picks, so the later "Save and continue" story (scope IN) can restore a saved XI through "Continue" without contradicting a permanent S-005 test (same rationale as S-004 D3).
+- D9 Session memory: the XI is kept in the game state for the rest of the session. After "Back", "Squad" (and a player), "Back", or "Tactics" without choosing another formation (including a tap on the already checked formation), then "Back", it is unchanged. It is not persisted across reloads. "New game" (title screen) starts from the automatic XI again. The XI belongs to the session's one club: today a session holds one club (`ChooseClub` runs only from the pick-club screen and no screen leads back to it), so a later "back to clubs" story must reset or key the XI by club. The protected scenario checks this in a fresh page, not by reloading after picks, so the later "Save and continue" story (scope IN) can restore a saved XI through "Continue" without contradicting a permanent S-005 test (same rationale as S-004 D3).
 - D10 Formation change (narrowed, C1): choosing another formation in Tactics replaces the XI with the automatic XI of the new formation, and drops any picks. The permanent rule, the only one the protected scenarios pin, is: "an XI the player never changed always follows the formation: after choosing another formation, Starting XI shows the automatic XI of the new formation". That a formation change also drops picks is this story's behaviour only. It is covered by unit and e2e tests, not by `tests/protected/S-005/`, so a later story may keep the player's picks without contradicting a permanent test. The `ChooseFormation` guards are unchanged: an unknown id, another screen, an unknown club or the same formation all return the same state object.
 - D11 Navigation (names and shapes for DESIGN, ADR-0003): `Screen` gains a starting-XI variant (club id) and a choose-slot variant (club id, slot index). `Action` gains three actions. View-starting-XI is valid only from a known club's home. Choose-slot is valid only on the Starting XI screen, with a slot that is an integer 0..10. Pick-player is valid only on the choose screen, with a squad index 0..17 of a player whose position equals the slot's code. "Back" goes from choose-slot to Starting XI, and from Starting XI to the club home. Wrong-screen actions and invalid slots or players are no-ops, as before. `GameState` gains the XI; the representation is for DESIGN (ADR-0007 anticipates "slot index to player index" in state).
 - D12 Accessible names: no new accessible name may collide with an existing one. The checked words are "Back" (except the two new "Back" buttons), "Squad", "Tactics", "Starting", "Players", "Formation", "Line-up", "Clubs" and "Choose". Every string array in `src/domain/names.ts` (`TOWNS`, `CLUB_SUFFIXES`, `COLOUR_PALETTE`, `FIRST_NAMES`, `SURNAMES`) contains none of these words, checked case-insensitively and as substrings, the way Playwright matches names by default. So no club, player or slot button can collide with them. DISTILL adds a unit check over those arrays. "Starting XI" is new. The "Choose GK/DF/MF/FW" headings are on their own screen, never with "Choose your club".
@@ -62,7 +62,7 @@ Backbone: pick club, club home, squad, player, tactics, **starting XI** (see, ch
 Priority rationale: "pick team" is the first step of the brief's five-minute loop "pick team, play match, see table". With S-004, this story completes that step and gives the match stories a side to play. The slices are ordered by dependency, then by outcome value. The roadmap outcome and `tests/protected/S-005/` are complete only after slice 02.
 
 ### Wave: DISCUSS / [REF] User stories
-Fixtures are real generator values. `?seed=31`, first club "Netherwold Borough" (club index 0), squad in order (index, position, name, overall):
+Fixtures are real generator values, produced by running `generateSquad(31, 0)` and `generateSquad(20260, 7)` (names, positions and overalls) on 2026-10-18 at commit `6d73d16`; DISTILL adds a golden unit test pinning these rows before DELIVER starts. `?seed=31`, first club "Netherwold Borough" (club index 0), squad in order (index, position, name, overall):
 0 GK Tamsin Ingleby 17, 1 GK Alden Zealby 11, 2 DF Quill Yarrow 3, 3 DF Calder Ashcombe 18, 4 DF Calder Kilbride 3, 5 DF Dacey Jessamy 3, 6 DF Quill Crossley 4, 7 DF Bram Pemberly 19, 8 MF Calder Redfern 15, 9 MF Ivo Elderkin 18, 10 MF Dorian Dunmore 7, 11 MF Finlay Ballantyne 3, 12 MF Joren Dalrymple 16, 13 MF Kestrel Northcott 6, 14 FW Garrick Thistlewood 5, 15 FW Emlyn Vexford 2, 16 FW Finlay Fitch-Moreton 5, 17 FW Merrick Hartwell 8.
 `?seed=abc` (default seed 20260), 8th club "Oakhampton Rise Borough" (club index 7): 0 GK Dacey Marwood 6, 1 GK Alden Hartwell 17, 2 DF Ulric O'Garrity 8, 3 DF Bram Quarrie 5, 4 DF Zander Wetherby 4, 5 DF Wystan Redfern 14, 6 DF Soren Dalrymple 8, 7 DF Perrin Dunmore 6, 8 MF Ulric Everleigh 8, 9 MF Alden Underby 17, 10 MF Tamsin Stanhope 12, 11 MF Orrin Lockhart 2, 12 MF Niall Stanhope 20, 13 MF Brannock Cardew 2, 14 FW Cormac Marwood 6, 15 FW Rurik Pemberly 4, 16 FW Bram Stanhope 9, 17 FW Joren Northcott 19.
 The acceptance criteria state rules; these rows are their examples. "Netherwold Borough's automatic 4-4-2 XI" below is: GK Tamsin Ingleby 17; DF Bram Pemberly 19, DF Calder Ashcombe 18, DF Quill Crossley 4, DF Quill Yarrow 3 (a tie at 3 with Kilbride and Jessamy, broken by squad order); MF Ivo Elderkin 18, MF Joren Dalrymple 16, MF Calder Redfern 15, MF Dorian Dunmore 7; FW Merrick Hartwell 8, FW Garrick Thistlewood 5 (a tie with Finlay Fitch-Moreton, broken by squad order).
@@ -83,39 +83,20 @@ The acceptance criteria state rules; these rows are their examples. "Netherwold 
 **Acceptance criteria (embedded UAT)**
 ```gherkin
 Scenario: A new game shows the automatic eleven at once
-  Given Sam opens a fresh page at "?seed=31", taps "New game" and taps "Netherwold Borough"
+  Given Sam opens a fresh page at "?seed=31" on a 390px-wide viewport, taps "New game" and taps "Netherwold Borough"
   When Sam taps the button named "Starting XI"
-  Then the only heading is "Starting XI" and it has focus
-  And the list named "Starting XI" holds exactly 11 items, each holding exactly one button
-  And the buttons read, in order, "GK Tamsin Ingleby 17", "DF Bram Pemberly 19", "DF Calder Ashcombe 18", "DF Quill Crossley 4", "DF Quill Yarrow 3", "MF Ivo Elderkin 18", "MF Joren Dalrymple 16", "MF Calder Redfern 15", "MF Dorian Dunmore 7", "FW Merrick Hartwell 8", "FW Garrick Thistlewood 5"
-
-Scenario: The automatic eleven are the best of each position, as the Squad list shows
-  Given Sam opens a fresh page at "?seed=abc", taps "New game", taps "Oakhampton Rise Borough", taps "Squad", notes the 18 rows and taps "Back"
-  When Sam taps "Starting XI"
-  Then each button reads a code, one space, a name, one space and an overall, with 11 different players whose "Squad" position equals the code and whose overall equals the "Squad" row
-  And in each position no player missing from the XI has a higher overall than a starter, and starters are listed from highest to lowest overall, ties in squad order
-  And the DF buttons read "DF Wystan Redfern 14", "DF Ulric O'Garrity 8", "DF Soren Dalrymple 8", "DF Perrin Dunmore 6"
+  Then the only heading is "Starting XI", it has focus, and the list named "Starting XI" holds exactly 11 items of one button each, reading in order "GK Tamsin Ingleby 17", "DF Bram Pemberly 19", "DF Calder Ashcombe 18", "DF Quill Crossley 4", "DF Quill Yarrow 3", "MF Ivo Elderkin 18", "MF Joren Dalrymple 16", "MF Calder Redfern 15", "MF Dorian Dunmore 7", "FW Merrick Hartwell 8", "FW Garrick Thistlewood 5"
 
 Scenario Outline: An XI never changed follows the formation chosen in Tactics
   Given Sam opens a fresh page at "<seed>", taps "New game" and taps "<club>"
   When Sam taps "Tactics", "<formation>", "Back" and "Starting XI"
-  Then the 11 codes equal that formation's "Line-up" order (<counts>) and the MF and FW buttons read <mf_fw>
+  Then the 11 codes are <counts> in that order and the MF and FW buttons read <mf_fw>
   Examples:
     | seed      | club                    | formation | counts             | mf_fw |
     | ?seed=31  | Netherwold Borough      | 4-3-3     | 1 GK, 4 DF, 3 MF, 3 FW | "MF Ivo Elderkin 18", "MF Joren Dalrymple 16", "MF Calder Redfern 15", "FW Merrick Hartwell 8", "FW Garrick Thistlewood 5", "FW Finlay Fitch-Moreton 5" |
     | ?seed=abc | Oakhampton Rise Borough | 4-2-3-1   | 1 GK, 4 DF, 5 MF, 1 FW | "MF Niall Stanhope 20", "MF Alden Underby 17", "MF Tamsin Stanhope 12", "MF Ulric Everleigh 8", "MF Orrin Lockhart 2", "FW Joren Northcott 19" |
-
-Scenario: The same seed always gives the same eleven
-  Given Sam has noted Netherwold Borough's Starting XI after a fresh page at "?seed=31", "New game", "Netherwold Borough", "Starting XI"
-  When Sam repeats exactly those steps in a second fresh page
-  Then the 11 buttons read exactly as noted, in the same order
-
-Scenario: The Starting XI screen fits a phone and leads back home
-  Given Sam is on a 390px-wide phone viewport on Netherwold Borough's home at "?seed=31"
-  When Sam taps "Starting XI" and then the button named "Back"
-  Then the only heading is "Netherwold Borough" and it has focus
-  And "Starting XI", each of the 11 slot buttons and "Back" were at least 44px tall, neither screen scrolled sideways, and no errors appeared in the browser console
 ```
+Checked inside these two scenarios or by the e2e and property tests (consolidated after review cycle 2 to keep the story at 7 scenarios): "Starting XI", each slot button and "Back" are at least 44px tall; "Back" returns to the club home with its heading ("Netherwold Borough") focused; nothing scrolls sideways at 390px and no console error appears; the same `?seed=` in a second fresh page gives the same 11 buttons; for any seed and club the test reads the "Squad" list rows (name, position, overall) and checks that the 11 are different players whose squad position equals the slot code and whose overall equals their row, and that no player of a position missing from the XI has a higher overall than a starter (property, `?seed=abc` 8th club gives "DF Wystan Redfern 14", "DF Ulric O'Garrity 8", "DF Soren Dalrymple 8", "DF Perrin Dunmore 6").
 
 **Outcome KPI:** K1 (below).
 **Technical notes (for DESIGN, not AC):** the squad is derived on render (`generateSquad(league.seed, clubIndex)`, ADR-0005; club index as in the Glossary) and is not stored in `GameState`. The automatic pick is a pure function of the squad and `lineUp(formation)`: no RNG, no `Date`. Club home layout from S-004 (`div.club-actions`, ADR-0007). Focus moves to the `<h1>` on a screen change (ADR-0008). Slice 01 renders the 11 slot buttons and slice 02 wires them, both in the one S-005 DELIVER. Depends on S-002, S-003 (derived overall) and S-004.
@@ -142,17 +123,14 @@ Scenario: Tapping a slot lists the players of that position, starters marked
   And the list named "Players" holds exactly 6 buttons reading, in order, "Calder Redfern 15 Starting", "Ivo Elderkin 18 Starting", "Dorian Dunmore 7 Starting", "Finlay Ballantyne 3", "Joren Dalrymple 16 Starting", "Kestrel Northcott 6"
   And each player button and the button named "Back" are at least 44px tall, nothing scrolls sideways and no console error appears
 
-Scenario: Picking a player who is not in the XI fills the tapped slot
-  Given Sam is on "Choose MF", opened from "MF Dorian Dunmore 7" on Netherwold Borough's automatic XI
-  When Sam taps "Kestrel Northcott 6"
-  Then the only heading is "Starting XI" and it has focus
-  And the 9th button reads "MF Kestrel Northcott 6", no button names Dorian Dunmore, and the other 10 buttons are unchanged
-
-Scenario: Picking a starter from another slot swaps the two
-  Given Sam is on Netherwold Borough's Starting XI with its automatic XI
-  When Sam taps "MF Ivo Elderkin 18" and then "Joren Dalrymple 16 Starting"
-  Then the 6th button reads "MF Joren Dalrymple 16" and the 7th "MF Ivo Elderkin 18"
-  And the other 9 buttons are unchanged and the 11 players are all different
+Scenario Outline: Picking a player puts him in the tapped slot, swapping with another starter
+  Given Sam is on Netherwold Borough's Starting XI at "?seed=31" with its automatic 4-4-2 XI
+  When Sam taps "<slot>" and then "<player>"
+  Then the only heading is "Starting XI", it has focus, and <result>, with the other buttons unchanged and 11 different players
+  Examples:
+    | slot               | player                      | result |
+    | MF Dorian Dunmore 7 | Kestrel Northcott 6        | the 9th button reads "MF Kestrel Northcott 6" and no button names Dorian Dunmore |
+    | MF Ivo Elderkin 18  | Joren Dalrymple 16 Starting | the 6th button reads "MF Joren Dalrymple 16" and the 7th "MF Ivo Elderkin 18" |
 
 Scenario Outline: The slot's own player or Back changes nothing
   Given Sam is on Oakhampton Rise Borough's Starting XI at "?seed=abc" with its automatic 4-4-2 XI
@@ -184,19 +162,15 @@ Scenario Outline: The slot's own player or Back changes nothing
 ```gherkin
 Scenario: The XI is kept while Sam looks around
   Given Sam has picked "Kestrel Northcott 6" into the 9th slot of Netherwold Borough's Starting XI at "?seed=31"
-  When Sam taps "Back", "Squad", "Back", "Tactics", "4-4-2" (already checked), "Back" and "Starting XI"
+  When Sam taps "Back", "Squad", the row of "Calder Redfern", "Back", "Back", "Tactics", "4-4-2" (already checked), "Back" and "Starting XI"
   Then the 11 buttons read exactly as before the walk, in the same order, the 9th still "MF Kestrel Northcott 6"
 
-Scenario: Choosing another formation re-picks the automatic XI (this story only; unit and e2e, not protected)
+Scenario: Choosing another formation re-picks the automatic XI
   Given Sam has picked "Kestrel Northcott 6" into the 9th slot of Netherwold Borough's Starting XI
   When Sam taps "Back", "Tactics", "4-3-3", "Back" and "Starting XI"
   Then the buttons read Netherwold Borough's automatic 4-3-3 XI: "GK Tamsin Ingleby 17", the same 4 DF, "MF Ivo Elderkin 18", "MF Joren Dalrymple 16", "MF Calder Redfern 15", "FW Merrick Hartwell 8", "FW Garrick Thistlewood 5", "FW Finlay Fitch-Moreton 5"
-
-Scenario: Every new game starts from the automatic XI
-  Given Sam opens a fresh page at "?seed=31" (and, on another try, "?seed=abc")
-  When Sam taps "New game", "Netherwold Borough" ("Oakhampton Rise Borough") and "Starting XI"
-  Then the buttons read that club's automatic 4-4-2 XI, with no horizontal scroll and no console errors
 ```
+Notes: the formation re-pick scenario is this story's behaviour only (D10); it is covered by unit and e2e tests, not by `tests/protected/S-005/`. "Every new game starts from the automatic XI" is the fresh-page US-1 scenario plus a unit test that `NewGame` resets the XI.
 
 **Outcome KPI:** K3 (below).
 **Technical notes (for DESIGN, not AC):** DESIGN question (M5), not a decided test change. Today `ChooseFormation` changes only `formation`, and `tests/acceptance/S-004/tactics-navigation.test.ts` (not protected) asserts whole-state equality with only `formation` changed, building states through a fixture helper. DESIGN picks the XI representation so that S-004's acceptance tests stay green. One option: an XI never changed is derived from squad and formation, not stored, and picks are stored apart and cleared by a formation change. ADR-0007 anticipates "slot index to player index" in state. The `ChooseFormation` guards stay as they are (an unknown id or the same formation returns the same object). `tests/protected/S-004/` must stay green (the Tactics UI is unchanged). Depends on US-2 and S-004.
@@ -223,6 +197,7 @@ Guardrails: S-001..S-004 protected scenarios stay green; no sideways scroll at 3
 - Unit and property tests pass for the automatic XI, for pick and swap, for the formation re-pick, and for navigation (including no-ops and the `NewGame` reset). The `ci:*` scripts are green.
 - The e2e phone-viewport smoke (local-preview and the post-deploy smoke, per the DEVOPS matrix) covers this path: club home, Starting XI, a slot, a pick, a swap, the choose screen's Back, Back, Squad, Back, Tactics, Back, Starting XI (kept), then a formation change (automatic XI of the new formation). It also checks focus on each new heading.
 - The change stays under 1200 changed lines including tests (budget above).
+- `tests/acceptance/S-004/` assertions stay as they are (binding for DESIGN): fixtures may gain a field, as ADR-0007 allowed for `formation`, but no S-004 assertion is edited or weakened. So choosing a formation with an XI never changed must still change only `formation`.
 - No ambient randomness or wall-clock time in `src/domain/`.
 
 ### Wave: DISCUSS / [REF] Out-of-scope
@@ -258,9 +233,9 @@ No new walking skeleton (brownfield). This story extends the S-001..S-004 skelet
 | 1 | Problem clear, domain language | PASS | US-1: bare codes, and filling 11 slots is a chore; US-2: cannot start the player he rates; US-3: fear of losing picks |
 | 2 | Persona specific | PASS | Sam, 34, one-handed on a bus, 390px Android, 5 minutes, has chosen a formation |
 | 3 | 3+ domain examples, real data | PASS | Real generator rows for Netherwold Borough (`?seed=31`) and Oakhampton Rise Borough (`?seed=abc`); 3 examples per story (ties at 3 and 5, Northcott for Dunmore, Dalrymple and Elderkin swap, own GK no-op, 4-3-3 re-pick) |
-| 4 | UAT Given/When/Then, 3-7 | PASS | US-1 5, US-2 4, US-3 3 scenarios; exact step sequences, one Then each |
+| 4 | UAT Given/When/Then, 3-7 | PASS | 7 for the roadmap story: US-1 2, US-2 3, US-3 2; exact step sequences, one Then each |
 | 5 | AC derived from UAT | PASS | Embedded scenarios are the AC: D1-D10 and D13 by scenario; D11 no-ops, D12 names and D14 by unit tests and review (Notes) |
-| 6 | Right-sized | PASS | 2 slices in about 2-3 days; 1040 of at most 1200 changed lines including tests; each story 3-5 scenarios |
+| 6 | Right-sized | PASS (disputed by the reviewer, see Peer review) | 2 slices in about 2-3 days; 1040 of at most 1200 changed lines including tests; 7 scenarios for the roadmap story; one outcome |
 | 7 | Technical notes | PASS | Labelled per story: squad derived on render (ADR-0005), club index via `findClub`, pure rules with no RNG, focus on screen change (ADR-0008), the S-004 test question for DESIGN |
 | 8 | Dependencies tracked | PASS | S-001..S-004 delivered; ADR-0009 expected from DESIGN; D15 deferred candidate; open item listed |
 | 9 | Outcome KPI measurable (extra check beyond the 8-item DoR) | PASS | K1 1 tap, K2 2/3 taps, K3 100% kept and 0 gaps or duplicates, by e2e and property tests |
@@ -268,7 +243,7 @@ No new walking skeleton (brownfield). This story extends the S-001..S-004 skelet
 DoR status: PASSED (all 3 stories). Every story has `job_id` J-05 and an Elevator Pitch.
 
 ### Wave: DISCUSS / [REF] Peer review
-`nw-product-owner-reviewer`, cycle 1: rejected pending revisions. Revision 1 applied; re-review pending.
+`nw-product-owner-reviewer`, cycle 1: rejected pending revisions (C1 giant story, C2 fixtures not producible by the generator). Revision 1 applied as below.
 
 | Finding | How it landed |
 |---|---|
@@ -289,3 +264,20 @@ DoR status: PASSED (all 3 stories). Every story has `job_id` J-05 and an Elevato
 | L7 journey | Journey steps have preconditions and a row for the choose screen's Back |
 | L8 environments | KPIs and DoD reference the DEVOPS environment matrix (`docs/feature/S-004/environments.yaml`) |
 | L9 technical notes | Labelled "Technical notes (for DESIGN, not AC)" |
+
+`nw-product-owner-reviewer`, cycle 2 (final; the two-cycle limit is reached, so no third review): rejected pending revisions on C1 only (12 scenario blocks and, in its reading, three outcomes in one roadmap story); every other cycle-1 finding verified resolved. Folded in after cycle 2 by the plan run:
+
+| Finding | How it landed |
+|---|---|
+| C1 scenario count | Consolidated to 7 scenarios for the roadmap story (US-1 2, US-2 3, US-3 2): the same-seed, 390px-fit, Back-home and Squad-comparison checks moved into the US-1 note as e2e/property checks; pick and swap became one outline; the New game reset is the fresh-page US-1 scenario plus a unit test. Scope Assessment and DoR 4/6 restated at the story level |
+| C1 "three outcomes" | **Disagreement recorded, not resolved.** The plan run reads see / choose / keep as one demonstrable outcome, "my eleven, my picks": an automatic XI alone enables no decision (brief principle 1, "decisions over simulation"), and a pick lost on the next screen is no decision either. The factory plans exactly one story per run, so splitting into new ids is not available here; this is an owner-visible note, not an owner decision |
+| H1 overall values | Provenance stated (generator run on 2026-10-18 at `6d73d16`); DISTILL adds a golden unit test pinning the fixture rows |
+| M2 S-004 test | DoD makes it binding: S-004 acceptance assertions are not edited; a formation choice with a never-changed XI changes only `formation` |
+| M3 J-05 partly served | JTBD one-liner notes the deferred forces (D15) |
+| L1 slices | "2 demonstrable slices, one release" |
+| L2 Squad comparison | The note says the test reads the "Squad" rows (name, position, overall) |
+| L3 Line-up order | The outline states the codes in order; equality with `lineUp` is a unit test |
+| L4 title | Test-layer note moved out of the scenario title |
+| L5 example vs scenario | US-3 scenario now taps the "Calder Redfern" row, as the example |
+| L6 club key | D9 says the XI belongs to the session's one club |
+| L7 K3 | Kept; the e2e walk is the user-facing measure alongside the property tests |
