@@ -1,0 +1,66 @@
+# S-005 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Inherits S-004 (and S-001..S-003); no platform change.
+base_path: /gaffer/
+client:
+  browser: chromium
+  device: Pixel 7        # Playwright devices["Pixel 7"]
+  viewport_width_px: 390
+platform_notes:
+  - "Every S-005 navigation is a screen change, so focus goes to the new h1 (ADR-0008); no platform-specific focus path."
+  - "Slot and choice button text is inline spans with single-space text nodes (ADR-0009); accessible name, textContent and innerText are probed in Chromium only. iOS Safari is expected to behave the same but is not probed in CI."
+target_environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+deployment_strategy: recreate
+container_orchestration: none
+observability: browser console + Playwright smoke on deployed URL
+mutation_testing: nightly-delta   # stryker mutates src/domain/** (covers selection.ts) except names.ts, plus src/app/state.ts (covers currentXI, squadOf, withoutPicks, new update cases, sameScreen); no stryker.config.mjs change needed
+branching: trunk-based, short-lived claude/* branches, squash merge
+deployment_assumptions:
+  artifact: static (dist/index.html under /gaffer/)
+  strategy: recreate
+  persistence: none         # the XI is in memory only; a fresh page starts from the automatic XI
+  data_migration: none      # the XI is derived from the seeded squad and the formation; optional xi is never stored outside memory
+  deploy_idempotent: true   # redeploying a ref yields the same artifact
+kpi_instrument:
+  - kpi: K1 club home to a complete XI in 1 tap ("Starting XI"), 11 of 11 slots, 0 duplicates, back in 1 ("Back")
+    spec: tests/e2e/S-005-starting-xi.spec.ts
+    runs_on: [local-preview, production]
+  - kpi: K2 change a starter in 2 taps from "Starting XI" (a slot, a player), 3 from the club home
+    spec: tests/e2e/S-005-starting-xi.spec.ts
+    runs_on: [local-preview, production]
+  - kpi: K3 picks kept through the session; 0 gaps and 0 duplicates after any pick, swap or formation change
+    spec: tests/acceptance/S-005/ (fast-check, FC_SEED) and tests/e2e/S-005-starting-xi.spec.ts
+    runs_on: [ci:test, local-preview, production]
+coexistence_matrix:
+  - component: tests/protected/S-001/ .. tests/protected/S-004/
+    impact: club home gains a third button "Starting XI" (no name collision with "Squad", "Tactics" or "Back"; they do not count club home buttons)
+    action: must stay green
+  - component: tests/protected/S-005/
+    impact: this story's locked scenario
+    action: must pass on main
+  - component: tests/acceptance/S-001/ .. tests/acceptance/S-004/
+    impact: none; xi is optional and absent until the first pick (DESIGN D1), so initialState and literal whole states still toEqual
+    action: reuse unchanged; no fixture or assertion edit
+  - component: tests/e2e/S-001..S-004 specs, shell.spec.ts
+    impact: focus on h1 after navigation still holds (ADR-0008); S-004 club-home regression checks the new 48px button
+    action: reuse unchanged, regression-watch
+  - component: tests/e2e/S-005-starting-xi.spec.ts, tests/acceptance/S-005/
+    impact: new specs
+    action: add (DISTILL)
+  - component: .github/workflows/*, ci:* scripts, playwright.config.ts
+    impact: none
+    action: reuse
+  - component: stryker.config.mjs
+    impact: none; selection.ts matches src/domain/**/*.ts and the state.ts changes are in src/app/state.ts, both already in the mutate list
+    action: none
+rollback: revert the S-005 squash commit on main (deploy fires on merge), or workflow_dispatch of deploy.yml on a known-good ref (pre-S-005 commit); fallback fix-forward
+rollback_owner: owner

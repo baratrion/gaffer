@@ -53,3 +53,20 @@ jobs:
     opportunity: >-
       Three formations shown as a plain line-up of position codes, one tap to change,
       gives the starting-XI story its 11 slots and the match stories a tactic to use.
+  - id: J-05
+    name: pick-my-starting-eleven
+    statement: >-
+      When I have set how my side lines up, I want to choose which players start,
+      so that I field the team I believe in.
+    dimensions:
+      functional: See a sensible starting eleven at once, put any squad player into the slot of his position in two taps, and keep the eleven for the rest of the session.
+      emotional: Feel the team on the pitch is my team, not the game's, without the chore of filling 11 slots from scratch.
+      social: Be able to name "my" eleven and argue for a pick with other football fans ("I'm starting the kid up front").
+    forces:
+      push: A formation alone is 11 empty codes; without names in the slots there is no team to send out.
+      pull: The classic "tap a slot, tap a player" team sheet of the management games Sam grew up with, pre-filled with the best eleven.
+      anxiety: Losing picks when changing the formation or leaving the screen; ending up with the same player twice or a gap in the side.
+      habit: Accepting the suggested eleven and only swapping one or two players.
+    opportunity: >-
+      An automatic best-rated eleven, one tap per swap within a position and picks that survive
+      a formation change, makes "pick team" a five-minute step and gives the match stories a side to play.
