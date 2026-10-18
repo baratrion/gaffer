@@ -283,4 +283,134 @@ Owner-only items inherited from S-001..S-003 (smoke `sleep 20`, no security scan
 1. No `.github/` or `stryker.config.mjs` change is needed for S-004 (`focusPlan` lives in `src/app/state.ts`, already under Stryker's `mutate` glob).
 2. Smoke on the live URL runs the S-004 e2e spec too; it relies on `?seed=` being honoured on Pages (same as S-001..S-003).
 
-<!-- DISTILL and DELIVER sections are appended below by later waves. -->
+## Wave: DISTILL
+
+Unattended. Language: TypeScript; runners: vitest + fast-check (`FC_SEED` honoured through `tests/setup/fast-check-seed.ts`) and Playwright (Pixel 7, 390px). No Gherkin runner exists, so scenarios are `describe/it` blocks whose titles read Given/When/Then in domain language, with `@tags` and `@contract-shape:<pure-function|bounded-change|unbounded-preservation>` in every title and a `CONTRACT_SHAPE` + outcome-anchor header, as in S-003 (domain files `pure-function`; `update`, `focusPlan` navigation and the e2e specs `bounded-change`; no `unbounded-preservation` shape applies: nothing is written outside the screen). Wave-decision reconciliation: DISCUSS, DESIGN and DEVOPS read, 0 contradictions (the DISCUSS D5 "not destroyed" refinement and the stacking choice are recorded in DESIGN "Changed Assumptions"). Only `discuss/journey.md` exists under `discuss/`; the decisions live in this file. The test sources that bind DELIVER were not derived from `tests/protected/` (not opened).
+
+### Wave: DISTILL / [REF] Hand-off model: green tree, new-behaviour specs held out until DELIVER (Mandate 7 adapted)
+CI forbids committing failing, skipped or `.todo` tests, and test counts may only go up. As in S-003:
+- **Committed and running now (green regression guards):** `tests/acceptance/S-004/existing-navigation-unchanged.test.ts` (3 tests: club home, Squad, a player, Back, Back unchanged; built without naming the new `formation` field, so it compiles before and after DELIVER), `tests/unit/ui/renderers-never-move-focus.test.ts` (1 test: no `.focus(` under `src/ui/`, ADR-0008 enforcement), `tests/e2e/S-004-club-home-regression.spec.ts` (1 test: the club home's heading is the club name and focused, every club-home button is 44px or taller, no sideways scroll, "Squad" then "Back" still work; it never names "Tactics"). Net: `ci:test` 163 to 167, `ci:e2e` 40 to 41.
+- **Held out, complete and verified:** four executable specs stored as `docs/feature/S-004/distill/pending/**/*.pending` (outside every glob: `vitest include`, `tsc include`, `oxlint .`, Playwright `testDir`). Nothing skipped, weakened or marked todo; they are simply not in the tree yet.
+- **Verification done in DISTILL** (`distill/verification-note.md`): a throwaway reference implementation in a scratch git worktree (since removed) made all 160 held-out vitest cases and the 14 held-out e2e cases pass, with lint and typecheck clean and the three existing fixtures fixed; five seeded faults in the reference (focus plan ignoring the id, same-formation guard removed, a wrong 4-2-3-1 line, 20px labels) were each caught. In the real repo the same files are lint-clean and fail only for missing symbols/module (RED for missing functionality).
+- **No scaffold stubs in `src/`:** a throwing stub would turn the committed run red. The scaffold equivalent is the `.pending` files plus the exact-symbol list below.
+- **DELIVER mechanics:** `git mv` each file to its destination, dropping `.pending`, in the same commit as the code that makes it green. Never edit an assertion to fit the implementation; if one is wrong, record it in `distill/upstream-issues.md`.
+
+### Wave: DISTILL / [REF] Scenario list with tags
+Tier A only (production code: real `lineUp`, `update`, `focusPlan`, the built app). Tier B skipped: the journey is 4 chained steps over a tiny input space (3 formations); property tests over all formations and screens already cover it.
+
+| # | Scenario (title in the file) | File | Tags | Kind |
+|---|---|---|---|---|
+| R1 | Walk Squad, a player, Back, Back from any club home: club home again, league untouched | `existing-navigation-unchanged.test.ts` (committed) | `@regression @property` | PBT |
+| R2 | Club home, Squad: that club's squad | same | `@regression @driving_port` | example |
+| R3 | Back on the club home changes nothing | same | `@regression @error` | example |
+| R4 | No screen renderer under `src/ui` calls `.focus()` | `tests/unit/ui/renderers-never-move-focus.test.ts` (committed) | `@regression` | example |
+| R5 | Club home: heading is the club name and focused, buttons 44px or taller, no sideways scroll, Squad/Back work, no console errors | `tests/e2e/S-004-club-home-regression.spec.ts` (committed) | `@regression` | e2e |
+| F1 | Formations are 4-4-2, 4-3-3, 4-2-3-1 in order; default 4-4-2 | `formation.test.ts` | `@driving_port` | example |
+| F2 | Each line-up reads exactly its 11 codes (3 cases, independent expected data) | same | `@driving_port` | example |
+| F3 | Any formation: 11 slots, one GK first, non-decreasing GK/DF/MF/FW, 4 DF | same | `@property` | PBT |
+| F4 | 4-2-3-1 has 5 MF and 1 FW; 4-3-3 has 3 FW; 4-4-2 has 2 FW | same | `@boundary` | example |
+| F5 | Pitch lines per formation (4-2-3-1 has MF 2 then MF 3) | same | | example |
+| F6 | Line-up equals the lines expanded; counts are positive integers | same | `@property` | PBT |
+| F7 | Data deeply frozen: list, each lines array, each line | same | `@boundary` | example |
+| F8 | Reading twice gives equal answers and does not change the data | same | `@property` | PBT |
+| F9 | No ambient randomness or wall-clock time | same | `@determinism` | example |
+| F10 | Three names accepted; 12 other texts rejected (`3-5-2`, empty, trailing/leading space, newline, `442`, prefix names, `constructor`, `__proto__`, `toString`, `hasOwnProperty`); any other text rejected; type guard narrows | same | `@error @property` | example + PBT |
+| T1 | `initialState`: title, 4-4-2; New game keeps 4-4-2; New game from a title holding 4-3-3 or 4-2-3-1 resets to 4-4-2 | `tactics-navigation.test.ts` | `@driving_port` | example |
+| T2 | New game anywhere but the title changes nothing | same | `@error` | example |
+| T3 | Club home, Tactics: that club's tactics, formation unchanged; any club, any held formation | same | `@walking_skeleton @driving_port @property` | example + PBT |
+| T4 | Tap 4-3-3: only the formation changes; any from-to pair: league and screen objects untouched | same | `@walking_skeleton @driving_port @property` | example + PBT |
+| T5 | Tap the formation already chosen: the very same state object (3 cases) | same | `@boundary` | example |
+| T6 | Back from tactics: same club's home, formation kept | same | `@walking_skeleton` | example |
+| T7 | Any seed: the same choice gives the same line-up | same | `@property` | PBT |
+| T8 | Back, Squad, a player (any row), Back, Back, Tactics: formation kept (any formation); the DISCUSS 4-3-3 example; whole walk from the title | same | `@walking_skeleton @property` | PBT + examples |
+| T9 | Tactics from title, club list, squad, player, tactics, unknown club home (6 cases): no change | same | `@error` | example |
+| T10 | Choosing on title, club list, club home, squad, player, tactics of an unknown club: no change (6 cases) | same | `@error` | example |
+| T11 | Unknown formations `3-5-2`, empty, `4-4-2 `, ` 4-3-3`, `4-2-3-1\n`, `constructor`, `__proto__` (7 cases) and any other text: no change | same | `@error @property` | example + PBT |
+| T12 | Back on tactics of an unknown club; other actions on tactics: no change | same | `@error` | example |
+| T13 | Deep-frozen states: opening, choosing, Back, bad choice mutate nothing | same | | example |
+| T14 | Squad, player 17, Back, Back with a formation held: formation untouched | same | | example |
+| P1 | First render (any screen, with or without an id): heading (9 cases) | `focus-plan.test.ts` | | example |
+| P2 | Different screen (72 ordered pairs, with and without an id): heading, incl. same club different screen kind | same | `@driving_port` | example |
+| P3 | Only the club differs, or only the player index differs: heading | same | `@boundary` | example |
+| P4 | Same screen with `formation-4-4-2` / `-4-3-3` / `-4-2-3-1`: that element | same | `@walking_skeleton @driving_port` | example |
+| P5 | Same screen without an id, or with an empty id: heading | same | `@boundary @error` | example |
+| P6 | Equal copies count as the same screen | same | `@boundary` | example |
+| P7 | Any previous/next/id: element exactly when same screen and non-empty id, else heading; inputs not changed | same | `@property` | PBT (2) |
+| E1 | Tactics (club home to 4-3-3 in 2 taps, 1 tap Back): heading focused on arrival, group, radio focused after tap, Back to club home focused | `S-004-tactics.spec.ts` | `@walking_skeleton @kpi` | e2e |
+| E2 | New game opens Tactics on 4-4-2 with GK, 4 DF, 4 MF, 2 FW; one heading, one radiogroup, 3 radios named in order, one list (`?seed=31` club 0; `?seed=abc` club 8; 2 cases) | same | | e2e |
+| E3 | Tap 4-2-3-1, 4-3-3, 4-4-2: line-up 1/4/5/1, 1/4/3/3, 1/4/4/2, the tapped radio focused, heading not focused, same for both seeds (2 cases) | same | `@example` | e2e |
+| E4 | Tactics, Back, each formation label 44px or taller; label is the radio's visible name; tapping it checks the radio | same | | e2e |
+| E5 | 4-3-3, Back, Squad, Back, Tactics: 4-3-3 kept with its line-up, heading focused | same | | e2e |
+| E6 | 4-2-3-1 kept after Squad, a player, Back, Back (`?seed=abc`, club 8) | same | | e2e |
+| E7 | Fresh visit and New game start at 4-4-2 again, `?seed=31` and `?seed=abc` | same | `@error` | e2e |
+| E8 | Tapping the checked formation changes nothing | same | `@boundary` | e2e |
+| E9 | Arrow keys: next formation checked and focused, heading stays | same | | e2e |
+| E10 | Back by keyboard | same | | e2e |
+| E11 | No sideways scroll at 390px on the club home and tactics for every formation | same | | e2e |
+| E12 | No console errors across the whole journey | same | | e2e |
+
+Counts: 5 committed now (R1-R5); 160 vitest cases held out (formation 28, tactics-navigation 41, focus-plan 91, the latter 72 of them the P2 pairs); 14 e2e cases (E1-E12, E2 and E3 doubled). Error/edge share of the 174 held-out cases, by tag: 38 `@error` (F10 13, T2 1, T9 6, T10 6, T11 8, T12 2, P5 1 counted, E7 1) plus 10 `@boundary` = 48/174 = 28%. This is under the 40% target. **Waiver:** the feature is a display plus one state field; every invalid input that can reach it (unknown formation text, wrong screen, unknown club, repeat tap, empty focus id) is enumerated above, and further cases would repeat the same no-op. The e2e tier has one sad path (E7) and one boundary (E8): the other failure modes (unknown formation, wrong screen, unknown club) are unreachable from the UI and are covered at the `update` level (T9-T12). **Waiver (environment):** E1-E12 run on local-preview and on a `BASE_URL` deployment; local-dev is not a supported target for the spec. Viewport is the Pixel 7 profile at 390px from `playwright.config.ts`; "fresh visits" are new pages of the same browser context (nothing is persisted).
+
+### Wave: DISTILL / [REF] WS strategy (Architecture of Reference)
+- Driving ports: in-process pure calls (`lineUp`, `formationLines`, `isFormationId`, `initialState`, `update`, `focusPlan`) and the built browser app at `http://localhost:4173/gaffer/`. All real; no DI container exists.
+- Driven ports: none (no storage, clock, network; the formation is in memory only). Nothing to fake. The seeded `createRng` is not used by this feature.
+- Walking skeleton: extends the S-001..S-003 skeleton by one branch. Browser proof: E1 (and E5). Domain proof: T3+T4+T6 and T8. Litmus: the title is a user goal (open Tactics, pick a shape, come back) and the Then is what Sam reads.
+- Infrastructure policy: as S-003, no `docs/architecture/atdd-infrastructure-policy.md`; "everything real, nothing faked". Mandate 8 is met by comparing whole `GameState` values (league + screen + formation, a closed universe) and by the deep-freeze no-mutation test T13.
+
+### Wave: DISTILL / [REF] Adapter coverage table
+There are no driven adapters (DESIGN, "Driven ports and adapters": none).
+
+| Adapter | @real-io scenario | Covered by |
+|---|---|---|
+| (none) | n/a | n/a; the one environmental assumption (a re-rendered node with the same id can be focused in the same task, a native radio group keeps one checked) is probed by E1, E3, E9 on the built app (ADR-0008 Earned Trust) |
+
+### Wave: DISTILL / [REF] Scaffolds
+No `__SCAFFOLD__` stubs are written under `src/` (a throwing stub would turn the committed run red). Symbols DELIVER must export, all used by the held-out tests:
+- `src/domain/formation.ts`: `FormationId` (`"4-4-2" | "4-3-3" | "4-2-3-1"`), `FormationLine { position: Position; count: number }`, `FORMATIONS` (deeply frozen `readonly FormationId[]`, in UI order), `DEFAULT_FORMATION` (`"4-4-2"`), `isFormationId(value: string): value is FormationId` (must reject `constructor`, `__proto__`, `toString`: no object-key lookup), `formationLines(f): readonly FormationLine[]` (frozen array of frozen lines; 4-2-3-1 is GK 1, DF 4, MF 2, MF 3, FW 1), `lineUp(f): readonly Position[]` (derived from the lines).
+- `src/app/state.ts`: `Screen` gains `{ kind: "tactics"; clubId }`; `Action` gains `{ type: "ViewTactics" }` and `{ type: "ChooseFormation"; formation: FormationId }`; `GameState.formation: FormationId` (required); `initialState(league)` (title screen, `DEFAULT_FORMATION`); `focusPlan(previous: Screen | undefined, next: Screen, focusId: string | undefined)` returning `{ kind: "heading" }` or `{ kind: "element", id }`; screens compared by value (copies with equal fields are the same screen). `NewGame` from the title resets `formation` to `DEFAULT_FORMATION`; from any other screen it changes nothing. Choosing the current formation returns the same object. A no-op returns an equal state.
+- UI contract (brief port 14; roles and names only): the club home button "Tactics" (exact name, 44px or taller); on the tactics screen exactly one heading (any level) "Tactics", exactly one `radiogroup` named "Formation" holding exactly three `radio`s named "4-4-2", "4-3-3", "4-2-3-1" in that order, exactly 3 radios on the page, exactly one `list` on the page (named "Line-up") with 11 `listitem`s whose text is exactly the code, and a button "Back" (exact, 44px or taller). The element found by `group.getByText(name, { exact: true })` must itself be 44px or taller and clicking it must check the radio, so the formation name must be a direct text node of the tall `<label>` (not inside a short inner span); `group.getByLabel(name, { exact: true })` must resolve to exactly one element. Radio ids are `formation-<name>` and the `change` listener passes the id as `focusId`.
+- Learned from the scratch run: `oxlint` caps cyclomatic complexity at 15 (one helper per action) and test-side `max-params` is 3. `main.ts` needs `CSS.escape` for the id selector. The tap counter in E1 counts `pointerdown`, not `click`, because a label tap also clicks its radio.
+
+### Wave: DISTILL / [REF] Test placement
+`tests/acceptance/S-004/` (vitest, same convention as S-001..S-003), `tests/unit/ui/` (the structural `.focus(` guard, ADR-0008) and `tests/e2e/S-004-tactics.spec.ts` plus `tests/e2e/S-004-club-home-regression.spec.ts` (DEVOPS coexistence matrix). Held-out sources live in `docs/feature/S-004/distill/pending/{acceptance,e2e}/` as `*.pending`. Existing tests are untouched; DELIVER edits the three fixtures listed in step 02.
+
+### Wave: DISTILL / [REF] Driving port coverage
+| Port (brief 11-14) | Scenarios |
+|---|---|
+| 11 formation data (`FORMATIONS`, `DEFAULT_FORMATION`, `lineUp`, `formationLines`, `isFormationId`) | F1-F10, T7, E2, E3 |
+| 12 `update` with `ViewTactics`, `ChooseFormation`, `Back`, `NewGame`, `initialState` | T1-T14, R1-R3 |
+| 13 `focusPlan` | P1-P7, R4 |
+| 14 UI: "Tactics" button, tactics screen, "Back" | E1-E12, R5 |
+Ports 1-10 are unchanged and covered by S-001..S-003 tests. Driving adapters (CLI/HTTP/hook): none; the browser app is covered by E1-E12.
+
+### Wave: DISTILL / [REF] DEVOPS monitoring-contract trace
+| Contract row | Scenario |
+|---|---|
+| KPI 2 taps to a chosen formation, 1 back | E1 (pointerdown counter) |
+| Tactics screen shape (new game) | E2, F1, F2, T1 |
+| Focus on the `<h1>` on arrival | E1, E2, E5; P1, P2 |
+| Focus on the tapped radio, heading stays; arrow keys | E1, E3, E9; P4, P5, P7; R4 |
+| Line-up counts for the three formations, both seeds | E3, F2-F6, T7 |
+| Session memory across Squad | E5, E6, T8 |
+| New game starts at 4-4-2 | E2, E7, T1, F1 |
+| Tapping the checked formation changes nothing | T5, E8 |
+| D7 no-ops | T9-T12 |
+| 44px labels and buttons | E4, R5 |
+| No horizontal scroll | E11, R5 |
+| No console errors | E1, E12, R5 |
+| S-001..S-003 unchanged | R1-R3, R5, existing suites |
+| Stryker strength | F2, F4, F5, F10, T5, T11, P5-P7 pin the three ids, order, counts, the two MF lines, edge inputs, the empty-id and screen-field cases |
+
+### Wave: DISTILL / [REF] DELIVER step plan (which files to add, and when)
+1. **Step 01, formation data** (developer-facing, not shipped alone): implement `src/domain/formation.ts` per ADR-0007. First run the committed guards and see them green. `git mv` `formation.test.ts.pending` to `tests/acceptance/S-004/formation.test.ts`; confirm RED for the missing module before coding, then GREEN. Gates: `ci:lint`, `ci:typecheck`, `ci:test`.
+2. **Step 02, state, fixtures, focus plan** (one commit, so the tree is never red): `GameState.formation`, `initialState`, `Screen`/`Action` variants, `update` cases (one helper per action), `focusPlan` in `src/app/state.ts`; `src/main.ts` switches to `initialState(...)` (types only; the screen is step 03). Add `formation: DEFAULT_FORMATION` (or use `initialState`) to the `GameState` literals in `tests/acceptance/S-001/navigation.test.ts`, `S-002/navigation.test.ts` and `S-003/player-navigation.test.ts` (types only; assertions and counts unchanged). In the same commit move in `tactics-navigation.test.ts.pending` and `focus-plan.test.ts.pending`. `existing-navigation-unchanged.test.ts` stays green.
+3. **Step 03, screen, button, focus execution** (one commit): `src/ui/screens/tactics.ts`, the club-home "Tactics" button in `div.club-actions`, the `main.ts` tactics case, `dispatch(action, focusId?)` and the focus plan executed (heading, or the element with the id, falling back to the heading), CSS. In the same commit move in `e2e/S-004-tactics.spec.ts.pending` as `tests/e2e/S-004-tactics.spec.ts`. `ci:e2e`, `tests/e2e/S-004-club-home-regression.spec.ts` and `tests/protected/S-001..S-003` must pass.
+4. Delete `docs/feature/S-004/distill/pending/` once all four files are moved; zero `.pending` files is the DISTILL-to-DELIVER completion check.
+
+### Wave: DISTILL / [REF] Pre-requisites
+DESIGN: ADR-0007, ADR-0008 and brief ports 11-14 (read). DEVOPS: local-preview `http://localhost:4173/gaffer/` via `ci:serve`, Pixel 7 at 390px, `FC_SEED` per CI run, `BASE_URL` for post-deploy smoke (the e2e uses `?seed=`, roles and names only, so it holds on Pages). No new dependency.
+
+### Wave: DISTILL / [REF] Mandate checks (adapted)
+- CM-A: tests import only `FORMATIONS`, `DEFAULT_FORMATION`, `lineUp`, `formationLines`, `isFormationId`, `initialState`, `update`, `focusPlan`, `generateLeague`; UI tests enter through the built app by role and name. CM-B: titles use domain terms (formation, line-up, Tactics, Back, Squad). CM-D: pure functions are tested against independent expected data (written out from DISCUSS D4) and an independent reference of the focus rule. CM-F: PBT only in layer 1-2 files; e2e is example-only with named sad paths (E7, E8). Mandate-12 domain types/DSL and step-reuse-ratio do not apply: there are no Gherkin steps; e2e helpers (`openTactics`, `expectChosen`) hold no business logic beyond the expected tables written out in the file.
+- Open points for DELIVER: (1) DISCUSS D5 "must not be destroyed" is refined by DESIGN to "re-created and refocused in the same task"; E1/E3/E9 assert the observable outcome only (the tapped radio is the focused element). (2) The DISCUSS "Tactics" example clubs are by ordinal and not asserted by name. (3) `focusPlan` tests live in `tests/acceptance/S-004/` (not a separate unit folder) so that they are counted with the story.
+- Peer review: the four-reviewer gate was not dispatched in this unattended run (none requested); the held-out files were instead executed against the reference above, and seeded faults were shown to fail them.
