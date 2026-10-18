@@ -11,7 +11,7 @@ type DispatchWithFocus = (action: Action, focusId?: string) => void;
 
 const GRID_COLUMNS = 12;
 
-export const formationRadioId = (formation: FormationId): string => `formation-${formation}`;
+const formationRadioId = (formation: FormationId): string => `formation-${formation}`;
 
 const formationOption = (option: FormationId, chosen: FormationId, dispatch: DispatchWithFocus): HTMLElement => {
   const radio = el("input", { type: "radio", name: "formation", id: formationRadioId(option), value: option, class: "formation-radio" });
@@ -19,7 +19,14 @@ const formationOption = (option: FormationId, chosen: FormationId, dispatch: Dis
   radio.addEventListener("change", () =>
     dispatch({ type: "ChooseFormation", formation: option }, formationRadioId(option)),
   );
-  return el("label", { class: "formation-option" }, radio, el("span", { class: "formation-mark", "aria-hidden": "true" }), option);
+  return el(
+    "label",
+    { class: "formation-option" },
+    radio,
+    el("span", { class: "formation-mark", "aria-hidden": "true" }),
+    el("span", { class: "formation-frame", "aria-hidden": "true" }),
+    option,
+  );
 };
 
 const lineUpSlots = ({ position, count }: FormationLine): HTMLElement[] =>

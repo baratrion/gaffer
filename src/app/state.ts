@@ -41,7 +41,19 @@ export const initialState = (league: League): GameState => ({
 
 export type FocusPlan = { readonly kind: "heading" } | { readonly kind: "element"; readonly id: string };
 
-const sameScreen = (previous: Screen, next: Screen): boolean => JSON.stringify(previous) === JSON.stringify(next);
+const sameScreen = (previous: Screen, next: Screen): boolean => {
+  switch (previous.kind) {
+    case "title":
+    case "pickClub":
+      return next.kind === previous.kind;
+    case "clubHome":
+    case "tactics":
+    case "squad":
+      return next.kind === previous.kind && next.clubId === previous.clubId;
+    case "player":
+      return next.kind === "player" && next.clubId === previous.clubId && next.playerIndex === previous.playerIndex;
+  }
+};
 
 export const focusPlan = (previous: Screen | undefined, next: Screen, focusId: string | undefined): FocusPlan =>
   previous !== undefined && sameScreen(previous, next) && focusId !== undefined && focusId !== ""

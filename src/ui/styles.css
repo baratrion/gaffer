@@ -196,8 +196,9 @@ h1:focus { outline: none; }
 }
 
 .formation-radio:checked + .formation-mark { background: radial-gradient(circle, var(--accent) 45%, transparent 50%); border-color: var(--accent); }
-.formation-option:has(.formation-radio:checked) { border-color: var(--accent); }
-.formation-option:has(.formation-radio:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+.formation-frame { position: absolute; inset: -1px; border: 1px solid transparent; border-radius: 12px; pointer-events: none; }
+.formation-radio:checked ~ .formation-frame { border-color: var(--accent); }
+.formation-radio:focus-visible ~ .formation-frame { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 .lineup {
   list-style: none;
