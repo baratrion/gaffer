@@ -1,6 +1,6 @@
 import "./ui/styles.css";
 import { parseSeed } from "./app/seed";
-import { update, type Action, type GameState } from "./app/state";
+import { initialState, update, type Action, type GameState } from "./app/state";
 import { generateLeague, type League } from "./domain/league";
 import { generateSquad } from "./domain/squad";
 import { renderClubHome } from "./ui/screens/club-home";
@@ -42,13 +42,15 @@ const render = (root: HTMLElement, state: GameState, dispatch: (action: Action) 
       renderPlayer(root, player, dispatch);
       break;
     }
+    case "tactics":
+      break;
   }
   root.querySelector<HTMLElement>("h1")?.focus();
 };
 
 const root = document.querySelector<HTMLElement>("#app");
 if (root) {
-  let state: GameState = { league: generateLeague(parseSeed(location.search)), screen: { kind: "title" } };
+  let state: GameState = initialState(generateLeague(parseSeed(location.search)));
   const dispatch = (action: Action): void => {
     state = update(state, action);
     render(root, state, dispatch);
