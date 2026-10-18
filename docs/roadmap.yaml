@@ -89,28 +89,32 @@ stories:
       From the club home screen the player taps a button named exactly "Starting XI" (44px or taller,
       stacked after "Squad" and "Tactics") and sees a screen whose only heading is "Starting XI", with
       focus on that heading. A list named "Starting XI" holds exactly 11 items, each holding exactly one
-      button (44px or taller) whose text reads the slot's position code (GK, DF, MF or FW), then the
-      player's name, then the player's overall (1-20) as the only number, for example "MF Tom Barrow 14".
-      The 11 position codes are the chosen formation's line-up, in the same order as the Tactics
-      "Line-up" list (4-4-2 is 1 GK, 4 DF, 4 MF, 2 FW, and so on). Each of the 11 is a different player
-      of the club's squad whose squad position equals the slot's code, with the same overall as in the
-      "Squad" list. In a new game the XI is picked automatically: in each position the players with the
-      highest overall start (no unpicked squad player of a position has a higher overall than a starter
-      of that position), and the starters of a position are listed from highest to lowest overall (ties
-      in squad order). The automatic XI comes from the seed: the same "?seed=" always gives the same XI.
-      Tapping a slot opens a screen whose only heading is "Choose GK", "Choose DF", "Choose MF" or
-      "Choose FW" (the slot's code), with focus on that heading, and a list named "Players" holding one
-      button (44px or taller) per squad player of that position (2 GK, 6 DF, 6 MF or 4 FW) in squad
-      order, each reading the player's name then overall; the buttons of players currently in the XI
-      also read "Starting", so exactly as many read "Starting" as the formation has slots of that
+      button (44px or taller) whose text reads the slot's position code (GK, DF, MF or FW), one space,
+      the player's name, one space, and the player's overall (1-20) as the only number, for example
+      "MF Ivo Elderkin 18" (the name is everything between the code and the final number; names may
+      hold an apostrophe or a hyphen, as in "DF Ulric O'Garrity 8"). The 11 position codes are the
+      chosen formation's line-up, in the same order as the Tactics "Line-up" list: 4-4-2 is 1 GK, 4 DF,
+      4 MF, 2 FW; 4-3-3 is 1 GK, 4 DF, 3 MF, 3 FW; 4-2-3-1 is 1 GK, 4 DF, 5 MF, 1 FW. Each of the 11 is a
+      different player of the club's squad whose squad position equals the slot's code, with the same
+      name and overall as in the "Squad" list. In a new game the XI is picked automatically: in each
+      position the players with the highest overall start (no squad player of a position who is not in
+      the XI has a higher overall than a starter of that position), and the starters of a position are
+      listed from highest to lowest overall, ties in squad order. The automatic XI comes from the seed:
+      the same "?seed=" always gives the same XI. Tapping a slot opens a screen whose only heading is
+      "Choose GK", "Choose DF", "Choose MF" or "Choose FW" (the slot's code), with focus on that heading,
+      and a list named "Players" holding one button (44px or taller) per squad player of that position
+      (2 GK, 6 DF, 6 MF or 4 FW) in squad order, each reading the player's name, one space and the
+      overall, followed by one space and "Starting" for each player currently in the XI (for example
+      "Ivo Elderkin 18 Starting"), so exactly as many read "Starting" as the formation has slots of that
       position. Tapping a player returns to the Starting XI screen (heading focused) with that player in
       the tapped slot. If the player was already in another slot, the tapped slot's previous player moves
       to that other slot (a swap); tapping the slot's own player changes nothing. The XI always holds 11
       different players. A button named exactly "Back" (44px or taller) on the choose screen returns to
-      the Starting XI screen unchanged; "Back" on the Starting XI screen returns to the club home
-      (heading the club's name). The XI is kept for the rest of the session: after visiting "Squad",
-      "Tactics" and coming back it is unchanged. Changing the formation in Tactics updates the XI at once
-      to the new line-up: in each position the players already starting keep their order and stay in as
-      far as the new formation has room for that position, and each extra slot takes the highest-rated
-      unpicked player of that position. "New game" starts from the automatic XI again. No horizontal
-      scroll at 390px and no console errors.
+      the Starting XI screen (heading focused) unchanged; a button named exactly "Back" (44px or taller)
+      on the Starting XI screen returns to the club home, with focus on its heading, the club's name.
+      The XI is kept for the rest of the session: after visiting "Squad", or "Tactics" without choosing
+      another formation, and coming back, it is unchanged. An XI the player never changed always follows
+      the formation: after choosing another formation in Tactics, Starting XI shows the automatic XI of
+      the new formation. In this story any formation change re-picks the automatic XI of the new
+      formation (a later story may keep the player's picks). "New game" starts from the automatic XI
+      again. No horizontal scroll at 390px and no console errors.
