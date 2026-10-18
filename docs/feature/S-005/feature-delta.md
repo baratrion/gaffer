@@ -479,3 +479,14 @@ Trunk-based. Short-lived `claude/S-005-*` branches, PR to main, squash merge. CI
 Owner-only items inherited from S-001..S-004 (smoke `sleep 20`, no security scanning, smoke has no commit-SHA check, deploy not gated on `ci`, squash revert possibly blocked by the append-only guards, no uptime probe) are unchanged and none block S-005. New:
 1. No `.github/` or `stryker.config.mjs` change is needed for S-005 (`selection.ts` and the `state.ts` changes are inside the existing `mutate` globs).
 2. Smoke on the live URL runs the S-005 e2e spec too; its goldens and names rely on `?seed=` being honoured on Pages (same as S-001..S-004).
+
+## Plan run: protected scenarios
+
+`tests/protected/S-005/starting-xi.spec.ts`, 5 black-box scenarios (Pixel 7, 390px; roles, accessible names and visible text only). Expected XIs are computed from the "Squad" list of the same seed (per position, highest overall first, ties in squad order), so they hold for any generated squad and pin no generator values:
+1. "Starting XI" (44px) opens one focused heading "Starting XI" and a list "Starting XI" of 11 one-button items reading "CODE Name OVERALL", equal to the automatic 4-4-2 XI (`?seed=31`, 1st club); slots 44px; no sideways scroll; "Back" (44px) returns to the club home with its heading focused; no console errors.
+2. An XI never changed follows the formation: `?seed=abc`, 8th club, 4-2-3-1, 4-3-3 and 4-4-2 each give the automatic XI of that formation.
+3. Each position's slot opens "Choose GK|DF|MF|FW" (focused) with a list "Players" of that position's squad players in squad order, "Starting" exactly on the starters (as many as the formation's slots), 44px buttons; "Back" leaves the XI unchanged (`?seed=7`, 3rd club).
+4. Replace (a non-starter into the last MF slot), swap (the second MF starter into the first MF slot) and the slot's own player (no change); always 11 different squad players with matching position and overall.
+5. A picked XI is kept after "Back", "Squad", "Back", "Tactics" (no change), "Back"; a fresh page and "New game" give the automatic XI again.
+
+D10's "a formation change drops picks" is deliberately not pinned (DISCUSS D10, D15). All 5 fail on the current app (no "Starting XI" button). The plan run checked that they are achievable: against a throwaway prototype of the DESIGN (not committed), all 23 protected scenarios S-001..S-005 passed.
