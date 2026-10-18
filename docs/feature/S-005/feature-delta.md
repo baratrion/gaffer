@@ -375,3 +375,96 @@ No new technology or dependency (ADR-0001, 0002, 0003 apply; all OSS). No newer 
 | M12 Earned Trust wording | The environment assumption and its probe are named in the Earned Trust entry |
 | M13 banned-word lists differ | Aligned to DISCUSS D12's nine words (ADR-0009, brief) |
 | M14 ADR status Accepted before review | Kept Accepted: the review approved it in cycle 1, and the date is that of approval |
+
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered. No platform change: phone-viewport Chromium in CI and the deployed Pages URL. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope, `tests/protected/`, `stryker.config.mjs`) are read-only. Machine-readable environments: `docs/feature/S-005/environments.yaml`. Inherits the S-004 DEVOPS setup (`docs/feature/S-004/environments.yaml`); only the deltas are recorded.
+
+Checklist: ✓ existing infra reused | ✓ K1-K3 mapped to instruments | ✓ rollback defined | ✓ mutation strategy (nightly-delta, inherited; new code inside the mutate globs) | ⊘ new IaC/containers (none) | ⊘ server-side observability (no backend) | ⊘ continuous learning | ⊘ CLAUDE.md edit (already states strategy) | ⊘ `docs/product/kpi-contracts.yaml` (not created by S-001..S-004)
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test; unit, property, e2e and `tests/protected/S-001..S-005/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke via `BASE_URL` |
+
+Unchanged from S-004: no staging (static site, recreate); Chromium, Pixel 7 profile, 390px viewport in local-preview and production. Delta: the XI is derived from the seeded squad and the formation, and stored picks live in memory only (ADR-0009), so every environment gives the same XI for the same `?seed=`. Every S-005 navigation is a screen change, so focus goes to the new `<h1>` (ADR-0008) with no platform-specific focus path. The inline-flow button text (accessible name, `textContent`, `innerText`) is probed in Chromium only; iOS Safari is expected to behave the same but is not probed in CI.
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch): PR guards, roadmap lint, `ci:lint`, `ci:typecheck`, `ci:test` (fresh `FC_SEED`; the S-005 selection property tests honour it), `ci:build`, `ci:e2e`, protected-scenario no-regression check vs main.
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` runs `ci:e2e` against the live URL (includes the new S-005 spec).
+- `nightly`: `ci:mutation`; failure opens a `mutation-alarm` issue.
+- `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- S-005 needs no pipeline change: it adds unit, property and e2e specs run by the existing scripts, and no new dependency (ADR-0009: no new technology).
+- Local gate: `pnpm run check` mirrors the commit stage. No git hooks (locked paths; CI is the gate).
+- Security: no secrets, no runtime deps, no network. Player names and position codes enter the DOM only via `el()`/`textContent` (ADR-0002); a review check, not a scenario. SAST/SCA/SBOM not added (workflows locked; inherited open question).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI/AC to instrument)
+E2E instrument is the new `tests/e2e/S-005-starting-xi.spec.ts` (Pixel 7, 390px), run by `ci:e2e` on PR and main and by `smoke` on the live URL after each deploy. "Unit" rows run in `ci:test` (fresh `FC_SEED`). `tests/protected/S-005/` runs on local-preview in `ci` and must pass on main.
+
+| KPI / criterion (DISCUSS) | Instrument | Pass condition |
+|---|---|---|
+| K1: club home to a complete XI in 1 tap ("Starting XI"); 11 of 11 slots, 0 duplicates; back home in 1 tap | e2e: page-side capture-phase click counter (as S-003/S-004); assert heading "Starting XI", list "Starting XI" has 11 items with one button each, 11 distinct names; count clicks on "Back", heading is the club's name | 1 click in, 11/11 filled, 0 duplicates, 1 click back |
+| K2: change a starter in 2 taps from "Starting XI" (a slot, a player), 3 from the club home | e2e: click counter from club home; tap a slot (heading "Choose MF"), tap a non-starter in list "Players"; assert heading "Starting XI" and the slot's exact name changed | 2 clicks from Starting XI, 3 from club home |
+| K3: picks kept through the session; 0 gaps, 0 duplicates after any pick, swap or formation change | property (fast-check, `FC_SEED`, many seeds, all 8 clubs, all 3 formations): `automaticXI` 11 distinct indices 0..17 and positions match `lineUp`; `pickForSlot` keeps 11 distinct, positions match, replace changes 1 slot, swap exactly 2, involution, own player same object; e2e: pick, Back, Squad, Back, Tactics, Back, Starting XI shows the pick (US-3 scenario 1); formation change shows the new formation's automatic XI | 100% picks kept; 0 gaps; 0 duplicates |
+| Automatic XI order and goldens | unit: seed 31 club 0, 4-4-2 gives `[0, 7, 3, 6, 2, 9, 12, 8, 10, 17, 14]` (and the other formations, `?seed=abc` club 7, per DESIGN handoff); within a position overall non-increasing, ties by squad index | holds |
+| Exact button text (environment probe, ADR-0009 Earned Trust) | e2e: exact-name queries (`exact: true`); each slot button's `textContent` and `innerText` equal "CODE Name OVERALL"; apostrophe name ("DF Ulric O'Garrity 8", `?seed=abc`, 8th club) and hyphenated name ("FW Finlay Fitch-Moreton 5", `?seed=31`, 4-3-3); choose rows "Name OVERALL" plus " Starting" for starters | holds |
+| Choose screen shape | e2e + protected: one heading "Choose GK\|DF\|MF\|FW", list "Players" of that position in squad order, starters marked "Starting", "Back" returns to Starting XI with no change | holds |
+| Focus on each new `<h1>` | e2e: `document.activeElement` is the heading after "Starting XI", a slot, a pick, and each Back; `focusPlan` unit tests (`sameScreen` for `startingXI` by `clubId`, `choosePlayer` by `clubId` and `slot`); `.focus(` grep unit test covers the two new renderers | holds |
+| Formation re-pick and `NewGame` reset | unit on `update`: `ChooseFormation` with no stored `xi` adds no `xi` key (`Object.hasOwn`), with a stored `xi` it is `undefined`; `NewGame` from a title with a stored `xi` drops it; e2e: formation change gives the new automatic XI | holds |
+| D11 no-ops and single-club invariant | vitest on `update`: `ViewStartingXI`, `ChooseSlot`, `PickPlayer` off their screens, unknown club, invalid slot or index (-1, 18, 1.5, NaN; slot -1, 11, 1.5), wrong position: same object; `ChooseClub` no-op off `pickClub`; deep-freeze, no mutation | holds |
+| 44px tap targets | e2e: `boundingBox().height >= 44` on "Starting XI" (club home), each slot, each choice, "Back"; S-004 club-home regression spec checks every club home button | holds |
+| No horizontal scroll at 390px | `scrollWidth <= clientWidth` on club home, Starting XI and choose screens | holds |
+| No console errors | `page.on("console"/"pageerror")` across the DoD journey (club home, Starting XI, slot, pick, swap, choose Back, Back, Squad, Back, Tactics, Back, Starting XI, formation change) | zero |
+| S-001..S-004 unchanged | existing e2e specs, acceptance tests (no fixture or assertion edit) and `tests/protected/S-001..S-004/` | green |
+| Domain test strength | Stryker on `src/domain/**` (covers `selection.ts`) and `src/app/state.ts` (covers `currentXI`, `squadOf`, `withoutPicks`, new `update` cases, `sameScreen`) | nightly, at or above break threshold (70) |
+
+No analytics (POC). The e2e tap count and the property tests are the KPIs' sole measurements.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact. Idempotent: redeploying the same ref yields the same artifact.
+- Rollback (designed first): revert the S-005 squash commit on main; the merge triggers `deploy` and `smoke` validates the restored site. Alternative: `workflow_dispatch` of `deploy.yml` on a known-good ref (the commit before the S-005 squash). Fallback: fix-forward on a `claude/*` branch. As in S-003/S-004, the append-only protected-tests and no-regression guards may block a plain revert of a squash that added `tests/protected/S-005/`; if so, the dispatch route is the owner action. Time to restore: one deploy cycle (about 5 minutes).
+- Failure detection: a red `smoke` job marks the deploy run red.
+- Data: nothing is persisted (the XI is in memory; a reload starts from the automatic XI), so no migration and no user data at risk. Rolling back removes the "Starting XI" button and its two screens only; the optional `xi` field never reaches storage.
+- Blast radius: one static page.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` mutates `src/domain/**/*.ts` except `names.ts`, plus `src/app/state.ts`; thresholds high 85, low 70, break 70. Glob check:
+- `src/domain/selection.ts` (new): matches `src/domain/**/*.ts`, not excluded. Tests that kill mutants must pin the goldens, the tie order (squad index ascending), the `isSlotIndex` and player-index bounds (-1, 0, 10, 11, 17, 18, 1.5, NaN), the wrong-position `undefined`, replace versus swap, and the same-reference own-player return.
+- `src/app/state.ts` (`xi?`, `currentXI`, `squadOf`, private `withoutPicks`, `ViewStartingXI`, `ChooseSlot`, `PickPlayer`, `Back` from both screens, `sameScreen` cases): already listed. The whole-state `toEqual`, `Object.hasOwn` (no `xi` key added), same-object `toBe` for no-ops and the `focusPlan` screen-pair tests carry it.
+- UI renderers and `main.ts` are outside the globs (as before); the e2e covers them.
+- No `stryker.config.mjs` change needed. Run by `nightly.yml` via `ci:mutation`; failure opens `mutation-alarm`, `needs-human`.
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy. Alerting: a red `deploy` run. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-005-*` branches, PR to main, squash merge. CI green and protected scenarios not regressing. Deploy fires on merge. No release branches.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-005 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml` | none; run existing `ci:*` scripts | reuse |
+| `ci:*` scripts, `playwright.config.ts` | none; Pixel 7, 390px, `BASE_URL` already fit | reuse |
+| `stryker.config.mjs` | `src/domain/**` covers `selection.ts`; `src/app/state.ts` covers the new state code; no change needed | none |
+| `tests/protected/S-001..S-004/` | club home gains a third button "Starting XI" (no name collision with "Squad", "Tactics", "Back"; Playwright substring match checked); they do not count club home buttons | must stay green |
+| `tests/protected/S-005/` | locked scenario for this story | must pass on main |
+| `tests/acceptance/S-001..S-004/` | none: `xi` is optional and absent until the first pick, so `initialState` and the literal whole states still `toEqual` (DESIGN D1); no fixture or assertion edit | reuse unchanged, must stay green |
+| `tests/e2e/S-004-club-home-regression.spec.ts` | checks every club home button is 44px or taller: the new `button.primary` is 48px | reuse unchanged |
+| `tests/e2e/S-001..S-004*.spec.ts`, `shell.spec.ts` | focus on `<h1>` after navigation still holds (ADR-0008) | reuse unchanged, regression-watch |
+| `tests/e2e/S-005-starting-xi.spec.ts`, `tests/acceptance/S-005/` | new specs | add (DISTILL) |
+| `src/domain/selection.ts`, `src/ui/screens/starting-xi.ts`, `src/ui/screens/choose-player.ts` | new | S-005 tests guard |
+| `src/app/state.ts`, `src/ui/screens/club-home.ts`, `src/main.ts`, `src/ui/styles.css` | extended | S-001..S-004 tests guard |
+| Pages artifact | grows slightly; base path `/gaffer/` unchanged | none |
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-004 delivered and deployed; GitHub Pages source "GitHub Actions" enabled (✓).
+- Node 22 or later, pnpm 10.12.4 pinned, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0009 accepted (✓; ADR-0009 landed in DESIGN, before DELIVER).
+- `BASE_URL` derived from repository owner and name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001..S-004 (smoke `sleep 20`, no security scanning, smoke has no commit-SHA check, deploy not gated on `ci`, squash revert possibly blocked by the append-only guards, no uptime probe) are unchanged and none block S-005. New:
+1. No `.github/` or `stryker.config.mjs` change is needed for S-005 (`selection.ts` and the `state.ts` changes are inside the existing `mutate` globs).
+2. Smoke on the live URL runs the S-005 e2e spec too; its goldens and names rely on `?seed=` being honoured on Pages (same as S-001..S-004).
