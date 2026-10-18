@@ -16,3 +16,6 @@ Patterns:
 - **Stat lines** (`.player-line`): label, one space, value on one line; the last line (Condition) is gold.
 - **Back button** (`.back-button`): outlined gold, 48px tall, full width.
 - Accessible roles and names are part of the contract (see `docs/product/scope.md`); presentation changes never rename them.
+- **Club actions** (`.club-actions`): "Squad" and "Tactics" stacked, full width, 48px.
+- **Formation card** (`label` in the "Formation" radio group): same surface as a row, 48px tall; the native radio is stretched over it with `opacity: 0`; a gold ring marks the checked card and the keyboard focus (no `:has()`).
+- **Pitch line-up** (`ul` "Line-up"): 12-column grid on a chalk-outlined pitch panel; each position code is a chalk disc, one row per formation line, goalkeeper at the top.
