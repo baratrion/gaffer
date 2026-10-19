@@ -490,3 +490,151 @@ Owner-only items inherited from S-001..S-004 (smoke `sleep 20`, no security scan
 5. A picked XI is kept after "Back", "Squad", "Back", "Tactics" (no change), "Back"; a fresh page and "New game" give the automatic XI again.
 
 D10's "a formation change drops picks" is deliberately not pinned (DISCUSS D10, D15). All 5 fail on the current app (no "Starting XI" button). The plan run checked that they are achievable: against a throwaway prototype of the DESIGN (not committed), all 23 protected scenarios S-001..S-005 passed.
+
+## Wave: DISTILL
+
+Unattended. Language: TypeScript; runners: vitest + fast-check (`FC_SEED` honoured through `tests/setup/fast-check-seed.ts`) and Playwright (Pixel 7, 390px); package manager pnpm. No Gherkin runner exists, so scenarios are `describe/it` blocks whose titles read Given/When/Then in domain language, with `@tags` and `@contract-shape:<pure-function|bounded-change|unbounded-preservation>` in every title and a `CONTRACT_SHAPE` + outcome-anchor header, as in S-003 and S-004 (`selection.ts` rules and `focusPlan` are `pure-function`; `update` navigation and the e2e specs are `bounded-change`; no `unbounded-preservation` shape applies, nothing is written outside the screen). Wave-decision reconciliation: DISCUSS, DESIGN and DEVOPS read, 0 contradictions (DISCUSS's "choose-slot variant" is DESIGN's `choosePlayer{clubId, slot}`: a recorded naming choice, and the tests use DESIGN's names; the DISCUSS stack order is kept). Only `discuss/journey.md` and `slices/` exist besides this file; decisions live here. The test sources were not derived from `tests/protected/` (not opened).
+
+### Wave: DISTILL / [REF] Hand-off model: green tree, new-behaviour specs held out until DELIVER (Mandate 7 adapted)
+CI forbids committing failing, skipped or `.todo` tests, and test counts may only go up. As in S-004:
+- **Committed and running now (green regression guards, 4 files, 15 cases):**
+  - `tests/acceptance/S-005/existing-navigation-unchanged.test.ts` (6): club home, Squad, a player, Back, Back, and Tactics, a formation, Back still work for any club and formation; states are built without naming the new `xi` field, so it compiles before and after DELIVER.
+  - `tests/acceptance/S-005/fixture-squads-pinned.test.ts` (2): pins the 18 DISCUSS rows of Netherwold Borough (`?seed=31`, club 0) and Oakhampton Rise Borough (default seed 20260, club 7), so a generator change turns this file red and the XI examples stay true (DISCUSS H1).
+  - `tests/acceptance/S-005/names-avoid-screen-words.test.ts` (6): DISCUSS D12; no entry of `TOWNS`, `CLUB_SUFFIXES`, `COLOUR_PALETTE`, `FIRST_NAMES`, `SURNAMES` (nor any "First Last" or "Town Suffix" text built from them) contains Back, Squad, Tactics, Starting, Players, Formation, Line-up, Clubs or Choose, case-insensitive substrings. It passes today, so it is committed, not held out.
+  - `tests/e2e/S-005-club-home-regression.spec.ts` (1): heading is the club name and focused, every club-home button is 44px or taller, Squad and Tactics still open, a 4-3-3 choice survives a trip to the club home, no sideways scroll, no console error; it never names "Starting XI".
+  - The renderers-never-move-focus guard is reused, not duplicated: `tests/unit/ui/renderers-never-move-focus.test.ts` (S-004) scans every file under `src/ui`, so it covers the two new renderers (the reference run proved it fails on a `.focus()` in one).
+  - Net: `ci:test` 327 to 341 tests (+14, 21 files), `ci:e2e` 55 to 56 (+1). `ci:lint`, `ci:typecheck`, `ci:test`, `ci:e2e` all green on the committed tree.
+- **Held out, complete and verified:** four executable specs stored as `docs/feature/S-005/distill/pending/{acceptance,e2e}/*.pending` (outside every glob: `vitest include`, `tsc include`, `oxlint .`, Playwright `testDir`). Nothing skipped, weakened or marked todo; they are simply not in the tree yet. 232 vitest cases and 29 e2e cases.
+- **Verification done in DISTILL** (`distill/verification-note.md`): a throwaway reference implementation in a scratch git worktree (since removed) made all 232 held-out vitest cases and all 29 held-out e2e cases pass, with typecheck and lint clean and no existing test edited; seeded faults (8 rule/navigation faults, spans without space nodes, `display: grid`, small targets, `nowrap`, missing "Starting" marks, picks kept through a formation change, `.focus()` in a renderer) were each caught. In the real repo the same files are lint-clean and fail only for missing symbols or modules (RED for missing functionality).
+- **No scaffold stubs in `src/`:** a throwing stub would turn the committed run red. The scaffold equivalent is the `.pending` files plus the exact-symbol list below.
+- **DELIVER mechanics:** `git mv` each file to its destination, dropping `.pending`, in the same commit as the code that makes it green. Never edit an assertion to fit the implementation; if one is wrong, record it in `distill/upstream-issues.md`.
+
+### Wave: DISTILL / [REF] Scenario list with tags
+Tier A only (production code: real `lineUp`, `generateSquad`, `automaticXI`, `update`, `focusPlan`, the built app). Tier B skipped: the journey is 7 chained steps, but the pure rules and `update` are already covered by fast-check properties over seeds, all 8 clubs, all 3 formations and arbitrary action runs, which explore the state space directly.
+
+Committed now:
+
+| # | Scenario (title in the file) | File | Tags | Kind |
+|---|---|---|---|---|
+| R1 | Any club home, Squad, a player, Back, Back: club home again, formation kept | `existing-navigation-unchanged.test.ts` | `@regression @property` | PBT |
+| R2 | Any club home, Tactics, another formation, Back: club home with that formation | same | `@regression @property` | PBT |
+| R3 | Club home, Squad: that club's squad; Tactics: that club's tactics | same | `@regression @driving_port` | example (2) |
+| R4 | Tactics, 4-3-3: only the formation changes | same | `@regression` | example |
+| R5 | Back on the club home changes nothing | same | `@regression @error` | example |
+| Q1 | Seed 31 first club: the 18 DISCUSS rows | `fixture-squads-pinned.test.ts` | `@regression` | example |
+| Q2 | Default seed eighth club: the 18 DISCUSS rows | same | `@regression` | example |
+| W1 | Each of the 5 name arrays holds none of the 9 screen words | `names-avoid-screen-words.test.ts` | `@regression @error` | example (5) |
+| W2 | Built "First Last" and "Town Suffix" texts hold none either | same | `@regression @boundary` | example |
+| C1 | Club home keeps working: heading, 44px, Squad, Tactics, kept formation, no scroll, no errors | `tests/e2e/S-005-club-home-regression.spec.ts` | `@regression` | e2e |
+
+Held out (`distill/pending/`):
+
+| # | Scenario (title in the file) | File | Tags | Kind |
+|---|---|---|---|---|
+| S1 | Netherwold 4-4-2 XI is the DISCUSS eleven, golden `[0,7,3,6,2,9,12,8,10,17,14]` | `selection.test.ts` | `@walking_skeleton @driving_port` | example |
+| S2 | Netherwold 4-3-3 golden `[0,7,3,6,2,9,12,8,17,14,16]` (Fitch-Moreton); 4-2-3-1 has Northcott as 5th MF | same | `@boundary` | example (2) |
+| S3 | Ties: Yarrow (row 2) at 3, Thistlewood (row 14) over Fitch-Moreton at 5 | same | `@boundary` | example |
+| S4 | Oakhampton 4-4-2, 4-2-3-1 golden `[1,5,2,6,7,12,9,10,8,11,17]`, 4-3-3 | same | `@walking_skeleton` | example (3) |
+| S5 | Any seed, club, formation: 11 distinct players, slot position matches `lineUp`, order by overall then squad index, no outsider beats a starter, twice equal, inputs untouched | same | `@property` | PBT (5) |
+| S6 | `playersForPosition`: Netherwold rows; any squad 2/6/6/4, ascending, all 18 | same | `@driving_port @property` | example + PBT |
+| S7 | `isSlotIndex`: 0,1,5,9,10 yes; -1, 11, 12, 1.5, 0.5, NaN, ±Infinity, -0.5, 10.000001 no; any integer | same | `@boundary @error @property` | example (15) + PBT |
+| S8 | `pickForSlot` replace (Northcott for Dunmore), swap (Dalrymple and Elderkin), own player same object (Oakhampton GK) | same | `@walking_skeleton @driving_port @boundary` | example (3) |
+| S9 | Any reachable XI: valid result, player in slot, replace changes 1 slot, swap 2, own none; involution; frozen inputs untouched; twice equal | same | `@property` | PBT (4) |
+| S10 | Wrong position, slot -1/11/1.5/NaN/100, player -1/18/1.5/NaN/100: `undefined`; edge picks (slot 10, slot 0, row 17) work | same | `@error @boundary` | example + PBT (13) |
+| S11 | `selection.ts` source has no `Math.random`, `Date`, `performance.now`, `crypto.` | same | `@determinism` | example |
+| N1 | `ViewStartingXI` from a known club home; picks kept; any club and formation; 8 off-home states are the same object | `navigation.test.ts` | `@walking_skeleton @driving_port @property @error` | example + PBT (11) |
+| N2 | `ChooseSlot` 0, 5, 8, 10 opens the choose screen; invalid slots (7), off-screen (7), unknown club: same object | same | `@driving_port @error @boundary` | example (20) |
+| N3 | `PickPlayer`: Northcott replace, swap, pick back, own player (no `xi` key added; stored `xi` same array); other position (5), bad rows (6), off-screen (7), unknown club and bad slots, other club's own squad | same | `@walking_skeleton @driving_port @boundary @error` | example (25) |
+| N4 | `Back` from the choose screen (xi unchanged) and the Starting XI (picks and formation kept); unknown club no-op | same | `@driving_port @error` | example (3) |
+| N5 | US-3 walks from the title: pick, Back/Squad/player/Back/Back/Tactics/same formation/Back/Starting XI keeps the same `xi` array; open slot and Back; 4-3-3 re-pick drops picks to the golden `[0,7,3,6,2,9,12,8,17,14,16]` | same | `@walking_skeleton @driving_port` | example (4) |
+| N6 | Another formation drops a stored XI (`xi === undefined`, any from/to pair); the same formation returns the same object; unknown text (5), off-tactics, unknown club: same object; never-changed XI adds no `xi` key (`Object.hasOwn`) | same | `@property @boundary @error` | PBT + example (9) |
+| N7 | `NewGame` from a title with picks drops them and resets to 4-4-2; no key added when none; off-title no-op; `ChooseClub` no-op off the club list (single-club invariant) | same | `@driving_port @boundary @error` | example (4) |
+| N8 | `currentXI` stored versus derived (all formations); `squadOf` for the 8 clubs and 3 unknown ids | same | `@driving_port @error` | example (6) |
+| N9 | Any seed and any run of up to 40 actions (valid and invalid): a stored XI always has 11 different players of the right positions, and the shown XI is valid; same taps twice, same state; frozen states never throw or mutate | same | `@property` | PBT (3) + example |
+| P1 | New screen drawn first (5): heading, even with an id | `focus-plan.test.ts` | | example |
+| P2 | Different screen, one of them new (every ordered pair, with and without an id): heading; the club home, Starting XI, slot, pick, Back journey: heading each time | same | `@walking_skeleton @driving_port` | example |
+| P3 | Only the club differs, or only the slot differs: heading | same | `@boundary` | example |
+| P4 | New screen redrawn with an id: that element; without or with an empty id: heading | same | `@boundary` | example (5) |
+| P5 | Any previous/next/id: element exactly when same screen and non-empty id, else heading; equal copies are the same screen | same | `@property` | PBT (2) |
+| E1 | Club home to a complete XI in 1 tap, heading focused, 11 exact buttons (one-button items, `textContent`, `innerText`, accessible name, 44px), Back 1 tap to the club home focused | `S-005-starting-xi.spec.ts` | `@walking_skeleton @kpi` | e2e |
+| E2 | "Starting XI" is the last of three club-home buttons | same | | e2e |
+| E3 | An XI never changed follows the formation: Netherwold 4-3-3 and 4-2-3-1, Oakhampton 4-3-3 and 4-2-3-1 (4 cases); default 4-4-2 XI at `?seed=abc` | same | `@example` | e2e (5) |
+| E4 | The same seed in a second fresh page gives the same eleven | same | `@boundary` | e2e |
+| E5 | XI equals the Squad list rows (name, position, overall) and no outsider is better, three seeds and all three formations | same | `@property` | e2e (3) |
+| E6 | Environment probe: "DF Ulric O'Garrity 8" and "FW Finlay Fitch-Moreton 5" read exactly in name, `textContent`, `innerText` | same | `@environment-probe` | e2e |
+| E7 | Dunmore to Northcott in 2 taps from Starting XI (3 from club home), "Choose MF" focused with 6 players, 44px, Back 44px | same | `@walking_skeleton @kpi` | e2e |
+| E8 | Swap Elderkin and Dalrymple; a second pick keeps the first | same | `@example` | e2e (2) |
+| E9 | Choose GK/DF/MF/FW lists in squad order, exactly 1/4/4/2 marked Starting, 44px, Back changes nothing | same | | e2e (4) |
+| E10 | Own player and Back from an open slot change nothing (Oakhampton); no age, attributes or condition on the choose screen | same | `@boundary` | e2e (3) |
+| E11 | US-3 walk: Back, Squad, Redfern, Back, Back, Tactics, 4-4-2, Back, Starting XI keeps the pick; open slot Back and a trip home keep it | same | `@walking_skeleton` | e2e (2) |
+| E12 | Another formation re-picks (Netherwold 4-3-3, then 4-4-2 again: Dunmore back, Northcott out) | same | | e2e |
+| E13 | A fresh page and New game start from the automatic eleven | same | `@error` | e2e |
+| E14 | No sideways scroll on club home, Starting XI and four choose screens, no slot text spilling, 44px (2 seeds) | same | | e2e (2) |
+| E15 | No console error across the whole DoD journey | same | | e2e |
+
+Counts: 15 committed now (14 vitest: R 6, Q 2, W 6; 1 e2e: C1); 232 vitest cases held out (selection 51, navigation 86, focus-plan 95) and 29 e2e cases. Error/edge share: estimated, by tag over the expanded `it.each` cases (not machine-counted), at about half of the vitest cases (invalid slots, players, screens, clubs, texts, off-home actions) and low in e2e (about 5 of 29 carry `@error` or `@boundary`). **Waiver (share):** the whole-suite share is estimated at or above the 40% target, but not the e2e share; the e2e tier has two sad paths (E10 own player and Back, E13 fresh page) because wrong-screen, unknown-club and bad-index actions cannot be sent from the UI, so N1-N7 enumerate them at the `update` level. **Waiver (environment):** E1-E15 run on local-preview and on a `BASE_URL` deployment; local-dev is not a supported target. Viewport is the Pixel 7 profile at 390px from `playwright.config.ts`; "fresh visits" are new pages of the same browser context (nothing is persisted). **Waiver (line budget):** DISCUSS budgeted 710 test lines; the held-out and committed tests total about 1440 lines. The test files are written and verified in DISTILL, not part of DELIVER's authoring, and DELIVER's code (about 300-350 lines per DESIGN) is within budget; DELIVER records the measured count for the roadmap.
+
+### Wave: DISTILL / [REF] WS strategy (Architecture of Reference)
+- Driving ports: in-process pure calls (`automaticXI`, `playersForPosition`, `pickForSlot`, `isSlotIndex`, `initialState`, `update`, `currentXI`, `squadOf`, `focusPlan`) and the built browser app at `http://localhost:4173/gaffer/`. All real; no DI container exists.
+- Driven ports: none (no storage, clock or network; the XI is in memory only). Nothing to fake. The seeded `createRng` is not used by selection.
+- Walking skeleton: extends the S-001..S-004 skeleton by one branch (club home, Starting XI, a slot, a pick, Back). Browser proof: E1, E7, E11. Domain proof: S1 + S8 and N3 + N5. Litmus: the title is a user goal (see my eleven, change a starter, find it kept) and the Then is what Sam reads.
+- Infrastructure policy: as S-003 and S-004, no `docs/architecture/atdd-infrastructure-policy.md`; "everything real, nothing faked". Mandate 8 is met by comparing whole `GameState` values (league + screen + formation + xi, a closed universe), `Object.hasOwn` for the "no xi key added" rule, and deep-freeze no-mutation properties (S5, S9, N9).
+
+### Wave: DISTILL / [REF] Adapter coverage table
+There are no driven adapters (DESIGN, "Driven ports and adapters": none).
+
+| Adapter | @real-io scenario | Covered by |
+|---|---|---|
+| (none) | n/a | n/a; the one environmental assumption (inline spans with single-space text nodes give one-line accessible name, `textContent` and `innerText`, and long names wrap within 390px) is probed by E1, E6, E9 (exact name, `textContent`, `innerText`) and E14 (scroll width) on the built app (ADR-0009 Earned Trust) |
+
+### Wave: DISTILL / [REF] Scaffolds
+No `__SCAFFOLD__` stubs are written under `src/` (a throwing stub would turn the committed run red). Symbols DELIVER must export, all used by the held-out tests:
+- `src/domain/selection.ts`: `StartingXI` (`readonly number[]`, 11 squad indices in slot order), `isSlotIndex(value: number): boolean` (integer 0..10), `automaticXI(squad: readonly Player[], formation: FormationId): StartingXI` (per position, overall descending, ties in ascending squad index; walks `lineUp(formation)`), `playersForPosition(squad, position): readonly number[]` (squad order), `pickForSlot(selection: { squad, formation, xi }, slot: number, playerIndex: number): StartingXI | undefined` (context object, 3 parameters: `undefined` for a bad slot, a player index that is not an integer 0..17 or a player of another position; the same `xi` object for the slot's own player; else a new array, swapping when the player holds another slot; never mutates). Imports only `formation.ts` and `squad.ts` (oxlint boundary); no `Math.random`, `Date`, `performance.now`, `crypto.` in the file (S11 greps the source).
+- `src/app/state.ts`: `GameState.xi?: StartingXI | undefined` (optional; `initialState` unchanged, no `xi` key; readers test `state.xi === undefined`); `Screen` gains `{ kind: "startingXI"; clubId }` and `{ kind: "choosePlayer"; clubId; slot }`; `Action` gains `{ type: "ViewStartingXI" }`, `{ type: "ChooseSlot"; slot: number }`, `{ type: "PickPlayer"; playerIndex: number }`; `currentXI(state, squad): StartingXI` (stored `xi`, else `automaticXI(squad, state.formation)`, the same array when stored); `squadOf(league, clubId): readonly Player[] | undefined` (`generateSquad(league.seed, clubIndex)`, `undefined` for an unknown club); `focusPlan`'s screen comparison adds `startingXI` (by `clubId`) and `choosePlayer` (by `clubId` and `slot`). Rules the tests pin: no-ops return the very same state object; `PickPlayer` with the own player returns to `startingXI` with no `xi` key added (and a stored `xi` kept as the same array); `ChooseFormation` after its unchanged guards returns exactly `{ ...state, formation }` when nothing is stored (no `xi` key) and `xi: undefined` when something was stored; `NewGame` from the title drops a stored `xi` and from any other screen is a no-op; `Back` from `choosePlayer` (known club, valid slot) goes to `startingXI`, from `startingXI` to the club home.
+- UI contract (brief port 18; roles and names only): the club home button "Starting XI" (exact name, 44px or taller, the third button after "Squad" and "Tactics"; the three are the only buttons on the club home); the Starting XI screen has exactly one heading "Starting XI" (focused on arrival and every return), exactly one `list` on the page named "Starting XI" with 11 `listitem`s of exactly one `button` each whose accessible name, `textContent` and `innerText` all read "CODE Name OVERALL" (single spaces, one line, no leading or trailing space), and a button "Back" (exact, 44px or taller); the choose screen has exactly one heading "Choose GK|DF|MF|FW" (focused), exactly one `list` named "Players" with one one-button item per squad player of that position in squad order, each reading exactly "Name OVERALL" plus " Starting" for starters (no age, attributes or condition anywhere), and "Back". No other list, heading or button with these names may exist on those screens.
+- Learned from the scratch run: the slot and choice buttons must stay `display: block` with inline spans and literal single-space text nodes (no flex, grid or float; `display: grid` turns the `innerText` check red); `overflow-wrap: anywhere` keeps long names inside 390px; `oxlint` caps cyclomatic complexity at 15 (one helper per action; `back` stays under it with two extra cases) and test-side `max-params` is 3; the "Squad" rows are read as `innerText` lines (name, position, age, overall) by E5; the tap counter counts `pointerdown`; `main.ts`'s `render` switch needs the `never` guard only once both render cases exist.
+
+### Wave: DISTILL / [REF] Test placement
+`tests/acceptance/S-005/` (vitest, same convention as S-001..S-004), `tests/e2e/S-005-club-home-regression.spec.ts` (committed) and `tests/e2e/S-005-starting-xi.spec.ts` (held out; DEVOPS coexistence matrix). Held-out sources live in `docs/feature/S-005/distill/pending/{acceptance,e2e}/` as `*.pending`. Existing tests are untouched; unlike S-004, no existing fixture needs an edit (DESIGN D1: `xi` is optional).
+
+### Wave: DISTILL / [REF] Driving port coverage
+| Port (brief 15-18) | Scenarios |
+|---|---|
+| 15 selection rules (`isSlotIndex`, `automaticXI`, `playersForPosition`, `pickForSlot`) | S1-S11, N5, N9, E3, E5 |
+| 16 `update` with `ViewStartingXI`, `ChooseSlot`, `PickPlayer`, `Back`, the `ChooseFormation` re-pick, `NewGame`, `currentXI`, `squadOf` | N1-N9, R1-R5 |
+| 17 `focusPlan` (extended) | P1-P5, E1, E7 (heading focus), the reused `.focus(` guard |
+| 18 UI: "Starting XI" button, Starting XI screen, choose screen, "Back" | E1-E15, C1 |
+Ports 1-14 are unchanged and covered by S-001..S-004 tests. Driving adapters (CLI/HTTP/hook): none; the browser app is covered by E1-E15.
+
+### Wave: DISTILL / [REF] DEVOPS monitoring-contract trace
+| Contract row | Scenario |
+|---|---|
+| K1: 1 tap to a complete XI, 11 of 11, 0 duplicates, 1 tap back | E1 (pointerdown counter, 11 distinct names) |
+| K2: 2 taps from Starting XI, 3 from the club home | E7 |
+| K3: picks kept, 0 gaps and 0 duplicates after any pick, swap or formation change | N5, N9, S5, S9, E11, E12 |
+| Automatic XI order and goldens | S1-S4, E3, Q1, Q2 |
+| Exact button text (environment probe) | E1, E6, E9; `textContent` and `innerText` equality; apostrophe and hyphen names |
+| Choose screen shape | E9, E10, E7 |
+| Focus on each new `<h1>` | E1, E7, E9, E10, E11; P1-P5; reused `.focus(` guard |
+| Formation re-pick and `NewGame` reset | N6, N7, E12, E13 |
+| D11 no-ops and the single-club invariant | N1-N4, N7 |
+| 44px tap targets | E1, E7, E9, E14, C1 |
+| No horizontal scroll at 390px | E14, C1 |
+| No console errors | E1, E7, E11, E14, E15, C1 |
+| S-001..S-004 unchanged | R1-R5, C1, existing suites |
+| D12 names | W1, W2 |
+| Stryker strength (`selection.ts`, `state.ts`) | S3 and S10 (tie order, bounds -1, 0, 10, 11, 17, 18, 1.5, NaN, wrong position, replace versus swap, same reference), N3 and N6 (same-object no-ops, `Object.hasOwn`), P3 (club and slot fields) |
+
+### Wave: DISTILL / [REF] DELIVER step plan (which files to add, and when)
+1. **Step 01, selection rules** (developer-facing, not shipped alone): implement `src/domain/selection.ts` per ADR-0009. First run the committed guards and see them green. `git mv docs/feature/S-005/distill/pending/acceptance/selection.test.ts.pending tests/acceptance/S-005/selection.test.ts`; confirm RED for the missing module before coding, then GREEN. Gates: `ci:lint`, `ci:typecheck`, `ci:test`.
+2. **Step 02, state and focus plan** (one commit, so the tree is never red): `GameState.xi?`, `Screen`/`Action` variants, `update` cases (one helper per action), `currentXI`, `squadOf`, private `withoutPicks`, the `ChooseFormation` and `NewGame` drops, the `Back` cases and `sameScreen` cases in `src/app/state.ts`. No existing fixture or assertion changes (the optional `xi` needs none). In the same commit `git mv` `navigation.test.ts.pending` and `focus-plan.test.ts.pending` to `tests/acceptance/S-005/navigation.test.ts` and `focus-plan.test.ts`. `existing-navigation-unchanged.test.ts`, `tests/acceptance/S-001..S-004/` stay green and unedited.
+3. **Step 03, screens, button, shell, CSS** (one commit): `src/ui/screens/starting-xi.ts`, `src/ui/screens/choose-player.ts`, the club-home "Starting XI" button in `div.club-actions`, the two `main.ts` render cases (via `squadOf`, `currentXI`, `lineUp`, `playersForPosition`) with the `never` guard, CSS (`.xi-slot`, `.xi-choice`). In the same commit `git mv` `e2e/S-005-starting-xi.spec.ts.pending` to `tests/e2e/S-005-starting-xi.spec.ts`. `ci:e2e`, `tests/e2e/S-005-club-home-regression.spec.ts`, `tests/e2e/S-004-club-home-regression.spec.ts` and `tests/protected/S-001..S-005` must pass.
+4. Delete `docs/feature/S-005/distill/pending/` once all four files are moved; zero `.pending` files is the DISTILL-to-DELIVER completion check.
+
+### Wave: DISTILL / [REF] Pre-requisites
+DESIGN: ADR-0009, ADR-0007, ADR-0008 and brief ports 15-18 (read). DEVOPS: local-preview `http://localhost:4173/gaffer/` via `ci:serve`, Pixel 7 at 390px, `FC_SEED` per CI run, `BASE_URL` for post-deploy smoke (the e2e uses `?seed=`, roles and names only, so it holds on Pages). No new dependency, no `.github/`, `stryker.config.mjs` or other locked-path change.
+
+### Wave: DISTILL / [REF] Mandate checks (adapted)
+- CM-A: tests import only `automaticXI`, `playersForPosition`, `pickForSlot`, `isSlotIndex`, `FORMATIONS`, `lineUp`, `generateSquad`, `generateLeague`, `initialState`, `update`, `currentXI`, `squadOf`, `focusPlan`; UI tests enter through the built app by role and name. CM-B: titles use domain terms (starting XI, slot, pick, swap, formation, Squad, Back). CM-D: the pure rules are tested against independent expected data (the DISCUSS rows written out, a reference ordering rule in the properties, an independent focus rule) and the e2e computes the expected XI from the Squad list on the page. CM-F: PBT only in layer 1-2 files; e2e is example-only with named sad paths (E10, E13). Mandate-12 domain types/DSL and step-reuse-ratio do not apply: there are no Gherkin steps; e2e helpers (`openStartingXI`, `expectXI`, `expectChoose`, `chooseFormation`) hold no business logic beyond the expected tables written out in the file.
+- Open points for DELIVER: (1) DESIGN's "own player returns to `startingXI` with no `xi` key added" is pinned with `Object.hasOwn`, while a dropped XI is pinned as `xi === undefined` only (ADR-0009 reader rule). (2) The e2e reads Squad rows as `innerText` lines (name, position, age, overall); if DELIVER changes the squad markup, E5 must still see four lines. (3) `focusPlan` tests live in `tests/acceptance/S-005/` so they are counted with the story. (4) The held-out e2e spec was not run without the reference (it needs the button).
+- Peer review: the four-reviewer gate was not dispatched in this unattended run (none requested); the held-out files were instead executed against the reference, and seeded faults were shown to fail them.
