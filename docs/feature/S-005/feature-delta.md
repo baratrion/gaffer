@@ -646,3 +646,12 @@ Verdict: rejected pending revisions (1 blocker, 6 high, 9 low), reviewed on Haik
 - H-2 (local-dev): unchanged waiver; `environments.yaml` is DEVOPS-owned and the spec honours `BASE_URL`.
 - H-3 (nothing enforces the move): DELIVER step 04 deletes `distill/pending/`; zero `.pending` files is the completion check.
 - H-4/H-5/L-1..L-9: DELIVER-scope action items when the files are moved (prefer `toStrictEqual` over `Object.hasOwn`, keep `@walking_skeleton` on E1 and E7/E11 only, add the D2/D8/D9 e2e check, header `CONTRACT_SHAPE: bounded-change`). Assertions are never weakened to do so.
+
+## Wave: DELIVER / [REF] Review outcome (nw-software-crafter-reviewer, haiku, one pass)
+Verdict: needs revision (3 blockers, 1 high, rest low). No assertion was edited; the moved specs are R100/R099 (e2e: header comment only). Disposition:
+- D1 (91 test declarations vs a 40-50 estimate): tests may not be removed or merged (factory rule 6); the count follows the DISTILL specs. Accepted.
+- D2 (missing "Outcome anchor: DISCUSS Elevator Pitch" literal in five regression guards): comment-only convention, accepted as is.
+- D3 (RED of 01-03 logged SKIPPED): the spec needs a button that did not exist, so it could only fail for missing behaviour; the crafter did not run it first. Recorded; the three DES traces are complete (`des-verify-integrity` exit 0).
+- D4 focus-plan oracle mirrors the rule (explicit examples sit beside it); D5 header comment change was requested by the DISTILL review; accepted.
+- D6/D7: the renderers take `{squad, xi}`-style props and the heading id is `starting-xi-heading`, not the ADR-0009 shapes/ids. Behaviour is identical; ADR-0009 is the reference, the code is the truth. Low, left for a later refactor.
+- D8 long lines: lint is green. D9, D10: no action (`.develop-progress.json` stays uncommitted).
