@@ -1,5 +1,5 @@
 // @US-1 @US-2 @US-3 (S-005 pick my starting XI)
-// CONTRACT_SHAPE: e2e journey
+// CONTRACT_SHAPE: bounded-change
 // Outcome anchor: DISCUSS Elevator Pitch (feature-delta.md US-1..US-3): on Netherwold Borough's home Sam taps "Starting XI" and
 // sees 11 buttons from "GK Tamsin Ingleby 17" to "FW Garrick Thistlewood 5"; taps "MF Dorian Dunmore 7", sees "Choose MF" with 6
 // midfielders, taps "Kestrel Northcott 6", and the slot reads "MF Kestrel Northcott 6"; the pick survives Squad and Tactics.
