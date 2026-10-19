@@ -1,0 +1,101 @@
+{
+  "roadmap": {
+    "project_id": "S-005",
+    "created_at": "2026-10-19T20:30:55Z",
+    "total_steps": 3
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Pick my starting XI: selection rules, state and screens",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Selection domain rules: automatic XI, players per position, pick and swap",
+          "criteria": [
+            "src/domain/selection.ts exports StartingXI, isSlotIndex, automaticXI, playersForPosition and pickForSlot; it imports only formation.ts and squad.ts and contains no Math.random, Date, performance.now or crypto.",
+            "automaticXI gives, per position, the formation's n highest-overall players, overall descending with ties in ascending squad index, in the slot order of lineUp(formation); the pinned Netherwold Borough (?seed=31) and Oakhampton Rise Borough (?seed=abc) rows hold for 4-4-2, 4-3-3 and 4-2-3-1.",
+            "pickForSlot returns undefined for a slot outside the integers 0..10 and for a player index that is not an integer 0..17 or is of another position, the same xi object for the slot's own player, a replacement for a non-starter and a swap for a starter in another slot, and never mutates its input.",
+            "Every automatic XI and every pick result holds 11 different players, each of the slot's position.",
+            "Every string in src/domain/names.ts contains none of the D12 banned words, case-insensitively.",
+            "tests/acceptance/S-005/selection.test.ts moved with git mv from distill/pending/acceptance/selection.test.ts.pending in the same commit, assertions unedited, and ci:lint, ci:typecheck and ci:test are green."
+          ],
+          "test_file": "tests/acceptance/S-005/selection.test.ts",
+          "scenario_name": "@US-1 S-005 the automatic eleven: the best-rated player of each position, ties in squad order",
+          "files_to_modify": [
+            "src/domain/selection.ts",
+            "tests/acceptance/S-005/selection.test.ts",
+            "docs/feature/S-005/distill/pending/acceptance/selection.test.ts.pending"
+          ]
+        },
+        {
+          "id": "01-02",
+          "name": "Game state, navigation and focus plan for the Starting XI and choose-player screens",
+          "criteria": [
+            "GameState gains optional xi; initialState is unchanged with no xi key; Screen gains startingXI and choosePlayer; Action gains ViewStartingXI, ChooseSlot and PickPlayer.",
+            "currentXI returns the stored xi (same array) else the automatic XI of the current formation; squadOf returns the club's generated squad or undefined for an unknown club.",
+            "ViewStartingXI is valid only from a known club's home, ChooseSlot only on startingXI with a slot 0..10, PickPlayer only on choosePlayer with a valid same-position player; every invalid action returns the very same state object.",
+            "PickPlayer with the slot's own player returns to startingXI without adding an xi key; any other valid pick returns to startingXI with xi set; Back goes choosePlayer to startingXI and startingXI to the club home, and is a no-op for an unknown club.",
+            "ChooseFormation keeps its unchanged guards and then returns exactly { ...state, formation } when nothing is stored, else drops the stored xi; NewGame from the title drops a stored xi and is a no-op elsewhere.",
+            "focusPlan moves focus to the new h1 for startingXI (by clubId) and choosePlayer (by clubId and slot).",
+            "navigation.test.ts and focus-plan.test.ts moved with git mv from distill/pending/acceptance/ (dropping .pending) in the same commit, assertions unedited; tests/acceptance/S-001..S-004 and existing-navigation-unchanged.test.ts stay green and unedited; ci:lint, ci:typecheck and ci:test are green."
+          ],
+          "test_file": "tests/acceptance/S-005/navigation.test.ts",
+          "scenario_name": "@US-2 S-005 Sam picks a player into the slot",
+          "files_to_modify": [
+            "src/app/state.ts",
+            "tests/acceptance/S-005/navigation.test.ts",
+            "tests/acceptance/S-005/focus-plan.test.ts",
+            "docs/feature/S-005/distill/pending/acceptance/navigation.test.ts.pending",
+            "docs/feature/S-005/distill/pending/acceptance/focus-plan.test.ts.pending"
+          ]
+        },
+        {
+          "id": "01-03",
+          "name": "Starting XI and choose-player screens, club home button, shell wiring and pending cleanup",
+          "criteria": [
+            "The club home shows a third button named exactly Starting XI after Squad and Tactics, 44px or taller; Squad and Tactics are unchanged.",
+            "The Starting XI screen has one h1 Starting XI with focus on arrival and return, a list named Starting XI of 11 items of one button each reading CODE Name OVERALL (accessible name, textContent and innerText identical, single spaces, one line), and a Back button of 44px or more returning to the club home with its h1 focused.",
+            "The choose screen has one focused h1 Choose GK|DF|MF|FW, a list named Players with one button per squad player of that position in squad order reading Name OVERALL plus Starting for starters, no age, attributes or condition, and a Back button returning to Starting XI with the XI unchanged.",
+            "A pick or swap shows in the slot with 11 different players; the XI is kept through Squad and Tactics visits, re-picked automatically by a formation change, and reset by a fresh page or New game.",
+            "No horizontal scroll at 390px on the club home, Starting XI and choose screens, tap targets at least 44px, no console errors; slot and choice buttons use display block with inline spans and literal single-space text nodes; renderers never call focus; main.ts render keeps a never-typed exhaustiveness guard.",
+            "tests/e2e/S-005-starting-xi.spec.ts moved with git mv from distill/pending/e2e/S-005-starting-xi.spec.ts.pending in the same commit, assertions unedited; docs/feature/S-005/distill/pending/ is deleted (zero .pending files); ci:e2e, the S-004 and S-005 club-home regression specs and tests/protected/S-001..S-005 pass; ci:lint, ci:typecheck, ci:test and ci:build are green."
+          ],
+          "test_file": "tests/e2e/S-005-starting-xi.spec.ts",
+          "scenario_name": "@US-1 S-005 see my best eleven at once",
+          "files_to_modify": [
+            "src/ui/screens/starting-xi.ts",
+            "src/ui/screens/choose-player.ts",
+            "src/ui/screens/club-home.ts",
+            "src/main.ts",
+            "src/ui/styles.css",
+            "tests/e2e/S-005-starting-xi.spec.ts",
+            "docs/feature/S-005/distill/pending/e2e/S-005-starting-xi.spec.ts.pending",
+            "docs/feature/S-005/distill/pending/"
+          ]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/domain/",
+      "src/app/",
+      "src/ui/",
+      "src/main.ts"
+    ],
+    "test_directories": [
+      "tests/acceptance/S-005/",
+      "tests/e2e/"
+    ],
+    "excluded_patterns": [
+      "__init__.py",
+      "__pycache__/**"
+    ]
+  },
+  "validation": {
+    "status": "pending",
+    "reviewer": "pending",
+    "approved_at": "pending"
+  }
+}

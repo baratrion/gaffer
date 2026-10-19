@@ -1,13 +1,16 @@
 import "./ui/styles.css";
 import { parseSeed } from "./app/seed";
-import { focusPlan, initialState, update, type Action, type FocusPlan, type GameState } from "./app/state";
-import { formationLines } from "./domain/formation";
+import { currentXI, focusPlan, initialState, squadOf, update, type Action, type FocusPlan, type GameState } from "./app/state";
+import { formationLines, lineUp } from "./domain/formation";
 import { generateLeague, type League } from "./domain/league";
+import { playersForPosition } from "./domain/selection";
 import { generateSquad } from "./domain/squad";
+import { renderChoosePlayer } from "./ui/screens/choose-player";
 import { renderClubHome } from "./ui/screens/club-home";
 import { renderPickClub } from "./ui/screens/pick-club";
 import { renderPlayer } from "./ui/screens/player";
 import { renderSquad } from "./ui/screens/squad";
+import { renderStartingXI } from "./ui/screens/starting-xi";
 import { renderTactics } from "./ui/screens/tactics";
 import { renderTitle } from "./ui/screens/title";
 
@@ -16,6 +19,12 @@ const findClub = (league: League, clubId: string) => {
   const club = league.clubs[clubIndex];
   if (!club) throw new Error(`Unknown club in game state: ${clubId}`);
   return { club, clubIndex };
+};
+
+const squadOrThrow = (league: League, clubId: string) => {
+  const squad = squadOf(league, clubId);
+  if (!squad) throw new Error(`Unknown club in game state: ${clubId}`);
+  return squad;
 };
 
 type Dispatch = (action: Action, focusId?: string) => void;
@@ -49,6 +58,23 @@ const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void =
     case "tactics":
       renderTactics(root, { formation: state.formation, lines: formationLines(state.formation) }, dispatch);
       break;
+    case "startingXI": {
+      const squad = squadOrThrow(league, screen.clubId);
+      renderStartingXI(root, { squad, xi: currentXI(state, squad) }, dispatch);
+      break;
+    }
+    case "choosePlayer": {
+      const squad = squadOrThrow(league, screen.clubId);
+      const position = lineUp(state.formation)[screen.slot];
+      if (!position) throw new Error(`Unknown slot in game state: ${screen.slot}`);
+      const candidates = playersForPosition(squad, position);
+      renderChoosePlayer(root, { squad, position, candidates, xi: currentXI(state, squad) }, dispatch);
+      break;
+    }
+    default: {
+      const unhandled: never = screen;
+      throw new Error(`Unhandled screen: ${JSON.stringify(unhandled)}`);
+    }
   }
 };
 

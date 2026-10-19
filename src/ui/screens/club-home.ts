@@ -8,6 +8,8 @@ export const renderClubHome = (root: HTMLElement, club: Club, dispatch: (action:
   squadButton.addEventListener("click", () => dispatch({ type: "ViewSquad" }));
   const tacticsButton = el("button", { type: "button", class: "primary" }, "Tactics");
   tacticsButton.addEventListener("click", () => dispatch({ type: "ViewTactics" }));
+  const startingXIButton = el("button", { type: "button", class: "primary" }, "Starting XI");
+  startingXIButton.addEventListener("click", () => dispatch({ type: "ViewStartingXI" }));
   const [first, second] = club.colours;
   root.replaceChildren(
     el(
@@ -19,7 +21,7 @@ export const renderClubHome = (root: HTMLElement, club: Club, dispatch: (action:
         style: `--swatch-a: ${COLOUR_HEX[first]}; --swatch-b: ${COLOUR_HEX[second]}`,
       }),
       el("h1", { tabindex: "-1" }, club.name),
-      el("div", { class: "club-actions" }, squadButton, tacticsButton),
+      el("div", { class: "club-actions" }, squadButton, tacticsButton, startingXIButton),
     ),
   );
 };
