@@ -1,6 +1,6 @@
 # Gaffer: architecture brief
 
-SSOT for architecture. Decisions live in `adr-0001..0009`; this file shows how they fit together. Extend it per story.
+SSOT for architecture. Decisions live in `adr-0001..0011`; this file shows how they fit together. Extend it per story.
 
 ## Application Architecture
 
@@ -27,9 +27,12 @@ Rejected simpler alternative: no layering, with generation inline in the UI. It 
 | `domain/formation.ts` (S-004): `FORMATIONS`, `DEFAULT_FORMATION`, `isFormationId`, `formationLines`, `lineUp` | pure data constants and pure return-only functions | Deeply frozen (`Object.isFrozen` on the array, each lines array and each line object), no seed, no RNG; unit tests on counts, order and derivation; read-only ports expose no write methods |
 | `domain/selection.ts` (S-005): `automaticXI`, `pickForSlot`, `playersForPosition`, `isSlotIndex` | pure, return-only | No RNG, no seed of its own; inputs never mutated; `pickForSlot` returns the same `xi` object for the slot's own player and `undefined` for an invalid pick; fast-check properties over seeds, all 8 clubs, all 3 formations, plus a golden XI |
 | `currentXI`, `squadOf`, `withoutPicks` (S-005, `app/state.ts`) | pure, return-only | `currentXI` = stored `xi`, else `automaticXI(squad, formation)` (the only derivation of the effective XI); `withoutPicks` returns the same state when no `xi` is stored. Unit tests |
+| `domain/schedule.ts` (S-006, ADR-0010): `fixturesOf`, `fixtureOf`, `MATCHDAYS`, `FIXTURES_PER_MATCHDAY` | pure data constant (deeply frozen table) and pure return-only functions | No seed, no RNG; goldens, `Object.isFrozen` at each level, perfect-matching and double round-robin properties |
+| `domain/match.ts` (S-006, ADR-0011): `playMatch`, `teamStrength` | pure, return-only | Own stream `deriveSeed(seed, 200 + (matchday - 1) * 4 + fixtureIndex)`; a fixed 54 draws per match whatever the XIs; only correctly rounded arithmetic (no `Math.pow`, `**`, `exp`, `log`); deep-equal on repeat, inputs never mutated (freeze and compare), golden match, fast-check properties (D7 statistics, per-seed monotonicity, scorer rules) |
+| `matchFor` (S-006, `app/state.ts`) | pure, return-only | The only derivation of the played match: fixture from `fixtureOf(OPENING_MATCHDAY, clubIndex)`, squads through `squadOf(league, club.id)`, managed side `currentXI`, other side `automaticXI(squad, DEFAULT_FORMATION)`; `undefined` for an unknown club. Unit tests (symmetry: both clubs of a fixture get the same result with untouched tactics) |
 | `domain/names.ts` | pure data constants, return-only | Frozen word lists, towns, suffixes, palette; no functions with effects. Unit test: no duplicates in name/town lists |
 | `ui/dom.ts` `el()` | bounded-change | Creates detached nodes only; never touches `document.body` or attached nodes |
-| `render<Screen>` (incl. `renderSquad`, `renderPlayer`, `renderTactics`, `renderStartingXI`, `renderChoosePlayer`) | bounded-change | Writes only `root`'s children. Takes `(root, props, dispatch)` with `dispatch(action, focusId?)`, never `window` or `location`. Does not move focus (a unit test fails if `.focus(` appears under `src/ui/`); it may only name the id to refocus through `dispatch`'s optional second argument |
+| `render<Screen>` (incl. `renderSquad`, `renderPlayer`, `renderTactics`, `renderStartingXI`, `renderChoosePlayer`, `renderMatch`) | bounded-change | Writes only `root`'s children. Takes `(root, props, dispatch)` with `dispatch(action, focusId?)`, never `window` or `location`. Does not move focus (a unit test fails if `.focus(` appears under `src/ui/`); it may only name the id to refocus through `dispatch`'s optional second argument |
 | `main.ts` | unbounded shell | Universe: reads `location.search` once; writes only `root`'s children (via render) and focus, as `focusPlan` says (the new `<h1>` with `tabindex="-1"` when the screen changed, else the element with the resolved `focusId`); no other globals. Covered by e2e |
 
 Driving ports that only read expose no write methods: `generateLeague` and `parseSeed` return values and have no setters.
@@ -54,7 +57,7 @@ S-001 has no external adapters. The only environment dependency is `location.sea
 | `src/domain/league.ts` | domain | `generateLeague(seed)`: pure 8-club `League` |
 | `src/app/seed.ts` | app | `parseSeed(search)`, `DEFAULT_SEED` |
 | `src/app/types.ts` | app | Shared app types |
-| `src/app/state.ts` | app | `GameState`, `Screen`, `Action`, `update`; from S-004 also `initialState` and the pure `focusPlan` / `FocusPlan`; from S-005 the optional `xi`, the `startingXI` / `choosePlayer` screens, three actions and the pure `currentXI` selector |
+| `src/app/state.ts` | app | `GameState`, `Screen`, `Action`, `update`; from S-004 also `initialState` and the pure `focusPlan` / `FocusPlan`; from S-005 the optional `xi`, the `startingXI` / `choosePlayer` screens, three actions and the pure `currentXI` selector; from S-006 the `match` screen, the `PlayMatch` action, `OPENING_MATCHDAY` and the pure `matchFor` selector |
 | `src/ui/dom.ts` | ui | `el()` safe element builder |
 | `src/ui/screens/{title,pick-club,club-home}.ts` | ui | `render<Screen>(root, props, dispatch)`; `club-colours.ts` is a shared swatch helper |
 | `src/domain/squad.ts` (S-002) | domain | `Player`, `generateSquad(seed, clubIndex)` |
@@ -65,7 +68,10 @@ S-001 has no external adapters. The only environment dependency is `location.sea
 | `src/domain/selection.ts` (S-005) | domain | `StartingXI`, `automaticXI`, `pickForSlot`, `playersForPosition`, `isSlotIndex` |
 | `src/ui/screens/starting-xi.ts` (S-005) | ui | `renderStartingXI(root, { slots }, dispatch)`: h1 "Starting XI", list "Starting XI" of 11 slot buttons (dispatch `ChooseSlot`), "Back" button |
 | `src/ui/screens/choose-player.ts` (S-005) | ui | `renderChoosePlayer(root, { position, players }, dispatch)`: h1 "Choose GK/DF/MF/FW", list "Players" (dispatch `PickPlayer`), "Back" button |
-| `src/main.ts` | shell | Composition root, loop (`initialState`, `update`, render), derives `formationLines(formation)` for the tactics props and the squad, `currentXI` and `lineUp` for the Starting XI and choose-player props, resolves `focusId`, executes the `focusPlan` |
+| `src/domain/schedule.ts` (S-006) | domain | `Fixture`, `MATCHDAYS`, `FIXTURES_PER_MATCHDAY`, `fixturesOf(matchday)`, `fixtureOf(matchday, clubIndex)`: frozen seed-independent double round-robin (ADR-0010) |
+| `src/domain/match.ts` (S-006) | domain | `MatchSide`, `MatchInput`, `GoalEvent`, `MatchResult`, `teamStrength`, `playMatch` (ADR-0011) |
+| `src/ui/screens/match.ts` (S-006) | ui | `renderMatch(root, view, dispatch)`: h1 "Matchday N", score line `<p>`, label "Goals" and list "Goals", "Back" button |
+| `src/main.ts` | shell | Composition root, loop (`initialState`, `update`, render), derives `formationLines(formation)` for the tactics props and the squad, `currentXI` and `lineUp` for the Starting XI and choose-player props, and the match view from `matchFor` (S-006), resolves `focusId`, executes the `focusPlan` |
 
 ### Squad (S-002, ADR-0005)
 - Domain: `Player { name, position: GK|DF|MF|FW, age, overall }` (S-003 adds `attributes` and `condition`); `generateSquad(seed, clubIndex) => readonly Player[]` in `src/domain/squad.ts`; `deriveSeed(seed, stream) => number` in `rng.ts`.
@@ -100,6 +106,44 @@ S-001 has no external adapters. The only environment dependency is `location.sea
 - UI: the club home's `div.club-actions` gains a third `button.primary` "Starting XI" after "Tactics" (stacked, 48px). `renderStartingXI(root, { slots }, dispatch)`, with `slots` = `{ position, player }` per slot as derived by `main.ts`: `<h1 id="starting-xi-title" tabindex="-1">Starting XI</h1>`; `<ul role="list" aria-labelledby="starting-xi-title">` (the list name comes from the heading, one source) with 11 `<li>`, each holding one `<button type="button" class="xi-slot">`; a `.back-button` "Back". `renderChoosePlayer(root, { position, players }, dispatch)`, with `players` = `{ playerIndex, name, overall, starting }` in squad order (`playersForPosition`; `starting` = in `currentXI`): `<h1 tabindex="-1">Choose MF</h1>`; `<ul role="list" aria-label="Players">` with one `<li>` and one `<button type="button" class="xi-choice">` per player; a `.back-button` "Back". Button text is inline spans separated by literal single-space text nodes (code, " ", name, " ", overall; name, " ", overall[, " ", "Starting"]), so `textContent` and the accessible name read exactly "MF Ivo Elderkin 18" and "Ivo Elderkin 18 Starting". No flex, grid or float on these buttons or their spans: blockified children would drop the space nodes and make `innerText` read "MF\nIvo Elderkin\n18" (the S-003 inline-flow rule above; squad-row markup is not reused). `main.ts`'s `render` switch gets a `never`-typed exhaustiveness guard. The buttons are `display: block`, full width, `min-height: 48px`, left-aligned and `overflow-wrap: anywhere`, so long names wrap with no sideways scroll at 390px. Layout: one flat stacked list (pitch-row chips were rejected: about 80px per name at 358px).
 - Contract shapes: see the effect-isolation table. No new adapter, so no adapter probe. The environment assumption (layout and accessible name) is probed by the e2e: exact names, `textContent` and `innerText` equality (including "DF Ulric O'Garrity 8" and "FW Finlay Fitch-Moreton 5") and a scroll-width check. Faults: missing space nodes turn the name and `textContent` checks red; a grid or flex button turns the `innerText` check red. No external integrations, no contract tests, no new C4 container (domain gains `selection.ts`; the L2 holds, descriptions updated).
 
+### Match (S-006, ADR-0010, ADR-0011)
+- **Schedule** (new pure `src/domain/schedule.ts`, ADR-0010):
+  - A seed-independent circle method over club indices 0..7, with 7 rounds and the second half mirrored (14 matchdays of 4 fixtures, each ordered pair exactly once).
+  - Round `r`: {`r`, 7} with `r` at home when `r` is even; then {`(r+k) mod 7`, `(r-k) mod 7`} for `k` = 1..3, where the first is at home when `k` is odd.
+  - Matchday 1 is `[0 v 7, 1 v 6, 5 v 2, 3 v 4]`.
+  - `fixturesOf(matchday)` and `fixtureOf(matchday, clubIndex) => { index, fixture }` read a deeply frozen table. A bad matchday or club throws `RangeError`.
+  - The seeded `league.clubs` order already varies who meets whom by name.
+- **Model** (new pure `src/domain/match.ts`, ADR-0011):
+  - `playMatch({ seed, matchday, fixtureIndex, home, away })`, where a side is `{ squad, xi }`. It returns `{ homeGoals, awayGoals, goals: { minute, side, playerIndex }[] }`.
+  - Strength `S` = the sum of the XI's 11 overalls; the overall is already the position-weighted attribute rating (ADR-0006).
+  - Conversion `p = 0.30 x S_own^3 / (S_own^3 + S_opp^3)`.
+  - 9 chances per side, one per 10-minute window. Each chance always draws 3 floats (minute, conversion, scorer), so there are 54 draws per match whatever the XIs.
+  - Scorer: weighted among the outfield starters by shooting x {DF 1, MF 2, FW 4}. Never the GK, no own goals, and no home advantage (out of scope).
+  - Only exact or correctly rounded arithmetic (no `Math.pow`, `**`, `exp` or `log`), so every browser engine and Node agree.
+  - Calibrated against the real generator (ADR-0011) on the canonical set: seeds 1..1000, the 4 matchday-1 fixtures each, 4000 matches, both sides automatic 4-4-2.
+    - 1.363 goals per side, 0–0 in 5.5% of matches (220 of 4000), and at most 6 goals by one side.
+    - The XI of each position's lowest-rated players scores 0.481 goals, against 1.384 for the automatic XI. A stronger XI never scores fewer on the same seed (monotone coupling).
+    - Scorers: DF 12.5%, MF 36.3%, FW 51.2%.
+    - A committed fixed-seed domain test reproduces this set.
+  - Expected goldens (RED-first; DELIVER must match them, and changing them needs an ADR-0011 amendment): seed 31 reads "Netherwold Borough 1–2 Marlbrook Athletic"; seed 20260 reads "Harrowgate Lane United 0–1 Oakhampton Rise Borough". Goal lists are in port 20.
+- **Stream**: `deriveSeed(seed, 200 + (matchday - 1) x 4 + fixtureIndex)`, that is streams 200..255. Table in use: -1 names; 0..7 clubs; 100..107 attributes; 200..255 matches.
+- **App**:
+  - `Screen` adds `match{clubId}`. `Action` adds `PlayMatch`, valid only from a known club's `clubHome`.
+  - `Back` goes from match to clubHome. An unknown club is a no-op.
+  - `GameState` gains nothing: the result is never stored (D8).
+  - The pure selector `matchFor(state, clubId)` derives the match on render from `fixtureOf(OPENING_MATCHDAY = 1, clubIndex)`. The managed side uses `currentXI`; the other side uses `automaticXI(squad, DEFAULT_FORMATION)`.
+  - `focusPlan`'s `sameScreen` adds `match` (by `clubId`). Every navigation is a screen change, so focus goes to the `<h1>`.
+- **UI**:
+  - The club home gains a fourth `button.primary` "Play match".
+  - `renderMatch` changes exactly this: `root.replaceChildren(<section class="match">)`, and the section has exactly these five children in order:
+    1. `<h1 tabindex="-1">Matchday 1</h1>`.
+    2. `<p class="score-line">`: inline spans with literal single-space text nodes. `textContent` and `innerText` read exactly `Home 2–1 Away` (U+2013). It is styled as a scoreboard panel: chalk border, gold score, no flex or grid.
+    3. `<p id="goals-label">Goals</p>`, with no `text-transform`.
+    4. `<ul role="list" aria-labelledby="goals-label">`: items read exactly `23' Name (Club)` (inline spans). The list is rendered and visible (non-zero box) even when empty.
+    5. A `.back-button` "Back".
+  - Everything renders in one synchronous render, so the result is present when the `<h1>` is focused (D13).
+- **Contract shapes and probes**: see the effect-isolation table and ADR-0011 Earned Trust: the cross-engine golden in the e2e, inline-flow `innerText` checks, and the empty list probed through a seed pinned by a domain test. No external integrations, no contract tests, and no new C4 container (the domain gains `schedule.ts` and `match.ts`; the L2 holds, descriptions updated).
+
 ### C4 level 1: System context
 ```mermaid
 C4Context
@@ -119,21 +163,21 @@ C4Container
   System_Boundary(app, "Gaffer SPA (browser)") {
     Container(main, "Shell: main.ts", "TypeScript", "Reads the URL seed, owns state, runs the dispatch/update/render loop")
     Container(ui, "UI: src/ui", "TypeScript, DOM, el()", "Renders screens and emits actions")
-    Container(appl, "App state: src/app", "TypeScript, pure", "Holds Screen, Action, update, parseSeed, the focus plan and the current-XI selector")
-    Container(dom, "Domain: src/domain", "TypeScript, pure", "Generates the league, squads and players (derived overall), with seeded RNG; holds the fixed formations and the starting XI selection rules")
+    Container(appl, "App state: src/app", "TypeScript, pure", "Holds Screen, Action, update, parseSeed, the focus plan, the current-XI selector and the match selector")
+    Container(dom, "Domain: src/domain", "TypeScript, pure", "Generates the league, squads and players (derived overall), with seeded RNG; holds the fixed formations, the starting XI selection rules, the fixed round-robin schedule and the seeded match model")
   }
   System_Ext(pages, "GitHub Pages", "Static host")
   Rel(sam, ui, "Taps buttons on")
   Rel(ui, main, "Dispatches actions to")
   Rel(main, appl, "Applies actions through update in")
-  Rel(appl, dom, "Requests the generated league and squad, and applies the selection rules from")
+  Rel(appl, dom, "Requests the generated league and squad, applies the selection rules, and looks up the fixture and plays the match through")
   Rel(main, dom, "Derives the league, squad, player, formation lines and line-up on render from")
   Rel(main, ui, "Renders the current state with")
   Rel(pages, main, "Delivers the bundle to")
 ```
 
 ### Technology
-No new technology. ADR-0001 (toolchain), ADR-0002 (plain DOM), ADR-0004 (seed and world), ADR-0005 (squad generation, S-002), ADR-0006 (attributes, condition, derived overall, S-003), ADR-0007 (formation data and tactics state, S-004), ADR-0008 (focus on a same-screen update, S-004) and ADR-0009 (starting XI selection rules and state, S-005) cover it. Decisions live in `adr-0001..0009`.
+No new technology. ADR-0001 (toolchain), ADR-0002 (plain DOM), ADR-0004 (seed and world), ADR-0005 (squad generation, S-002), ADR-0006 (attributes, condition, derived overall, S-003), ADR-0007 (formation data and tactics state, S-004), ADR-0008 (focus on a same-screen update, S-004), ADR-0009 (starting XI selection rules and state, S-005), ADR-0010 (fixed round-robin schedule, S-006) and ADR-0011 (match model, its RNG stream and the derived match screen, S-006) cover it. Decisions live in `adr-0001..0011`.
 
 ### Platform handoff notes
 No external integrations. No contract tests. The `ci:*` contract is unchanged.
@@ -235,7 +279,58 @@ Cross-cutting (unchanged): no horizontal scroll at 390px on club home and tactic
 
 Cross-cutting: no horizontal scroll at 390px on club home, Starting XI and choose player (long names wrap inside the button); no console errors; generated text via `textContent`; renderers never call `.focus()`. No generated name contains any of "Back", "Squad", "Tactics", "Starting", "Players", "Formation", "Line-up", "Clubs" or "Choose", as case-insensitive substrings (the DISCUSS D12 unit check over every string array in `names.ts`). The only new fixed names are "Starting XI", "Players", "Back" and the "Choose X" headings, each on its own screen. Slot and player buttons are checked for `innerText` as well as their exact name.
 
+### Driving ports (S-006)
+19. **Domain: schedule** (pure, `src/domain/schedule.ts`, ADR-0010; no seed, no RNG). `Fixture = { home, away }` (club indices).
+    - `fixturesOf(m)` for every integer `m` 1..14: 4 fixtures whose 8 indices are a permutation of 0..7. Goldens: matchday 1 `[0 v 7, 1 v 6, 5 v 2, 3 v 4]`, matchday 2 `[7 v 1, 2 v 0, 6 v 3, 4 v 5]`, matchday 8 `[7 v 0, 6 v 1, 2 v 5, 4 v 3]` (home first).
+    - Matchday `m + 7` is matchday `m` mirrored. Over 1..14 every ordered pair of distinct clubs occurs exactly once. Over 1..7, even clubs are at home 4 times and odd clubs 3 times.
+    - `fixtureOf(m, c)` returns `{ index, fixture }` with `fixture === fixturesOf(m)[index]` and `c` in it; both clubs of a fixture get the same result.
+    - The table is frozen at every level. Matchday 0, 15, 1.5, NaN and club -1, 8, 1.5 throw `RangeError`.
+20. **Domain: match** (pure, `src/domain/match.ts`, ADR-0011; inputs never mutated). `playMatch({ seed, matchday, fixtureIndex, home: { squad, xi }, away: { squad, xi } }) => { homeGoals, awayGoals, goals: { minute, side, playerIndex }[] }`; `teamStrength(side)` = the sum of the 11 overalls.
+    - Same input gives a deep-equal result. Goals per side are integers 0..9 and `goals.length = homeGoals + awayGoals`; per side, the event count equals that side's goals. Minutes are integers 1..90, non-decreasing (ties home first). Every scorer is in that side's `xi` and is not a GK.
+    - The draws come only from stream `200 + (matchday - 1) x 4 + fixtureIndex` (disjoint from -1, 0..7, 100..107). Every S-001..S-005 output is unchanged.
+    - D7(a), as a committed fixed-seed domain test: seeds 1..1000, all 4 matchday-1 fixtures each (4000 matches), both sides `automaticXI(squad, "4-4-2")`. Mean goals per side in [1.0, 2.0] (spike: 1.363) and 0–0 under 20% (spike: 5.5%, 220 of 4000).
+    - D7(b): against the same opponent XI and over the same 1000+ seeds, an XI whose `teamStrength` is at least 20 higher scores more goals on average. It is checked in the same committed fixed-seed test, with two cases: the automatic XI against the DISTILL test fixture `lowestRatedXI(squad, formation)` (per position, overall ascending, ties by ascending squad index; minimum gap 27 on these seeds), and an XI at least 20 above that lowest XI. Per seed it never scores fewer (monotone coupling).
+    - Matchday or fixture index out of range throws `RangeError` (one table test).
+    - **Expected goldens**: DISTILL writes them RED-first from ADR-0011, and DELIVER must match them. A deviation means the code is fixed to follow ADR-0011's draw order; changing constants or the draw order requires an ADR-0011 amendment. Both cases are matchday 1, fixture 0 (club 0 v club 7), both automatic 4-4-2:
+      - Seed 31: "Netherwold Borough 1–2 Marlbrook Athletic", goals "17' Rurik Fairbourne (Marlbrook Athletic)", "22' Calder Redfern (Netherwold Borough)", "77' Rurik Fairbourne (Marlbrook Athletic)".
+      - Seed 20260 (`?seed=abc`): "Harrowgate Lane United 0–1 Oakhampton Rise Borough", goal "65' Joren Northcott (Oakhampton Rise Borough)".
+    - A grep check: no `Math.pow`, `Math.exp`, `Math.log` or `**` in `match.ts`.
+21. **Shell: `update`**, with `Screen` adding `match{clubId}` and `Action` adding `PlayMatch`. `GameState` and `initialState` are unchanged.
+    - `PlayMatch` moves clubHome of a known club to match (same `clubId`). From title, pickClub, squad, player, tactics, startingXI, choosePlayer or match, or with an unknown club, the state is unchanged (same object).
+    - `Back` moves match to clubHome (same `clubId`); an unknown club leaves the state unchanged.
+    - Both actions leave `formation` and `xi` as they were: a stored `xi` is kept, and no `xi` key is added when there was none. No input is mutated.
+    - **`matchFor(state, clubId)`** gives `undefined` for an unknown club. Otherwise it gives the matchday-1 fixture of that club (`OPENING_MATCHDAY = 1`) with both clubs and their squads (through `squadOf(league, club.id)`, home first) and the `playMatch` result. The managed club's side is `currentXI(state, squad)`, so it follows a stored `xi` or a changed formation; the other club's side is always `automaticXI(squad, "4-4-2")`. With untouched tactics, both clubs of a fixture get a deep-equal result.
+22. **Shell: `focusPlan`** (extended): match vs match of the same club is the same screen. Club home to match and match to club home are screen changes, so the plan is `heading`.
+23. **UI** (roles and accessible names, 390px; reached from the club home):
+
+| Screen | Contract |
+|---|---|
+| Club home | Adds a `button` named exactly "Play match" (44px or taller) after "Starting XI"; `<h1>` is still the club name; "Squad", "Tactics", "Starting XI" unchanged |
+| Match | Exactly one `<h1>` "Matchday 1", focused on arrival. Exactly one element (a `<p>`, not a heading, direct child of the screen section) whose whole `textContent` and `innerText` read `<home> <h>–<a> <away>` (`^(.+) (\d)–(\d) (.+)$`, U+2013); no other text on the screen in that format and no other en dash. A visible label "Goals" (non-heading) and a `list` named exactly "Goals" (`role="list"`, `aria-labelledby`), present and visible even with 0 items; one `listitem` per goal, each reading exactly `<minute>' <scorer> (<club>)`, minutes non-decreasing. Already there when the `<h1>` has focus (no timers). A `button` named exactly "Back" (44px or taller) returns to the club home (heading = club name, focused) |
+
+Cross-cutting:
+- No horizontal scroll at 390px on the club home and match screens: long names wrap inside the score panel and the goal items.
+- No console errors. Generated text goes through `textContent`, and renderers never call `.focus()`.
+- "Play match", "Goals" and "Matchday" appear in no `names.ts` array (case-insensitive substrings, the D11 unit check).
+- The empty-list case is probed at a seed pinned by a domain test as having a matchday-1 0–0 (DESIGN found seed 8, fixture 3, clubs 3 v 4).
+- The e2e compares the browser's seed-31 match screen with the expected golden of port 20, the same value the Node test asserts (cross-engine determinism).
+
 ### Observable acceptance (behavioural)
+- S-006:
+  - From the club home, "Play match" opens one heading "Matchday 1" (focused).
+  - On arrival there is one score line `Home h–a Away`, naming the managed club and its matchday-1 opponent (one of the 7 other "Clubs"), and a list "Goals" with one `minute' Scorer (Club)` item per goal. The items naming each club equal its goals.
+  - The managed club's scorers are on its Starting XI and never in the GK slot; the opponent's are non-GK players of its own squad.
+  - Every club of a league meets exactly one other, and both see the same two names in the same order.
+  - Same seed and untouched tactics give the same screen; `?seed=abc` gives the same screen as no seed. A league's matchday 1 is not all 0–0.
+  - "Back" returns to the club home (heading focused) with the formation and the XI unchanged.
+  - Buttons are 44px or taller, with no sideways scroll or console errors at 390px. 1 tap to the result and 1 tap back.
+  - **Durable contract** (DISCUSS D14; for the first match of a new game, every later version must keep it):
+    - The only `<h1>` is "Matchday 1", focused on arrival.
+    - Exactly one element's whole text is the score line `<home> <h>–<a> <away>`, and no other text has that format.
+    - The list "Goals" holds items in the `<minute>' <scorer> (<club>)` format.
+    - Both are visible when the heading has focus, never revealed over time.
+    - "Back" returns to the club home.
+    - Not durable, unit-level only: replay behaviour, the opponent's formation, the model's numbers and symmetric score lines.
 - S-005: from the club home, "Starting XI" opens one heading "Starting XI" (focused) and a list "Starting XI" of 11 one-button items. At `?seed=31` on "Netherwold Borough" they read "GK Tamsin Ingleby 17", "DF Bram Pemberly 19", "DF Calder Ashcombe 18", "DF Quill Crossley 4", "DF Quill Yarrow 3", "MF Ivo Elderkin 18", "MF Joren Dalrymple 16", "MF Calder Redfern 15", "MF Dorian Dunmore 7", "FW Merrick Hartwell 8", "FW Garrick Thistlewood 5" (ties in squad order). An XI never changed follows the formation (4-3-3 at `?seed=31`, 4-2-3-1 at `?seed=abc` on "Oakhampton Rise Borough"). Tapping "MF Dorian Dunmore 7" shows "Choose MF" (focused) with a list "Players" of 6 in squad order, 4 marked "Starting". "Kestrel Northcott 6" fills the 9th slot. "MF Ivo Elderkin 18" then "Joren Dalrymple 16 Starting" swaps the 6th and 7th. The own player and the choose screen's "Back" change nothing. Picks survive Squad and Tactics visits without a formation change. Another formation gives its automatic XI. A fresh page and "New game" give the automatic XI. All buttons are 44px or taller, with no sideways scroll or console errors at 390px. 1 tap to see the XI and 2 taps per change from it.
 - S-004: from the club home, "Tactics" opens one heading "Tactics" (focused), a group "Formation" with radios "4-4-2", "4-3-3", "4-2-3-1" in that order, only "4-4-2" checked in a new game, and a list "Line-up" of 11 items GK, 4 DF, 4 MF, 2 FW; tapping "4-3-3" (a label 44px or taller) checks only it and shows GK, 4 DF, 3 MF, 3 FW at once with the heading unchanged and focus on the "4-3-3" radio; `?seed=abc`, 8th club and `?seed=31` give the same line-ups, 1/4/5/1 for "4-2-3-1"; "Back" shows the club name, and after "Squad", "Back", "Tactics" the choice is still checked with its line-up; a fresh visit and "New game" shows "4-4-2"; "Tactics" and "Back" are 44px or taller; no sideways scroll or console errors at 390px; a formation is chosen in 2 taps from the club home and "Back" is 1 tap.
 - S-003: from the squad, tapping any of the 18 rows opens a screen whose only heading is the player's name, with Position/Age/Overall equal to the row, a list "Attributes" of Goalkeeping, Defending, Passing, Shooting (1-20, in order, no other number), "Condition N%" outside it, and overall within the lowest and highest attribute; "Back" returns to the same squad (18 rows) and "Back" again to club home; the same `?seed=` and row give an identical screen; the 18 players do not all share attributes; `?seed=abc`, 8th club, first row (GK) and last row (FW) both open; each row has exactly one button of 44px or more; no sideways scroll or console errors at 390px; Squad to player is 1 tap and back is 1 tap.
