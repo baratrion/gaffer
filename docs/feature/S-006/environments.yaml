@@ -1,0 +1,69 @@
+# S-006 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Inherits S-005 (and S-001..S-004); no platform change.
+base_path: /gaffer/
+client:
+  browser: chromium
+  device: Pixel 7        # Playwright devices["Pixel 7"]
+  viewport_width_px: 390
+platform_notes:
+  - "Every S-006 navigation is a screen change (club home to match, Back to club home), so focus goes to the new h1 (ADR-0008); no platform-specific focus path."
+  - "Cross-engine float determinism (ADR-0011 Earned Trust 1): match.ts uses only + - * /, comparisons and Math.floor. The e2e compares the browser's seed-31 match screen with the expected golden that the Node unit test asserts. Probed in Chromium only (local-preview and production); WebKit and iOS Safari are expected to match (IEEE-exact operations) but are not probed in CI."
+  - "Score line and goal items are inline spans with single-space text nodes (ADR-0011 (6), ADR-0009 inline-flow rule); textContent and innerText equality is probed in Chromium only."
+  - "Empty Goals list probe: ?seed=8, club index 3 or 4 (matchday-1 fixture 3, a 0-0 pinned by a domain unit test)."
+target_environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+deployment_strategy: recreate
+container_orchestration: none
+observability: browser console + Playwright smoke on deployed URL
+mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts (covers schedule.ts and match.ts) plus src/app/state.ts (covers PlayMatch, Back from match, sameScreen match case, OPENING_MATCHDAY, matchFor); no stryker.config.mjs change needed
+branching: trunk-based, short-lived claude/* branches, squash merge
+deployment_assumptions:
+  artifact: static (dist/index.html under /gaffer/)
+  strategy: recreate
+  persistence: none         # the match result is derived on render (matchFor), never stored; GameState unchanged
+  data_migration: none      # no new GameState field; formation and xi untouched by PlayMatch and Back
+  deploy_idempotent: true   # redeploying a ref yields the same artifact
+  result_stability: "every result for every seed is frozen by ADR-0011 (constants, draw order, streams 200..255); a later change needs an ADR-0011 amendment"
+kpi_instrument:
+  - kpi: K1 club home to the match result in 1 tap ("Play match"); score line and "Goals" list already visible when h1 "Matchday 1" has focus; back home in 1 tap ("Back")
+    spec: tests/e2e/S-006-match.spec.ts
+    runs_on: [local-preview, production]
+  - kpi: K2 100% of the managed club's goal items name one of the 11 on its Starting XI screen; 0 name the GK slot or a benched player
+    spec: tests/acceptance/S-006/match.test.ts (fast-check, FC_SEED) and tests/e2e/S-006-match.spec.ts (pick, then Play match)
+    runs_on: [ci:test, local-preview, production]
+  - kpi: K3 an XI 20+ higher in overall sum scores more on average vs the same opponent; mean goals per side 1.0-2.0 and under 20% 0-0 between automatic XIs; at most 9 per side
+    spec: tests/acceptance/S-006/match-calibration.test.ts (fixed seeds 1..1000 x 4 fixtures) and tests/acceptance/S-006/match.test.ts (per-seed monotonicity, FC_SEED)
+    runs_on: [ci:test]
+coexistence_matrix:
+  - component: tests/protected/S-001/ .. tests/protected/S-005/
+    impact: club home gains a fourth button "Play match" (no name collision with "Squad", "Tactics", "Starting XI", "Back"; "Play match" does not contain "Players"); they do not count club home buttons
+    action: must stay green
+  - component: tests/protected/S-006/
+    impact: this story's locked scenario (written in the plan run)
+    action: must pass on main
+  - component: tests/acceptance/S-001/ .. tests/acceptance/S-005/
+    impact: none; GameState and initialState unchanged, every generator output unchanged (new streams 200..255 only)
+    action: reuse unchanged; no fixture or assertion edit
+  - component: tests/e2e/S-001..S-005 specs, shell.spec.ts
+    impact: focus on h1 after navigation still holds (ADR-0008); club-home regression specs check the new 48px button
+    action: reuse unchanged, regression-watch
+  - component: tests/e2e/S-006-match.spec.ts, tests/acceptance/S-006/
+    impact: new specs
+    action: add (DISTILL)
+  - component: .github/workflows/*, ci:* scripts, playwright.config.ts
+    impact: none
+    action: reuse
+  - component: stryker.config.mjs
+    impact: none; schedule.ts and match.ts match src/domain/**/*.ts, the state.ts changes are in src/app/state.ts, all already in the mutate list
+    action: none
+rollback: revert the S-006 squash commit on main (deploy fires on merge), or workflow_dispatch of deploy.yml on a known-good ref (pre-S-006 commit); fallback fix-forward
+rollback_owner: owner

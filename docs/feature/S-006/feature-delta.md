@@ -447,3 +447,120 @@ No external integrations, so no contract tests.
 | L lowest-rated XI | Named the DISTILL test fixture `lowestRatedXI` under `tests/acceptance/S-006/fixtures/` (not production code) |
 | L `renderMatch` delta | Stated explicitly: `root.replaceChildren(section.match)`, whose exactly five children are h1, score-line `p`, label `p`, `ul` and Back; nothing else is written |
 
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered. No platform change: phone-viewport Chromium in CI and the deployed Pages URL. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope, `tests/protected/`, `stryker.config.mjs`) are read-only. Machine-readable environments: `docs/feature/S-006/environments.yaml`. Inherits the S-005 DEVOPS setup (`docs/feature/S-005/environments.yaml`); only the deltas are recorded.
+
+Checklist: ✓ existing infra reused | ✓ K1-K3 mapped to instruments | ✓ rollback defined | ✓ mutation strategy (nightly-delta, inherited; `schedule.ts`, `match.ts`, `state.ts` inside the mutate globs) | ⊘ new IaC/containers (none) | ⊘ server-side observability (no backend) | ⊘ continuous learning | ⊘ CLAUDE.md edit (already states strategy) | ⊘ `docs/product/kpi-contracts.yaml` (not created by S-001..S-005)
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test; unit, property, calibration, e2e and `tests/protected/S-001..S-006/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke via `BASE_URL` |
+
+Unchanged from S-005: no staging (static site, recreate); Chromium, Pixel 7 profile, 390px viewport in local-preview and production. Deltas:
+- The match is derived on render (`matchFor`), never stored (ADR-0011 (5)), so every environment shows the same match for the same `?seed=`, club and tactics.
+- Cross-engine float determinism (ADR-0011 Earned Trust 1): the e2e compares the browser's seed-31 screen with the expected golden the Node test asserts ("Netherwold Borough 1–2 Marlbrook Athletic", 17'/22'/77'). It runs in Chromium on local-preview and, through `smoke`, on the live site. WebKit and iOS Safari are expected to match (only IEEE-exact operations) but are not probed in CI.
+- Inline-flow text (score line, goal items; `textContent` equals `innerText`) and the empty "Goals" list (`?seed=8`, club index 3 or 4) are probed in Chromium only.
+- Every S-006 navigation is a screen change, so focus goes to the new `<h1>` (ADR-0008); no platform-specific focus path.
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch): PR guards (locked paths, append-only protected, diff size 1200, `Math.random`/`Date` in `src/domain/`), roadmap lint, `ci:lint`, `ci:typecheck`, `ci:test` (fresh `FC_SEED`; the S-006 schedule and match properties honour it; the fixed-seed calibration test does not use fast-check), `ci:build`, `ci:e2e`, protected-scenario no-regression check vs main (new `tests/protected/S-006/match.spec.ts` must fail on main).
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` runs `ci:e2e` against the live URL (includes the new S-006 spec and its golden probe).
+- `nightly`: `ci:mutation`; failure opens a `mutation-alarm` issue.
+- `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- S-006 needs no pipeline change: it adds unit, property, calibration and e2e specs run by the existing scripts, and no new dependency (ADR-0011: no new technology, no DOM test environment).
+- Local gate: `pnpm run check` mirrors the commit stage. No git hooks (locked paths; CI is the gate).
+- Security: no secrets, no runtime deps, no network. Club and player names enter the DOM only via `el()`/`textContent` (ADR-0002); a review check, not a scenario. SAST/SCA/SBOM not added (workflows locked; inherited open question).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI/AC to instrument)
+E2E instrument is the new `tests/e2e/S-006-match.spec.ts` (Pixel 7, 390px), run by `ci:e2e` on PR and main and by `smoke` on the live URL after each deploy. "Unit", "property" and "calibration" rows run in `ci:test` (properties with a fresh `FC_SEED`). `tests/protected/S-006/` runs on local-preview in `ci` and must pass on main.
+
+| KPI / criterion (DISCUSS) | Instrument | Pass condition |
+|---|---|---|
+| K1: club home to the match result in 1 tap ("Play match"); score line and "Goals" already visible on arrival (D13); back home in 1 tap | e2e: page-side capture-phase click counter (as S-003..S-005); after "Play match" assert `document.activeElement` is h1 "Matchday 1", then read the score line and the list "Goals" (exact) with no wait; count clicks on "Back", heading is the club's name and has focus. Protected: the same, rule-based | 1 click in, result visible when the h1 has focus, 1 click back |
+| K2: 100% of the managed club's goal items name one of the 11 on its Starting XI; 0 name the GK slot or a benched player | property (fast-check, `FC_SEED`, many seeds, all 8 clubs, all 3 formations): every scorer is in that side's `xi` and is not a GK; `matchFor` follows a stored `xi`. e2e: pick a bench player, "Play match", every item naming the club names one of the 11 Starting XI names and not the GK. Protected: scenarios 1 and 4 | 100%; 0 GK; 0 bench |
+| K3: XI 20+ higher in overall sum scores more on average; mean goals per side 1.0-2.0; under 20% 0–0; at most 9 per side (D7) | calibration (`tests/acceptance/S-006/match-calibration.test.ts`, fixed seeds 1..1000 x 4 matchday-1 fixtures, 4000 matches): D7(a) bounds; D7(b) automatic vs `lowestRatedXI` and a +20 XI vs `lowestRatedXI`, never more on any seed. property: per-seed monotonicity in `teamStrength`, goals 0..9 | holds (spike: 1.363 per side, 5.5% 0–0, max 6; 1.384 vs 0.481) |
+| Expected goldens (ADR-0011, RED-first) | unit: seed 31 fixture 0 and seed 20260 fixture 0 equal the ADR values; e2e: the browser's seed-31 screen equals the same golden (cross-engine probe), on local-preview and live | exact match |
+| Approximated-function ban | unit grep: `match.ts` has no `Math.pow`, `**`, `Math.exp`, `Math.log` | holds |
+| Schedule (D5, ADR-0010) | unit: matchday-1 golden `[0 v 7, 1 v 6, 5 v 2, 3 v 4]`, every matchday a perfect matching, ordered pairs once over 14, mirror, frozen, `RangeError` table. Protected: 8 clubs form 4 pairings, same order from both sides | holds |
+| Determinism (D6) | unit: repeat calls deep-equal, frozen inputs unchanged; stream block 200..255 disjoint, sampled derived-seed guard extended. Protected: same seed same screen, `?seed=abc` equals no seed. PR guard: no `Math.random`/`Date` in `src/domain/` | holds |
+| Score line and goal item text (D2, D3) | e2e: score line `textContent` equals `innerText` equals the D2 string; each item likewise "`<minute>' <scorer> (<club>)`", including an apostrophe or hyphen name where a seed provides one; exactly one element on the screen matches `^(.+) (\d)–(\d) (.+)$` | holds |
+| Empty "Goals" list (M-D) | unit pins seed 8, matchday 1, fixture 3 as 0–0; e2e at `?seed=8`, club index 3 or 4: list "Goals" (exact) visible with 0 items | holds |
+| Navigation, no-ops, no state change (D8, D10) | unit on `update`: `PlayMatch` only from a known club's home; `Back` from match to club home; table of no-ops (same object); `xi` and `formation` untouched; deep-freeze; `focusPlan` `sameScreen` match case by `clubId`; `.focus(` grep covers `renderMatch` | holds |
+| Back keeps tactics and XI (D9) | e2e and protected: 4-3-3 and a pick, "Play match", "Back": club h1 focused, 4-3-3 still checked, Starting XI unchanged | holds |
+| Names avoid match words (D11) | unit: "Play match", "Goals", "Matchday" in no `names.ts` array | holds |
+| 44px tap targets | e2e: `boundingBox().height >= 44` on "Play match" and "Back"; club-home regression spec checks every club home button | holds |
+| No horizontal scroll at 390px | `scrollWidth <= clientWidth` on club home and match screens (long names wrap) | holds |
+| No console errors | `page.on("console"/"pageerror")` across the DoD journey (club home, Play match, Back, Starting XI, pick, Back, Play match, Back) | zero |
+| S-001..S-005 unchanged | existing e2e specs, acceptance tests (no fixture or assertion edit) and `tests/protected/S-001..S-005/` | green |
+| Domain test strength | Stryker on `src/domain/**` (covers `schedule.ts`, `match.ts`) and `src/app/state.ts` (covers `PlayMatch`, `Back` from match, `sameScreen`, `OPENING_MATCHDAY`, `matchFor`) | nightly, at or above break threshold (70) |
+
+No analytics (POC). The e2e tap count, the property tests and the fixed-seed calibration test are the KPIs' sole measurements.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact. Idempotent: redeploying the same ref yields the same artifact.
+- Rollback (designed first): revert the S-006 squash commit on main; the merge triggers `deploy` and `smoke` validates the restored site. Alternative: `workflow_dispatch` of `deploy.yml` on a known-good ref (the commit before the S-006 squash). Fallback: fix-forward on a `claude/*` branch. As in S-003..S-005, the append-only protected-tests and no-regression guards may block a plain revert of a squash that added `tests/protected/S-006/`; if so, the dispatch route is the owner action. Time to restore: one deploy cycle (about 5 minutes).
+- Failure detection: a red `smoke` job marks the deploy run red. A cross-engine determinism fault shows as a red golden probe in `smoke` while `ci:test` stays green.
+- Data: nothing is persisted (the result is derived on render; `GameState` is unchanged), so no migration and no user data at risk. Rolling back removes the "Play match" button and the match screen only.
+- Result stability across deploys: results are frozen by ADR-0011 (constants, draw order, streams 200..255). Any later change to them changes every seed's match and needs an ADR-0011 amendment; it is not a deploy concern.
+- Blast radius: one static page.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` mutates `src/domain/**/*.ts` except `names.ts`, plus `src/app/state.ts`; thresholds high 85, low 70, break 70. Glob check:
+- `src/domain/schedule.ts` (new): matches `src/domain/**/*.ts`, not excluded. Mutants are killed by the matchday-1 golden, the perfect-matching and ordered-pairs-once loops, the mirror, the home counts, and the `RangeError` table (0, 15, 1.5).
+- `src/domain/match.ts` (new): matches, not excluded. Mutants are killed by the two expected goldens (any change to the draw order, the minute formula, `MAX_CONVERSION`, `SCORER_FACTOR`, `MATCH_STREAM_BASE` or the sort shifts a golden), the `RangeError` table, per-seed monotonicity, the GK-never-scores property and the calibration bounds. Expected equivalent survivors: `<` vs `<=` on `uConversion < p` and on the cumulative-weight walk (float equality has near-zero probability on the tested seeds); they cost a few points, not the break threshold.
+- `src/app/state.ts` (`match` screen, `PlayMatch`, `Back` from match, `sameScreen` case, `OPENING_MATCHDAY`, `matchFor`): already listed. The whole-state `toEqual`, same-object `toBe` for no-ops, the `focusPlan` screen-pair tests and the `matchFor` cases (unknown club, stored `xi`, automatic opponent, symmetry) carry it.
+- UI renderers (`match.ts` screen, `club-home.ts`) and `main.ts` are outside the globs (as before); the e2e covers them.
+- Runtime watch: the 4000-match calibration test covers every `match.ts` mutant, so it reruns per mutant. If the nightly run nears its 45-minute timeout, DELIVER may lower its cost (it shares squads per seed); the bounds stay. Recorded as an open question, not a blocker.
+- No `stryker.config.mjs` change needed. Run by `nightly.yml` via `ci:mutation`; failure opens `mutation-alarm`, `needs-human`.
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy (including the seed-31 golden probe). Alerting: a red `deploy` run; a red nightly opens `mutation-alarm`. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-006-*` branches, PR to main, squash merge. CI green and protected scenarios not regressing. Deploy fires on merge. No release branches. The DELIVER diff (about 800 lines planned) stays under the 1200-line PR guard; `docs/` is outside the count.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-006 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml` | none; run existing `ci:*` scripts | reuse |
+| `ci:*` scripts, `playwright.config.ts` | none; Pixel 7, 390px, `BASE_URL` already fit | reuse |
+| `stryker.config.mjs` | `src/domain/**` covers `schedule.ts` and `match.ts`; `src/app/state.ts` covers the new state code; no change needed | none |
+| `scripts/guards/pr-guards.mjs` | determinism grep covers the new domain files; diff cap 1200 vs about 800 planned | none |
+| `tests/protected/S-001..S-005/` | club home gains a fourth button "Play match" (no name collision with "Squad", "Tactics", "Starting XI", "Back"; does not contain "Players"); they do not count club home buttons | must stay green |
+| `tests/protected/S-006/` | locked scenario for this story (written in the plan run) | must pass on main |
+| `tests/acceptance/S-001..S-005/` | none: `GameState` and `initialState` unchanged; streams -1, 0..7, 100..107 untouched, so every generator output is unchanged; no fixture or assertion edit | reuse unchanged, must stay green |
+| S-003 sampled derived-seed guard test | extended with streams 200..255 (DISTILL) | extend, not weaken |
+| `tests/e2e/S-004-club-home-regression.spec.ts`, `S-005-club-home-regression.spec.ts` | check every club home button is 44px or taller: the new `button.primary` is 48px | reuse unchanged |
+| `tests/e2e/S-001..S-005*.spec.ts`, `shell.spec.ts` | focus on `<h1>` after navigation still holds (ADR-0008) | reuse unchanged, regression-watch |
+| `tests/e2e/S-006-match.spec.ts`, `tests/acceptance/S-006/` | new specs | add (DISTILL) |
+| `src/domain/schedule.ts`, `src/domain/match.ts`, `src/ui/screens/match.ts` | new | S-006 tests guard |
+| `src/app/state.ts`, `src/domain/squad.ts` (comment), `src/ui/screens/club-home.ts`, `src/main.ts`, `src/ui/styles.css` | extended | S-001..S-005 tests guard |
+| Pages artifact | grows slightly; base path `/gaffer/` unchanged | none |
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-005 delivered and deployed; GitHub Pages source "GitHub Actions" enabled (✓).
+- Node 22 or later, pnpm 10.12.4 pinned, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0011 accepted (✓; ADR-0010 and ADR-0011 landed in DESIGN, before DELIVER).
+- `tests/protected/S-006/match.spec.ts` committed by the plan run (append-only from then on).
+- `BASE_URL` derived from repository owner and name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001..S-005 (smoke `sleep 20`, no security scanning, smoke has no commit-SHA check, deploy not gated on `ci`, squash revert possibly blocked by the append-only guards, no uptime probe) are unchanged and none block S-006. New:
+1. No `.github/` or `stryker.config.mjs` change is needed for S-006 (`schedule.ts`, `match.ts` and the `state.ts` changes are inside the existing `mutate` globs).
+2. Cross-engine determinism is probed in Chromium only. A WebKit project in `playwright.config.ts` would extend the ADR-0011 golden probe to Safari's engine; not added (no platform change, and it would slow `ci:e2e` and `smoke`). Owner's call.
+3. Nightly mutation runtime: the 4000-match calibration test reruns for every `match.ts` mutant. Watch the first nightly after the S-006 merge against the 45-minute `nightly.yml` timeout; if it nears it, DELIVER trims the test's cost (not its bounds), or the owner raises the timeout.
+4. Smoke on the live URL runs the S-006 e2e spec too; its golden and the `?seed=8` empty-list probe rely on `?seed=` being honoured on Pages (same as S-001..S-005).
+
+## Plan run: protected scenarios
+
+`tests/protected/S-006/match.spec.ts`, 4 black-box scenarios (Pixel 7, 390px; roles, accessible names and visible text only). They check rules that hold for any seed (formats, pairing, who may score) and pin no generated result, so the expected goldens of ADR-0011 stay in DISTILL's unit and e2e tests:
+1. "Play match" (44px) on the club home (`?seed=31`, 1st club; "Squad", "Tactics", "Starting XI" still there) opens one focused top-level heading "Matchday 1". Read at once when the heading has focus, with no waiting: exactly one deepest element on the screen whose text reads `^(.+) (\d)–(\d) (.+)$`, visible, naming the player's club and another club of the "Clubs" list. The list "Goals" is visible on arrival and holds home + away goals items, each reading `MINUTE' Name (Club)` (minutes 1–90, never decreasing), with per-club counts equal to the score. Each goal for the player's club is by an outfield player on the Starting XI screen, and the opponent's scorers are not in the player's squad. No sideways scroll. "Back" (44px) returns to the club home with its heading focused; Tactics still has "4-4-2" checked and the Starting XI is unchanged. No console errors.
+2. All 8 clubs of `?seed=31`, each in a new game: every club's opponent shows the same two clubs in the same order (a perfect pairing). Opponent scorers are non-GK players of the opponent's "Squad" list. Not all matches end 0–0. (`test.slow()`: 8 new games in one test.)
+3. Determinism: `?seed=abc` twice and no seed (8th club) give an identical score line and "Goals" items.
+4. After 4-3-3 and a bench forward into the last FW slot (`?seed=7`, 3rd club), the player's goals are by outfield players of the current Starting XI. "Back" leaves the picked XI unchanged.
+
+Not pinned, by design: the same score from both sides of a fixture (DISCUSS M-C, unit-level), replaying the match (D8, the season story advances matchdays), and the empty "Goals" list (conditional on a 0–0, which DISTILL covers with the `?seed=8` e2e). All 4 fail on the current app (no "Play match" button). The plan run checked that they are achievable and discriminating. Against a throwaway prototype (not committed: circle-method matchday 1, 9 chances per side, outfield scorers from the XI), all 27 protected scenarios S-001..S-006 passed. Three faulty variants were each caught: a duplicated score line (all 4 failed), the managed club always named first (scenario 2 failed) and a score line revealed 300 ms after arrival (failed on "visible on arrival").
