@@ -1,0 +1,181 @@
+// @US-1 @US-2 (S-006 play my first match)
+// CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS D7 and KPI K3: football-like results (mean goals per side 1.0-2.0, under 20% goalless), a better
+// eleven scores more, at most 9 goals per side; DESIGN fixed the test as a committed fixed-seed domain test (seeds 1..1000
+// x the 4 matchday-1 fixtures = 4000 matches, both sides automatic 4-4-2). No fast-check: the seeds are fixed, so the
+// result is the same on every run (it ignores FC_SEED). Assertions are the D7 bounds, never the exact spike figures.
+// Destination: tests/acceptance/S-006/match-calibration.test.ts (DELIVER step 02), with fixtures/lowest-rated-xi.ts.
+import { describe, expect, it } from "vitest";
+import { automaticXI, pickForSlot, type StartingXI } from "../../../src/domain/selection";
+import { generateLeague } from "../../../src/domain/league";
+import { playMatch, teamStrength, type MatchResult } from "../../../src/domain/match";
+import { generateSquad, type Player, type Position } from "../../../src/domain/squad";
+import { lowestRatedXI } from "./fixtures/lowest-rated-xi";
+
+// Matchday 1 of ADR-0010, written out here so this file does not depend on the schedule module (home first).
+const MATCHDAY_ONE: readonly (readonly [number, number])[] = [[0, 7], [1, 6], [5, 2], [3, 4]];
+const SEEDS = Array.from({ length: 1000 }, (_, index) => index + 1);
+
+interface Played {
+  readonly seed: number;
+  readonly fixtureIndex: number;
+  readonly squads: readonly [readonly Player[], readonly Player[]];
+  readonly automatic: MatchResult;
+  readonly lowest: MatchResult;
+  readonly raised: MatchResult;
+  readonly gaps: { readonly lowest: number; readonly raised: number };
+}
+
+/** Starts from the lowest-rated eleven and upgrades slot by slot to the best player, until it is at least `gap` above. */
+const raisedXI = (squad: readonly Player[], gap: number): StartingXI => {
+  const lowest = lowestRatedXI(squad, "4-4-2");
+  const target = teamStrength({ squad, xi: lowest }) + gap;
+  const best = automaticXI(squad, "4-4-2");
+  let xi = lowest;
+  for (let slot = 0; slot < best.length && teamStrength({ squad, xi }) < target; slot++) {
+    xi = pickForSlot({ squad, formation: "4-4-2", xi }, slot, best[slot] as number) ?? xi;
+  }
+  return xi;
+};
+
+const playAll = (): Played[] =>
+  SEEDS.flatMap((seed) => {
+    const squads = Array.from({ length: 8 }, (_, club) => generateSquad(seed, club));
+    return MATCHDAY_ONE.map(([homeClub, awayClub], fixtureIndex): Played => {
+      const home = squads[homeClub] as readonly Player[];
+      const away = { squad: squads[awayClub] as readonly Player[], xi: automaticXI(squads[awayClub] as readonly Player[], "4-4-2") };
+      const play = (xi: StartingXI): MatchResult => playMatch({ seed, matchday: 1, fixtureIndex, home: { squad: home, xi }, away });
+      const automatic = automaticXI(home, "4-4-2");
+      const lowest = lowestRatedXI(home, "4-4-2");
+      const raised = raisedXI(home, 20);
+      const strength = (xi: StartingXI): number => teamStrength({ squad: home, xi });
+      return {
+        seed,
+        fixtureIndex,
+        squads: [home, away.squad],
+        automatic: play(automatic),
+        lowest: play(lowest),
+        raised: play(raised),
+        gaps: { lowest: strength(automatic) - strength(lowest), raised: strength(raised) - strength(lowest) },
+      };
+    });
+  });
+
+let cache: Played[] | undefined;
+/** The 4000 matches are played once per run and shared by every case below. */
+const playedMatches = (): Played[] => (cache ??= playAll());
+const mean = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
+
+describe("@US-1 S-006 matches between two automatic elevens look like football (D7a, K3)", () => {
+  it("Given 4000 matches (seeds 1 to 1000, the 4 matchday-1 fixtures), when goals per side are averaged, then the mean is between 1.0 and 2.0 @kpi @property @contract-shape:pure-function", () => {
+    const played = playedMatches();
+    expect(played).toHaveLength(4000);
+    const perSide = played.flatMap(({ automatic }) => [automatic.homeGoals, automatic.awayGoals]);
+    expect(mean(perSide)).toBeGreaterThanOrEqual(1.0);
+    expect(mean(perSide)).toBeLessThanOrEqual(2.0);
+  });
+
+  it("Given the same 4000 matches, when the goalless ones are counted, then they are under 20% and no league has all four of its matchday-1 matches goalless @kpi @property @contract-shape:pure-function", () => {
+    const played = playedMatches();
+    const goalless = played.filter(({ automatic }) => automatic.homeGoals === 0 && automatic.awayGoals === 0);
+    expect(goalless.length / played.length).toBeLessThan(0.2);
+    for (const seed of SEEDS) {
+      const league = played.filter((match) => match.seed === seed);
+      expect(league.every(({ automatic }) => automatic.homeGoals + automatic.awayGoals === 0), `seed ${seed}`).toBe(false);
+    }
+  });
+
+  it("Given the same 4000 matches, when the biggest tally of one side is read, then nobody scores more than 9 and every goal list matches its score @kpi @boundary @contract-shape:pure-function", () => {
+    const played = playedMatches();
+    for (const { automatic } of played) {
+      expect(Math.max(automatic.homeGoals, automatic.awayGoals)).toBeLessThanOrEqual(9);
+      expect(automatic.goals).toHaveLength(automatic.homeGoals + automatic.awayGoals);
+    }
+  });
+
+  it("Given the same 4000 matches, when the goal lists are read, then minutes never decrease, a shared minute lists the home goal first, and there are shared minutes to prove it @boundary @contract-shape:pure-function", () => {
+    const played = playedMatches();
+    let shared = 0;
+    for (const { automatic } of played) {
+      automatic.goals.forEach((goal, index) => {
+        const previous = automatic.goals[index - 1];
+        if (previous === undefined) return;
+        expect(goal.minute).toBeGreaterThanOrEqual(previous.minute);
+        if (goal.minute !== previous.minute) return;
+        shared += 1;
+        expect([previous.side, goal.side]).toEqual(["home", "away"]);
+      });
+    }
+    expect(shared).toBeGreaterThan(0);
+  });
+
+  it("Given the same 4000 matches, when the figures ADR-0011 recorded are recomputed, then they are the same (the freeze tripwire: any change of constant, draw order or stream moves them, and needs an ADR-0011 amendment) @regression @kpi @contract-shape:pure-function", () => {
+    const played = playedMatches();
+    const sides = played.flatMap(({ automatic }) => [automatic.homeGoals, automatic.awayGoals]);
+    const histogram = [0, 1, 2, 3, 4, 5, 6].map((goals) => sides.filter((count) => count === goals).length);
+    expect(sides.reduce((sum, count) => sum + count, 0)).toBe(10901);
+    expect(histogram).toEqual([1914, 2864, 2032, 871, 245, 64, 10]);
+    expect(Math.max(...sides)).toBe(6);
+    expect(played.filter(({ automatic }) => automatic.goals.length === 0)).toHaveLength(220);
+    expect(Math.abs(mean(played.map(({ automatic }) => automatic.homeGoals)) - 1.384)).toBeLessThan(0.0006);
+    expect(Math.abs(mean(played.map(({ automatic }) => automatic.awayGoals)) - 1.342)).toBeLessThan(0.0006);
+    expect(Math.abs(mean(played.map(({ lowest }) => lowest.homeGoals)) - 0.481)).toBeLessThan(0.0006);
+    expect(Math.abs(mean(played.map(({ gaps }) => gaps.lowest)) - 64.5)).toBeLessThan(0.05);
+    expect(Math.min(...played.map(({ gaps }) => gaps.lowest))).toBe(27);
+  });
+
+  it("Given the same 4000 matches, when scorers are counted by position, then forwards score most, midfielders next, defenders least (under 25%) and goalkeepers never @boundary @contract-shape:pure-function", () => {
+    const played = playedMatches();
+    const counts: Record<Position, number> = { GK: 0, DF: 0, MF: 0, FW: 0 };
+    for (const { automatic, squads } of played) {
+      for (const goal of automatic.goals) counts[(squads[goal.side === "home" ? 0 : 1][goal.playerIndex] as Player).position] += 1;
+    }
+    const total = counts.DF + counts.MF + counts.FW;
+    expect(counts.GK).toBe(0);
+    expect(counts.FW).toBeGreaterThan(counts.MF);
+    expect(counts.MF).toBeGreaterThan(counts.DF);
+    expect(counts.DF / total).toBeLessThan(0.25);
+  });
+});
+
+describe("@US-1 S-006 a stronger eleven scores more against the same opponent (D7b, K3)", () => {
+  it("Given the automatic eleven against the lowest-rated eleven of the same squads, when 4000 matches are averaged, then the automatic eleven, 20 or more higher in overall sum every time, scores more and the lowest never scored more on any seed @kpi @property @contract-shape:pure-function", () => {
+    const played = playedMatches();
+    expect(Math.min(...played.map(({ gaps }) => gaps.lowest))).toBeGreaterThanOrEqual(20);
+    expect(mean(played.map(({ automatic }) => automatic.homeGoals))).toBeGreaterThan(mean(played.map(({ lowest }) => lowest.homeGoals)));
+    expect(played.filter(({ lowest, automatic }) => lowest.homeGoals > automatic.homeGoals)).toEqual([]);
+  });
+
+  it("Given an eleven at least 20 above the lowest-rated one, when 4000 matches are averaged, then it scores more than the lowest-rated eleven and never fewer on any seed @kpi @property @contract-shape:pure-function", () => {
+    const played = playedMatches();
+    expect(Math.min(...played.map(({ gaps }) => gaps.raised))).toBeGreaterThanOrEqual(20);
+    expect(mean(played.map(({ raised }) => raised.homeGoals))).toBeGreaterThan(mean(played.map(({ lowest }) => lowest.homeGoals)));
+    expect(played.filter(({ lowest, raised }) => raised.homeGoals < lowest.homeGoals)).toEqual([]);
+  });
+
+  it("Given the lowest-rated eleven fixture, when it is built for Netherwold Borough (seed 31, 4-4-2), then it is the weakest of each position in ascending order, 62 in overall sum @boundary @contract-shape:pure-function", () => {
+    // Written out from the squad rows pinned in tests/acceptance/S-005/fixture-squads-pinned.test.ts: GK Zealby 11;
+    // DF Yarrow 3, Kilbride 3, Jessamy 3, Crossley 4; MF Ballantyne 3, Northcott 6, Dunmore 7, Redfern 15; FW Vexford 2, Thistlewood 5.
+    const squad = generateSquad(31, 0);
+    const xi = lowestRatedXI(squad, "4-4-2");
+    expect(xi).toEqual([1, 2, 4, 5, 6, 11, 13, 10, 8, 15, 14]);
+    expect(teamStrength({ squad, xi })).toBe(62);
+  });
+});
+
+describe("@US-1 S-006 an empty Goals list is a real result: seed 8, matchday 1, fixture 3 is goalless", () => {
+  it("Given seed 8 and the fixture of clubs 3 and 4, when the automatic elevens play, then Mossdale Athletic and Pickering Dene Rovers draw 0–0 with no goals (the empty-list probe of the browser spec stays honest) @error @boundary @contract-shape:pure-function", () => {
+    const league = generateLeague(8);
+    const home = generateSquad(8, 3);
+    const away = generateSquad(8, 4);
+    const result = playMatch({
+      seed: 8,
+      matchday: 1,
+      fixtureIndex: 3,
+      home: { squad: home, xi: automaticXI(home, "4-4-2") },
+      away: { squad: away, xi: automaticXI(away, "4-4-2") },
+    });
+    expect([league.clubs[3]?.name, league.clubs[4]?.name]).toEqual(["Mossdale Athletic", "Pickering Dene Rovers"]);
+    expect(result).toEqual({ homeGoals: 0, awayGoals: 0, goals: [] });
+  });
+});

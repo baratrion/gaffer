@@ -1,0 +1,20 @@
+// Test fixture (not production code): the weakest legal eleven of a squad, for the D7(b) calibration (ADR-0011).
+// Per position, players by overall ascending, ties by ascending squad index, dealt in lineUp(formation) order.
+// Destination: tests/acceptance/S-006/fixtures/lowest-rated-xi.ts (DELIVER step 02, with match-calibration.test.ts).
+import { lineUp, type FormationId } from "../../../../src/domain/formation";
+import type { StartingXI } from "../../../../src/domain/selection";
+import type { Player, Position } from "../../../../src/domain/squad";
+
+const weakestFirst = (squad: readonly Player[], position: Position): readonly number[] =>
+  squad
+    .flatMap((player, index) => (player.position === position ? [index] : []))
+    .sort((left, right) => (squad[left] as Player).overall - (squad[right] as Player).overall || left - right);
+
+export const lowestRatedXI = (squad: readonly Player[], formation: FormationId): StartingXI => {
+  const taken: Record<Position, number> = { GK: 0, DF: 0, MF: 0, FW: 0 };
+  return lineUp(formation).map((position) => {
+    const chosen = weakestFirst(squad, position)[taken[position]] as number;
+    taken[position] += 1;
+    return chosen;
+  });
+};

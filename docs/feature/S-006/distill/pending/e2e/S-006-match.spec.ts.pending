@@ -1,0 +1,405 @@
+// @US-1 @US-2 (S-006 play my first match)
+// CONTRACT_SHAPE: bounded-change
+// Outcome anchor: DISCUSS Elevator Pitches (US-1, US-2): on Netherwold Borough's home Sam taps "Play match" and sees the
+// heading "Matchday 1" and one line "Netherwold Borough 1–2 Marlbrook Athletic" with the list "Goals" under it ("17' Rurik
+// Fairbourne (Marlbrook Athletic)", "22' Calder Redfern (Netherwold Borough)", "77' Rurik Fairbourne (Marlbrook Athletic)"),
+// then "Back" to the club home as he left it. The seed-31 and seed-20260 screens are the ADR-0011 expected goldens: the same
+// values the Node test asserts, so this spec is the cross-engine probe (browser v Node) on local-preview and, via BASE_URL,
+// on the live site. Environment: local-preview (ci:serve, http://localhost:4173/gaffer/) or BASE_URL; local-dev waived.
+// Environment probes (ADR-0011 Earned Trust): (1) the seed-31 golden; (2) textContent equals innerText for the score line
+// and every goal item, names with an apostrophe or a hyphen included; (3) the empty "Goals" list at ?seed=8.
+// Destination: tests/e2e/S-006-match.spec.ts (DELIVER step 04).
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+// Viewport and device: the Pixel 7 profile at 390px comes from playwright.config.ts (no per-spec override).
+
+const EN = "–";
+const SCORE_SOURCE = `^(.+) (\\d)${EN}(\\d) (.+)$`;
+const SCORE_RE = new RegExp(SCORE_SOURCE);
+const ITEM_RE = /^(\d{1,2})' (.+) \((.+)\)$/;
+
+// Expected goldens, written out from ADR-0011 (matchday 1, fixture 0, both sides automatic 4-4-2): independent of the code.
+const GOLDEN_31 = {
+  scoreLine: `Netherwold Borough 1${EN}2 Marlbrook Athletic`,
+  items: ["17' Rurik Fairbourne (Marlbrook Athletic)", "22' Calder Redfern (Netherwold Borough)", "77' Rurik Fairbourne (Marlbrook Athletic)"],
+} as const;
+const GOLDEN_20260 = {
+  scoreLine: `Harrowgate Lane United 0${EN}1 Oakhampton Rise Borough`,
+  items: ["65' Joren Northcott (Oakhampton Rise Borough)"],
+} as const;
+const GOALLESS_8 = `Mossdale Athletic 0${EN}0 Pickering Dene Rovers`;
+const NETHERWOLD_433 = [
+  "GK Tamsin Ingleby 17", "DF Bram Pemberly 19", "DF Calder Ashcombe 18", "DF Quill Crossley 4", "DF Quill Yarrow 3",
+  "MF Ivo Elderkin 18", "MF Joren Dalrymple 16", "MF Calder Redfern 15",
+  "FW Merrick Hartwell 8", "FW Garrick Thistlewood 5", "FW Finlay Fitch-Moreton 5",
+] as const;
+const NETHERWOLD_433_PICKED = NETHERWOLD_433.map((text) => (text === "MF Calder Redfern 15" ? "MF Kestrel Northcott 6" : text));
+// Matches whose goals include a scorer with an apostrophe or a hyphen in his name (pinned in match.test.ts, so these stay honest).
+const NAME_PROBES = [
+  { query: "?seed=8", clubIndex: 0, mark: "'", example: "Brannock O'Garrity" },
+  { query: "?seed=6", clubIndex: 1, mark: "-", example: "Zander Fitch-Moreton" },
+] as const;
+
+const heading = (page: Page): Locator => page.getByRole("heading", { level: 1 });
+const button = (page: Page, name: string): Locator => page.getByRole("button", { name, exact: true });
+const back = (page: Page): Locator => button(page, "Back");
+const goalsList = (page: Page): Locator => page.getByRole("list", { name: "Goals", exact: true });
+const scoreLine = (page: Page): Locator => page.getByText(SCORE_RE);
+// scrollWidth against clientWidth: under mobile emulation window.innerWidth grows with overflowing content, so it cannot be the yardstick.
+const overflow = (page: Page): Promise<number> => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+const watchErrors = (page: Page): string[] => {
+  const errors: string[] = [];
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("pageerror", (e) => errors.push(e.message));
+  return errors;
+};
+const installTapCounter = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __taps: number };
+    w.__taps = 0;
+    document.addEventListener("pointerdown", () => void w.__taps++, true);
+  });
+const tapsSoFar = (page: Page): Promise<number> => page.evaluate(() => (window as unknown as { __taps: number }).__taps);
+const heightOf = async (locator: Locator): Promise<number> => (await locator.boundingBox())?.height ?? 0;
+
+interface Opened {
+  readonly club: string;
+  readonly clubs: readonly string[];
+}
+
+const openClubHome = async (page: Page, query: string, clubIndex: number): Promise<Opened> => {
+  await page.goto(`./${query}`);
+  await page.getByRole("button", { name: "New game" }).click();
+  const list = page.getByRole("list", { name: "Clubs" }).getByRole("button");
+  const clubs = (await list.allInnerTexts()).map((text) => (text.split("\n")[0] ?? "").trim());
+  const club = clubs[clubIndex] ?? "";
+  await list.nth(clubIndex).click();
+  await expect(heading(page)).toContainText(club);
+  await expect(heading(page)).toBeFocused();
+  return { club, clubs };
+};
+
+const chooseFormation = async (page: Page, formation: string): Promise<void> => {
+  await button(page, "Tactics").click();
+  await page.getByRole("radiogroup", { name: "Formation" }).getByText(formation, { exact: true }).click();
+  await expect(page.getByRole("radio", { name: formation, exact: true })).toBeChecked();
+  await back(page).click();
+};
+
+const pickForSlot = async (page: Page, slotText: string, playerText: string): Promise<void> => {
+  await button(page, "Starting XI").click();
+  await button(page, slotText).click();
+  await button(page, playerText).click();
+  await expect(heading(page)).toHaveText("Starting XI");
+  await back(page).click();
+};
+
+const readXI = async (page: Page): Promise<string[]> => {
+  await button(page, "Starting XI").click();
+  await expect(heading(page)).toHaveText("Starting XI");
+  const texts = await page.getByRole("list", { name: "Starting XI" }).getByRole("button").allTextContents();
+  await back(page).click();
+  await expect(heading(page)).toBeFocused();
+  return texts;
+};
+
+const nameOfSlot = (text: string): string => text.split(" ").slice(1, -1).join(" ");
+
+interface SquadRow {
+  readonly name: string;
+  readonly position: string;
+}
+
+const readSquad = async (page: Page): Promise<SquadRow[]> => {
+  await button(page, "Squad").click();
+  const rows = (await page.getByRole("list", { name: "Squad" }).getByRole("button").allInnerTexts()).map((text) => {
+    const [name = "", position = ""] = text.split("\n").map((line) => line.trim());
+    return { name, position };
+  });
+  await back(page).click();
+  await expect(heading(page)).toBeFocused();
+  return rows;
+};
+
+interface Played {
+  readonly scoreLine: string;
+  readonly home: string;
+  readonly away: string;
+  readonly homeGoals: number;
+  readonly awayGoals: number;
+  readonly items: readonly string[];
+}
+
+const parseScore = (text: string): { home: string; away: string; homeGoals: number; awayGoals: number } => {
+  const found = SCORE_RE.exec(text);
+  expect(found, `"${text}" reads as a score line`).not.toBeNull();
+  const [, home = "", h = "", a = "", away = ""] = found ?? [];
+  return { home, away, homeGoals: Number(h), awayGoals: Number(a) };
+};
+
+/** Taps "Play match" and reads the match screen at once, as soon as its heading has focus (no waiting for text). */
+const playAndRead = async (page: Page): Promise<Played> => {
+  await button(page, "Play match").click();
+  await expect(page.getByRole("heading")).toHaveCount(1);
+  await expect(heading(page)).toHaveText("Matchday 1");
+  await expect(heading(page)).toBeFocused();
+  expect(await scoreLine(page).isVisible(), "score line visible while the heading has focus").toBe(true);
+  expect(await goalsList(page).isVisible(), "Goals list visible while the heading has focus").toBe(true);
+  const text = (await scoreLine(page).textContent()) ?? "";
+  const items = await goalsList(page).getByRole("listitem").allTextContents();
+  return { scoreLine: text, ...parseScore(text), items };
+};
+
+/** Every goal item reads "<minute>' <scorer> (<club>)", in minute order, and each club's items equal its goals. */
+const expectGoalItems = async (page: Page, played: Played): Promise<void> => {
+  const list = goalsList(page);
+  await expect(list).toHaveCount(1);
+  await expect(page.getByText("Goals", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Goals", { exact: true })).toHaveText("Goals", { useInnerText: true });
+  await expect(page.getByRole("heading", { name: "Goals" })).toHaveCount(0);
+  const items = list.getByRole("listitem");
+  await expect(items).toHaveCount(played.homeGoals + played.awayGoals);
+  expect(await items.allInnerTexts(), "innerText of the goal items equals their textContent").toEqual(await items.allTextContents());
+  let previous = 0;
+  const perClub = new Map<string, number>();
+  for (const item of played.items) {
+    const found = ITEM_RE.exec(item);
+    expect(found, `"${item}" reads as a goal item`).not.toBeNull();
+    const [, minute = "", , club = ""] = found ?? [];
+    expect(Number(minute)).toBeGreaterThanOrEqual(Math.max(1, previous));
+    expect(Number(minute)).toBeLessThanOrEqual(90);
+    previous = Number(minute);
+    perClub.set(club, (perClub.get(club) ?? 0) + 1);
+  }
+  expect(perClub.get(played.home) ?? 0, `items naming ${played.home}`).toBe(played.homeGoals);
+  expect(perClub.get(played.away) ?? 0, `items naming ${played.away}`).toBe(played.awayGoals);
+};
+
+const scorerOf = (item: string): { scorer: string; club: string } => {
+  const [, , scorer = "", club = ""] = ITEM_RE.exec(item) ?? [];
+  return { scorer, club };
+};
+
+/** Opens a club's match, with an optional preparation on its home, and checks who scored against the Starting XI and squads. */
+const scorersFollowTheRules = async (page: Page, at: { query: string; clubIndex: number }, prepare?: (page: Page) => Promise<void>): Promise<Played> => {
+  const { query, clubIndex } = at;
+  const { club, clubs } = await openClubHome(page, query, clubIndex);
+  await prepare?.(page);
+  const xi = (await readXI(page)).map(nameOfSlot);
+  const ownSquad = await readSquad(page);
+  const played = await playAndRead(page);
+  const opponent = played.home === club ? played.away : played.home;
+  expect(clubs, "the opponent is another club of the Clubs list").toContain(opponent);
+  expect(opponent).not.toBe(club);
+
+  const second = await page.context().newPage();
+  await openClubHome(second, query, clubs.indexOf(opponent));
+  const opponentSquad = await readSquad(second);
+  await second.close();
+
+  const goalkeeper = xi[0] ?? "";
+  for (const item of played.items) {
+    const { scorer, club: scoringClub } = scorerOf(item);
+    if (scoringClub === club) {
+      expect(xi, `${scorer} is on the Starting XI`).toContain(scorer);
+      expect(scorer).not.toBe(goalkeeper);
+    } else {
+      expect(scoringClub).toBe(opponent);
+      expect(ownSquad.map((row) => row.name), `${scorer} is not in ${club}'s squad`).not.toContain(scorer);
+      const row = opponentSquad.find((candidate) => candidate.name === scorer);
+      expect(row, `${scorer} is in ${opponent}'s squad`).toBeDefined();
+      expect(row?.position).not.toBe("GK");
+    }
+  }
+  return played;
+};
+
+test.describe("@US-1 S-006 Sam plays his matchday-1 fixture and the score is there on arrival", () => {
+  test("@walking_skeleton @kpi Sam taps Play match (1 tap) and, with the heading focused, already reads the seed-31 golden score line and goals; Back (1 tap) returns to the club home @contract-shape:bounded-change", async ({ page }) => {
+    const errors = watchErrors(page);
+    const { club, clubs } = await openClubHome(page, "?seed=31", 0);
+    expect(new URL(page.url()).pathname, "precondition: production build served under /gaffer/").toBe("/gaffer/");
+    await installTapCounter(page);
+    expect(await heightOf(button(page, "Play match")), "Play match button").toBeGreaterThanOrEqual(44);
+
+    const played = await playAndRead(page);
+    expect(await tapsSoFar(page), "club home to the result is 1 tap").toBe(1);
+    expect(played.scoreLine).toBe(GOLDEN_31.scoreLine);
+    expect(played.items).toEqual([...GOLDEN_31.items]);
+    expect([played.home, played.away]).toContain(club);
+    expect(clubs).toContain(played.away);
+    expect(await heightOf(back(page)), "Back button").toBeGreaterThanOrEqual(44);
+    expect(await overflow(page), "no sideways scroll on the match screen").toBeLessThanOrEqual(0);
+
+    await back(page).click();
+    expect(await tapsSoFar(page), "back home is 1 more tap").toBe(2);
+    await expect(page.getByRole("heading")).toHaveCount(1);
+    await expect(heading(page)).toContainText(club);
+    await expect(heading(page)).toBeFocused();
+    await expect(button(page, "Play match")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("the score line is one paragraph whose text is the whole line, the only text in that format and the only en dash; the match screen has one heading and one Back @contract-shape:bounded-change", async ({ page }) => {
+    await openClubHome(page, "?seed=31", 0);
+    const played = await playAndRead(page);
+    const found = await page.evaluate((source) => {
+      const pattern = new RegExp(source);
+      const matching = [...document.body.querySelectorAll("*")].filter((node) => pattern.test(node.textContent ?? ""));
+      return matching
+        .filter((node) => !matching.some((other) => other !== node && node.contains(other)))
+        .map((node) => ({ tag: node.tagName, text: node.textContent, inner: (node as HTMLElement).innerText, inHeading: node.closest("h1, h2, h3, h4, h5, h6") !== null }));
+    }, SCORE_SOURCE);
+    expect(found).toEqual([{ tag: "P", text: played.scoreLine, inner: played.scoreLine, inHeading: false }]);
+    expect(played.scoreLine).toBe(GOLDEN_31.scoreLine);
+    await expect(scoreLine(page)).toHaveCount(1);
+    expect((await page.evaluate(() => document.body.innerText)).split(EN).length - 1, "en dashes on the screen").toBe(1);
+    await expect(page.getByRole("heading")).toHaveCount(1);
+    await expect(back(page)).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Back" })).toHaveCount(1);
+  });
+
+  test("the list Goals sits under the score line with a visible label, one item per goal in minute order, each reading exactly minute, scorer and club, textContent equal to innerText @contract-shape:bounded-change", async ({ page }) => {
+    await openClubHome(page, "?seed=31", 0);
+    const played = await playAndRead(page);
+    await expectGoalItems(page, played);
+    expect(played.items).toEqual([...GOLDEN_31.items]);
+    const [label, list, line] = await Promise.all([page.getByText("Goals", { exact: true }).boundingBox(), goalsList(page).boundingBox(), scoreLine(page).boundingBox()]);
+    expect((line?.y ?? 0) + (line?.height ?? 0)).toBeLessThanOrEqual(label?.y ?? 0);
+    expect((label?.y ?? 0) + (label?.height ?? 0)).toBeLessThanOrEqual((list?.y ?? 0) + 1);
+  });
+});
+
+test.describe("@US-2 S-006 the goals are Sam's players and the opponent's, never the goalkeeper", () => {
+  test("every goal of Netherwold Borough is by one of its 11 on the Starting XI, never Tamsin Ingleby; the opponent's are by non-goalkeepers of its own squad (seed 31, untouched) @walking_skeleton @driving_port @contract-shape:bounded-change", async ({ page }) => {
+    const played = await scorersFollowTheRules(page, { query: "?seed=31", clubIndex: 0 });
+    await expectGoalItems(page, played);
+    expect(played.items).toEqual([...GOLDEN_31.items]);
+  });
+
+  test("after Kestrel Northcott 6 is picked for Dorian Dunmore 7, the goals of Netherwold Borough are by the 11 now on the Starting XI @example @contract-shape:bounded-change", async ({ page }) => {
+    const played = await scorersFollowTheRules(page, { query: "?seed=31", clubIndex: 0 }, (target) => pickForSlot(target, "MF Dorian Dunmore 7", "Kestrel Northcott 6"));
+    await expectGoalItems(page, played);
+  });
+
+  test("at ?seed=abc, Oakhampton Rise Borough's one goal is by Joren Northcott, a forward on its Starting XI (the second golden) @example @contract-shape:bounded-change", async ({ page }) => {
+    const played = await scorersFollowTheRules(page, { query: "?seed=abc", clubIndex: 7 });
+    expect(played.scoreLine).toBe(GOLDEN_20260.scoreLine);
+    expect(played.items).toEqual([...GOLDEN_20260.items]);
+    await expectGoalItems(page, played);
+  });
+
+  for (const probe of NAME_PROBES) {
+    test(`@environment-probe at ${probe.query} a scorer such as ${probe.example} reads exactly as in the squad, in textContent and innerText, on one line @contract-shape:bounded-change`, async ({ page }) => {
+      await openClubHome(page, probe.query, probe.clubIndex);
+      const played = await playAndRead(page);
+      expect(played.items.some((item) => scorerOf(item).scorer.includes(probe.mark)), `a scorer with ${probe.mark} in his name`).toBe(true);
+      await expectGoalItems(page, played);
+      for (const item of played.items) {
+        await expect(goalsList(page).getByRole("listitem").filter({ hasText: item })).not.toHaveCount(0);
+      }
+    });
+  }
+});
+
+test.describe("@US-1 S-006 the same seed plays the same match", () => {
+  test("two fresh pages at ?seed=31 with the same club show the identical match screen @boundary @contract-shape:bounded-change", async ({ page, context }) => {
+    await openClubHome(page, "?seed=31", 0);
+    const first = await playAndRead(page);
+    const second = await context.newPage();
+    await openClubHome(second, "?seed=31", 0);
+    const again = await playAndRead(second);
+    expect(again).toEqual(first);
+    expect(again.scoreLine).toBe(GOLDEN_31.scoreLine);
+    await expect(heading(second)).toHaveText(await heading(page).innerText());
+  });
+
+  test("?seed=abc and no seed show the same match for the 8th club, the second golden @boundary @contract-shape:bounded-change", async ({ page, context }) => {
+    await openClubHome(page, "?seed=abc", 7);
+    const withSeed = await playAndRead(page);
+    const bare = await context.newPage();
+    await openClubHome(bare, "", 7);
+    const noSeed = await playAndRead(bare);
+    expect(noSeed).toEqual(withSeed);
+    expect(withSeed.scoreLine).toBe(GOLDEN_20260.scoreLine);
+    expect(withSeed.items).toEqual([...GOLDEN_20260.items]);
+  });
+
+  test("Play match after Back replays the very same match (the season story will advance matchdays) @boundary @contract-shape:bounded-change", async ({ page }) => {
+    await openClubHome(page, "?seed=31", 0);
+    const first = await playAndRead(page);
+    await back(page).click();
+    await expect(button(page, "Play match")).toBeVisible();
+    expect(await playAndRead(page)).toEqual(first);
+  });
+});
+
+test.describe("@US-2 @US-1 S-006 a goalless match still shows the Goals list", () => {
+  for (const clubIndex of [3, 4]) {
+    test(`at ?seed=8 club ${clubIndex} reads Mossdale Athletic 0–0 Pickering Dene Rovers with the list Goals visible, named exactly, and empty @error @boundary @contract-shape:bounded-change`, async ({ page }) => {
+      await openClubHome(page, "?seed=8", clubIndex);
+      const played = await playAndRead(page);
+      expect(played.scoreLine).toBe(GOALLESS_8);
+      expect(played.items).toEqual([]);
+      await expectGoalItems(page, played);
+      await expect(goalsList(page).getByRole("listitem")).toHaveCount(0);
+      await expect(page.getByText("Goals", { exact: true })).toBeVisible();
+      expect(await heightOf(goalsList(page)), "an empty list keeps a visible box").toBeGreaterThan(0);
+      expect(await overflow(page)).toBeLessThanOrEqual(0);
+    });
+  }
+});
+
+test.describe("@US-1 S-006 Back returns to the team as Sam left it", () => {
+  test("@walking_skeleton Sam picks Kestrel Northcott for Calder Redfern in 4-3-3, plays, taps Back, and finds 4-3-3 and his eleven unchanged; plays again and Back again, no scroll or error anywhere @contract-shape:bounded-change", async ({ page }) => {
+    const errors = watchErrors(page);
+    const { club } = await openClubHome(page, "?seed=31", 0);
+    await chooseFormation(page, "4-3-3");
+    expect(await readXI(page)).toEqual([...NETHERWOLD_433]);
+    await pickForSlot(page, "MF Calder Redfern 15", "Kestrel Northcott 6");
+    const picked = await readXI(page);
+    expect(picked).toEqual(NETHERWOLD_433_PICKED);
+    expect(picked[7], "the 8th button").toBe("MF Kestrel Northcott 6");
+    expect(await overflow(page), "club home").toBeLessThanOrEqual(0);
+
+    const first = await playAndRead(page);
+    expect(await overflow(page), "match screen").toBeLessThanOrEqual(0);
+    await expectGoalItems(page, first);
+    await back(page).click();
+    await expect(page.getByRole("heading")).toHaveCount(1);
+    await expect(heading(page)).toContainText(club);
+    await expect(heading(page)).toBeFocused();
+    await button(page, "Tactics").click();
+    await expect(page.getByRole("radio", { name: "4-3-3", exact: true })).toBeChecked();
+    await back(page).click();
+    expect(await readXI(page)).toEqual(NETHERWOLD_433_PICKED);
+
+    expect(await playAndRead(page)).toEqual(first);
+    await back(page).click();
+    await expect(heading(page)).toContainText(club);
+    await expect(heading(page)).toBeFocused();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe("@US-1 S-006 the club home and the match fit a phone", () => {
+  test("Play match is the last of four club home buttons, after Squad, Tactics and Starting XI @contract-shape:bounded-change", async ({ page }) => {
+    await openClubHome(page, "?seed=31", 0);
+    const names = await page.getByRole("button").allInnerTexts();
+    expect(names.map((name) => name.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match"]);
+  });
+
+  test("for each of the 8 clubs at ?seed=31 the match screen has no sideways scroll and no console error, and its score line names the club @boundary @contract-shape:bounded-change", async ({ page }) => {
+    test.slow();
+    const errors = watchErrors(page);
+    for (let clubIndex = 0; clubIndex < 8; clubIndex++) {
+      const { club } = await openClubHome(page, "?seed=31", clubIndex);
+      expect(await overflow(page), `club home ${club}`).toBeLessThanOrEqual(0);
+      const played = await playAndRead(page);
+      expect([played.home, played.away], `match of ${club}`).toContain(club);
+      expect(await overflow(page), `match screen of ${club}`).toBeLessThanOrEqual(0);
+      await expectGoalItems(page, played);
+    }
+    expect(errors).toEqual([]);
+  });
+});

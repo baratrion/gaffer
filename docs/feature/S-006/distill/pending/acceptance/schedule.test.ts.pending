@@ -1,0 +1,113 @@
+// @US-1 (S-006 play my first match)
+// CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS D5 and Elevator Pitch (US-1): "Every club meets one opponent on matchday 1, and both see the same
+// fixture"; ADR-0010: a seed-free circle-method schedule, home first, 14 matchdays (the second half mirrored).
+// Universe: the returned frozen arrays. The domain is finite (14 matchdays x 8 clubs), so loops replace fast-check.
+// Destination: tests/acceptance/S-006/schedule.test.ts (DELIVER step 01).
+import { describe, expect, it } from "vitest";
+import { fixtureOf, fixturesOf, FIXTURES_PER_MATCHDAY, MATCHDAYS, type Fixture } from "../../../src/domain/schedule";
+
+const CLUBS = 8;
+const range = (from: number, to: number): number[] => Array.from({ length: to - from + 1 }, (_, index) => from + index);
+const MATCHDAY_LIST = range(1, MATCHDAYS);
+const CLUB_LIST = range(0, CLUBS - 1);
+const pairs = (matchday: number): [number, number][] => fixturesOf(matchday).map(({ home, away }) => [home, away]);
+
+// Expected values written out from ADR-0010 (home first).
+const GOLDEN: readonly (readonly [number, readonly (readonly [number, number])[]])[] = [
+  [1, [[0, 7], [1, 6], [5, 2], [3, 4]]],
+  [2, [[7, 1], [2, 0], [6, 3], [4, 5]]],
+  [8, [[7, 0], [6, 1], [2, 5], [4, 3]]],
+];
+
+describe("@US-1 S-006 the league has one fixed schedule: 14 matchdays of 4 fixtures", () => {
+  it("Given the schedule, when its size is read, then it has 14 matchdays of 4 fixtures @example @contract-shape:pure-function", () => {
+    expect([MATCHDAYS, FIXTURES_PER_MATCHDAY]).toEqual([14, 4]);
+    for (const matchday of MATCHDAY_LIST) expect(fixturesOf(matchday)).toHaveLength(4);
+  });
+
+  it.each(GOLDEN)("Given matchday %i, when its fixtures are read, then they are the ADR-0010 golden, home club first @walking_skeleton @driving_port @contract-shape:pure-function", (matchday, expected) => {
+    expect(pairs(matchday)).toEqual(expected.map(([home, away]) => [home, away]));
+  });
+});
+
+describe("@US-1 S-006 on every matchday each club plays exactly one other club", () => {
+  it("Given each of the 14 matchdays, when the 8 clubs of its 4 fixtures are listed, then they are exactly clubs 0 to 7, none twice @property @contract-shape:pure-function", () => {
+    for (const matchday of MATCHDAY_LIST) {
+      const clubs = pairs(matchday).flat().sort((left, right) => left - right);
+      expect(clubs, `matchday ${matchday}`).toEqual(CLUB_LIST);
+    }
+  });
+
+  it("Given the 14 matchdays, when every ordered pair of different clubs is counted, then each of the 56 occurs exactly once (a double round-robin) @property @contract-shape:pure-function", () => {
+    const seen = new Map<string, number>();
+    for (const matchday of MATCHDAY_LIST) for (const { home, away } of fixturesOf(matchday)) seen.set(`${home}>${away}`, (seen.get(`${home}>${away}`) ?? 0) + 1);
+    const expectedPairs = CLUB_LIST.flatMap((home) => CLUB_LIST.filter((away) => away !== home).map((away) => `${home}>${away}`));
+    expect([...seen.keys()].sort()).toEqual(expectedPairs.sort());
+    expect([...seen.values()].every((count) => count === 1)).toBe(true);
+  });
+
+  it("Given matchdays 1 to 7, when each is compared with matchday m + 7, then the second is the first with home and away swapped, fixture by fixture @boundary @contract-shape:pure-function", () => {
+    for (const matchday of range(1, 7)) {
+      const mirrored = pairs(matchday).map(([home, away]): [number, number] => [away, home]);
+      expect(pairs(matchday + 7), `matchday ${matchday + 7}`).toEqual(mirrored);
+    }
+  });
+
+  it("Given matchdays 1 to 7, when each club's home games are counted, then clubs 0, 2, 4 and 6 are at home 4 times and clubs 1, 3, 5 and 7 three times; over 14 every club is at home 7 times @boundary @contract-shape:pure-function", () => {
+    const homeGames = (matchdays: readonly number[]): number[] =>
+      CLUB_LIST.map((club) => matchdays.filter((matchday) => fixturesOf(matchday).some(({ home }) => home === club)).length);
+    expect(homeGames(range(1, 7))).toEqual([4, 3, 4, 3, 4, 3, 4, 3]);
+    expect(homeGames(MATCHDAY_LIST)).toEqual([7, 7, 7, 7, 7, 7, 7, 7]);
+  });
+});
+
+describe("@US-1 S-006 both clubs of a fixture read the same fixture", () => {
+  it("Given every matchday and club, when the club's fixture is asked for, then it is the table's own fixture at the index given, it holds that club, and its opponent gets the same one @driving_port @property @contract-shape:pure-function", () => {
+    for (const matchday of MATCHDAY_LIST) {
+      for (const club of CLUB_LIST) {
+        const { index, fixture } = fixtureOf(matchday, club);
+        expect(index).toBeGreaterThanOrEqual(0);
+        expect(index).toBeLessThan(FIXTURES_PER_MATCHDAY);
+        expect(fixture).toBe(fixturesOf(matchday)[index]);
+        expect([fixture.home, fixture.away]).toContain(club);
+        const opponent = fixture.home === club ? fixture.away : fixture.home;
+        expect(fixtureOf(matchday, opponent)).toEqual({ index, fixture });
+      }
+    }
+  });
+
+  it("Given club 0 on matchday 1, when its fixture is asked for, then it is home to club 7 as fixture 0 (Netherwold Borough v the 8th club at seed 31) @example @contract-shape:pure-function", () => {
+    expect(fixtureOf(1, 0)).toEqual({ index: 0, fixture: { home: 0, away: 7 } });
+    expect(fixtureOf(1, 7)).toEqual({ index: 0, fixture: { home: 0, away: 7 } });
+    expect(fixtureOf(1, 3)).toEqual({ index: 3, fixture: { home: 3, away: 4 } });
+  });
+});
+
+describe("@US-1 S-006 the schedule cannot be edited by a reader and refuses nonsense", () => {
+  it("Given the table, when each level is inspected, then the matchday array, the list of fixtures and every fixture are frozen @boundary @contract-shape:pure-function", () => {
+    for (const matchday of MATCHDAY_LIST) {
+      const fixtures = fixturesOf(matchday);
+      expect(Object.isFrozen(fixtures), `matchday ${matchday} list`).toBe(true);
+      for (const fixture of fixtures as readonly Fixture[]) expect(Object.isFrozen(fixture)).toBe(true);
+    }
+  });
+
+  it("Given a reader that tries to change the table, when it assigns, then nothing changes (or the assignment throws) and the matchday-1 golden still holds @boundary @error @contract-shape:pure-function", () => {
+    const fixtures = fixturesOf(1) as Fixture[];
+    expect(() => fixtures.push({ home: 1, away: 2 })).toThrow();
+    expect(() => {
+      (fixtures[0] as { home: number }).home = 5;
+    }).toThrow();
+    expect(pairs(1)).toEqual([[0, 7], [1, 6], [5, 2], [3, 4]]);
+  });
+
+  it.each([0, 15, 1.5, Number.NaN, -1, Number.POSITIVE_INFINITY])("Given matchday %s, when its fixtures are asked for, then it is a RangeError (a programming error, never user input) @error @boundary @contract-shape:pure-function", (matchday) => {
+    expect(() => fixturesOf(matchday)).toThrow(RangeError);
+    expect(() => fixtureOf(matchday, 0)).toThrow(RangeError);
+  });
+
+  it.each([-1, 8, 1.5, Number.NaN, Number.POSITIVE_INFINITY])("Given club %s, when its fixture is asked for, then it is a RangeError @error @boundary @contract-shape:pure-function", (club) => {
+    expect(() => fixtureOf(1, club)).toThrow(RangeError);
+  });
+});

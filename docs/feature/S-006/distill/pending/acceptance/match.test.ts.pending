@@ -1,0 +1,355 @@
+// @US-1 @US-2 (S-006 play my first match)
+// CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS Elevator Pitches: on Netherwold Borough's home Sam taps "Play match" and reads "Netherwold Borough
+// 1–2 Marlbrook Athletic" with its goals "17' Rurik Fairbourne (Marlbrook Athletic)", "22' Calder Redfern (Netherwold
+// Borough)", "77' Rurik Fairbourne (Marlbrook Athletic)" (DESIGN D7 / ADR-0011 expected goldens, written RED-first: the
+// expected values below come from the ADR, never from the code). Universe: the returned MatchResult of the pure `playMatch`
+// driving port; repeat calls deep-equal and frozen inputs unchanged. Layer 1-2: fast-check honours FC_SEED.
+// Destination: tests/acceptance/S-006/match.test.ts (DELIVER step 02).
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import fc from "fast-check";
+import { describe, expect, it } from "vitest";
+import { FORMATIONS, lineUp, type FormationId } from "../../../src/domain/formation";
+import { playMatch, teamStrength, type MatchInput, type MatchResult } from "../../../src/domain/match";
+import { deriveSeed } from "../../../src/domain/rng";
+import { automaticXI, type StartingXI } from "../../../src/domain/selection";
+import { generateLeague } from "../../../src/domain/league";
+import { generateSquad, type Player, type Position } from "../../../src/domain/squad";
+
+const EN = "–";
+const range = (from: number, to: number): number[] => Array.from({ length: to - from + 1 }, (_, index) => from + index);
+const deepFreeze = <T>(value: T): T => {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) deepFreeze(child);
+  }
+  return value;
+};
+
+interface Setup {
+  readonly input: MatchInput;
+  readonly names: readonly [string, string];
+}
+
+const automaticSide = (seed: number, club: number, formation: FormationId = "4-4-2") => {
+  const squad = generateSquad(seed, club);
+  return { squad, xi: automaticXI(squad, formation) };
+};
+const setup = (seed: number, clubs: readonly [number, number], at: { matchday?: number; fixtureIndex?: number } = {}): Setup => {
+  const league = generateLeague(seed);
+  return {
+    input: {
+      seed,
+      matchday: at.matchday ?? 1,
+      fixtureIndex: at.fixtureIndex ?? 0,
+      home: automaticSide(seed, clubs[0]),
+      away: automaticSide(seed, clubs[1]),
+    },
+    names: [league.clubs[clubs[0]]?.name ?? "", league.clubs[clubs[1]]?.name ?? ""],
+  };
+};
+const scoreLine = (result: MatchResult, names: readonly [string, string]): string =>
+  `${names[0]} ${result.homeGoals}${EN}${result.awayGoals} ${names[1]}`;
+const goalItems = (result: MatchResult, { input, names }: Setup): string[] =>
+  result.goals.map((goal) => {
+    const side = goal.side === "home" ? input.home : input.away;
+    return `${goal.minute}' ${side.squad[goal.playerIndex]?.name} (${goal.side === "home" ? names[0] : names[1]})`;
+  });
+
+// Expected goldens, written out from ADR-0011 (matchday 1, both sides automatic 4-4-2).
+describe("@US-1 @US-2 S-006 the first match of the expected goldens plays out exactly as ADR-0011 wrote it down", () => {
+  it("Given seed 31 and fixture 0 (club 0 at home to club 7), when the match is played, then Netherwold Borough lose 1–2 to Marlbrook Athletic with the three ADR goals, strengths 130 v 143 @walking_skeleton @driving_port @contract-shape:pure-function", () => {
+    const match = setup(31, [0, 7]);
+    const result = playMatch(match.input);
+    expect([teamStrength(match.input.home), teamStrength(match.input.away)]).toEqual([130, 143]);
+    expect(scoreLine(result, match.names)).toBe(`Netherwold Borough 1${EN}2 Marlbrook Athletic`);
+    expect(goalItems(result, match)).toEqual([
+      "17' Rurik Fairbourne (Marlbrook Athletic)",
+      "22' Calder Redfern (Netherwold Borough)",
+      "77' Rurik Fairbourne (Marlbrook Athletic)",
+    ]);
+  });
+
+  it("Given seed 20260 (what ?seed=abc gives) and fixture 0, when the match is played, then Oakhampton Rise Borough win away 0–1 at Harrowgate Lane United through Joren Northcott's 65th minute goal, strengths 152 v 138 @walking_skeleton @driving_port @contract-shape:pure-function", () => {
+    const match = setup(20260, [0, 7]);
+    const result = playMatch(match.input);
+    expect([teamStrength(match.input.home), teamStrength(match.input.away)]).toEqual([152, 138]);
+    expect(scoreLine(result, match.names)).toBe(`Harrowgate Lane United 0${EN}1 Oakhampton Rise Borough`);
+    expect(goalItems(result, match)).toEqual(["65' Joren Northcott (Oakhampton Rise Borough)"]);
+  });
+
+  it.each([
+    [1, [1, 6], `Fennimore Town 2${EN}2 Valebridge Albion`],
+    [2, [5, 2], `Tarnbeck Borough 5${EN}1 Rushmoor Heath Albion`],
+    [3, [3, 4], `Juniper Hollow United 1${EN}3 Oakhampton Rise Borough`],
+  ] as const)("Given seed 31 and fixture %i, when the match is played, then the score line is the ADR reference %#: %s @example @contract-shape:pure-function", (fixtureIndex, clubs, expected) => {
+    const match = setup(31, clubs, { fixtureIndex });
+    expect(scoreLine(playMatch(match.input), match.names)).toBe(expected);
+  });
+});
+
+// Property inputs: any seed, any two different clubs, any matchday and fixture index, any formation, any legal eleven.
+const anySeed = fc.integer({ min: -2147483648, max: 2147483647 });
+const anyClubs = fc.tuple(fc.integer({ min: 0, max: 7 }), fc.integer({ min: 1, max: 7 })).map(([first, step]): readonly [number, number] => [first, (first + step) % 8]);
+const anyFormation = fc.constantFrom(...FORMATIONS);
+const anyKeys = fc.array(fc.integer({ min: 0, max: 1000 }), { minLength: 18, maxLength: 18 });
+/** A legal eleven for any formation: per position the players sorted by key (then index), dealt in lineUp order. */
+const xiFromKeys = (squad: readonly Player[], formation: FormationId, keys: readonly number[]): StartingXI => {
+  const taken: Record<Position, number> = { GK: 0, DF: 0, MF: 0, FW: 0 };
+  return lineUp(formation).map((position) => {
+    const ranked = squad.flatMap((player, index) => (player.position === position ? [index] : [])).sort((left, right) => (keys[left] ?? 0) - (keys[right] ?? 0) || left - right);
+    const chosen = ranked[taken[position]] as number;
+    taken[position] += 1;
+    return chosen;
+  });
+};
+const anyScenario = fc.record({
+  seed: anySeed,
+  clubs: anyClubs,
+  matchday: fc.integer({ min: 1, max: 14 }),
+  fixtureIndex: fc.integer({ min: 0, max: 3 }),
+  homeFormation: anyFormation,
+  awayFormation: anyFormation,
+  homeKeys: anyKeys,
+  awayKeys: anyKeys,
+});
+type Scenario = typeof anyScenario extends fc.Arbitrary<infer Value> ? Value : never;
+const inputOf = (scenario: Scenario): MatchInput => {
+  const side = (club: number, formation: FormationId, keys: readonly number[]) => {
+    const squad = generateSquad(scenario.seed, club);
+    return { squad, xi: xiFromKeys(squad, formation, keys) };
+  };
+  return {
+    seed: scenario.seed,
+    matchday: scenario.matchday,
+    fixtureIndex: scenario.fixtureIndex,
+    home: side(scenario.clubs[0], scenario.homeFormation, scenario.homeKeys),
+    away: side(scenario.clubs[1], scenario.awayFormation, scenario.awayKeys),
+  };
+};
+
+describe("@US-1 @US-2 S-006 any match is a valid football result", () => {
+  it("Given any seed, clubs, fixture, formations and elevens, when the match is played, then each side scores 0 to 9, the goal list holds exactly those goals, and minutes are whole 1 to 90, never decreasing, a shared minute home first @property @contract-shape:pure-function", () => {
+    fc.assert(
+      fc.property(anyScenario, (scenario) => {
+        const { goals, homeGoals, awayGoals } = playMatch(inputOf(scenario));
+        for (const count of [homeGoals, awayGoals]) {
+          expect(Number.isInteger(count)).toBe(true);
+          expect(count).toBeGreaterThanOrEqual(0);
+          expect(count).toBeLessThanOrEqual(9);
+        }
+        expect(goals).toHaveLength(homeGoals + awayGoals);
+        expect(goals.filter((goal) => goal.side === "home")).toHaveLength(homeGoals);
+        expect(goals.filter((goal) => goal.side === "away")).toHaveLength(awayGoals);
+        goals.forEach((goal, index) => {
+          expect(Number.isInteger(goal.minute)).toBe(true);
+          expect(goal.minute).toBeGreaterThanOrEqual(1);
+          expect(goal.minute).toBeLessThanOrEqual(90);
+          const previous = goals[index - 1];
+          if (previous === undefined) return;
+          expect(goal.minute).toBeGreaterThanOrEqual(previous.minute);
+          if (goal.minute === previous.minute) expect(previous.side === "away" && goal.side === "home").toBe(false);
+        });
+      }),
+    );
+  });
+
+  it("Given any match, when its goals are read, then every scorer is one of the 11 on that side's eleven, never a goalkeeper and never the player in the GK slot @property @contract-shape:pure-function", () => {
+    fc.assert(
+      fc.property(anyScenario, (scenario) => {
+        const input = inputOf(scenario);
+        for (const goal of playMatch(input).goals) {
+          const side = goal.side === "home" ? input.home : input.away;
+          expect(side.xi).toContain(goal.playerIndex);
+          expect(side.squad[goal.playerIndex]?.position).not.toBe("GK");
+          expect(goal.playerIndex).not.toBe(side.xi[0]);
+        }
+      }),
+    );
+  });
+
+  it("Given any match, when it is played twice, then both results are deep-equal, and deep-frozen inputs are neither changed nor refused @property @contract-shape:pure-function", () => {
+    fc.assert(
+      fc.property(anyScenario, (scenario) => {
+        const input = deepFreeze(inputOf(scenario));
+        const snapshot = structuredClone(input);
+        const first = playMatch(input);
+        expect(playMatch(input)).toEqual(first);
+        expect(input).toEqual(snapshot);
+      }),
+    );
+  });
+});
+
+describe("@US-1 S-006 a better eleven helps, on the same seed", () => {
+  const goalMinutes = (result: MatchResult, side: "home" | "away"): number[] => result.goals.filter((goal) => goal.side === side).map((goal) => goal.minute);
+  const isSubMultiset = (small: readonly number[], big: readonly number[]): boolean => {
+    const left = [...big];
+    return small.every((minute) => {
+      const at = left.indexOf(minute);
+      if (at < 0) return false;
+      left.splice(at, 1);
+      return true;
+    });
+  };
+
+  it("Given any match and two legal elevens for the home side, when the home side fields the stronger (higher sum of overalls), then it scores at least as many, its opponent at most as many, equal strength gives equal counts, and the weaker one's goal minutes are among the stronger one's @property @contract-shape:pure-function", () => {
+    fc.assert(
+      fc.property(anyScenario, anyKeys, (scenario, otherKeys) => {
+        const base = inputOf(scenario);
+        const other = { ...base, home: { squad: base.home.squad, xi: xiFromKeys(base.home.squad, scenario.homeFormation, otherKeys) } };
+        const [weak, strong] = teamStrength(base.home) <= teamStrength(other.home) ? [base, other] : [other, base];
+        const weakResult = playMatch(weak);
+        const strongResult = playMatch(strong);
+        expect(strongResult.homeGoals).toBeGreaterThanOrEqual(weakResult.homeGoals);
+        expect(strongResult.awayGoals).toBeLessThanOrEqual(weakResult.awayGoals);
+        expect(isSubMultiset(goalMinutes(weakResult, "home"), goalMinutes(strongResult, "home"))).toBe(true);
+        expect(isSubMultiset(goalMinutes(strongResult, "away"), goalMinutes(weakResult, "away"))).toBe(true);
+        if (teamStrength(weak.home) === teamStrength(strong.home)) {
+          expect([weakResult.homeGoals, weakResult.awayGoals]).toEqual([strongResult.homeGoals, strongResult.awayGoals]);
+        }
+      }),
+    );
+  });
+
+  it("Given any match and two legal elevens for the away side, when the away side fields the stronger, then it scores at least as many and the home side at most as many @property @contract-shape:pure-function", () => {
+    fc.assert(
+      fc.property(anyScenario, anyKeys, (scenario, otherKeys) => {
+        const base = inputOf(scenario);
+        const other = { ...base, away: { squad: base.away.squad, xi: xiFromKeys(base.away.squad, scenario.awayFormation, otherKeys) } };
+        const [weak, strong] = teamStrength(base.away) <= teamStrength(other.away) ? [base, other] : [other, base];
+        const weakResult = playMatch(weak);
+        const strongResult = playMatch(strong);
+        expect(strongResult.awayGoals).toBeGreaterThanOrEqual(weakResult.awayGoals);
+        expect(strongResult.homeGoals).toBeLessThanOrEqual(weakResult.homeGoals);
+      }),
+    );
+  });
+
+  it("Given any eleven, when its strength is read, then it is the sum of the 11 overalls, a whole number from 11 to 220 @property @driving_port @contract-shape:pure-function", () => {
+    fc.assert(
+      fc.property(fc.record({ club: fc.integer({ min: 0, max: 7 }), seed: anySeed, formation: anyFormation, keys: anyKeys }), ({ club, seed, formation, keys }) => {
+        const squad = generateSquad(seed, club);
+        const xi = xiFromKeys(squad, formation, keys);
+        const sum = xi.reduce((total, index) => total + (squad[index]?.overall ?? 0), 0);
+        expect(teamStrength({ squad, xi })).toBe(sum);
+        expect(sum).toBeGreaterThanOrEqual(11);
+        expect(sum).toBeLessThanOrEqual(220);
+      }),
+    );
+  });
+});
+
+describe("@US-2 S-006 who scores: shooting and position decide, never the goalkeeper", () => {
+  const withShooting = (squad: readonly Player[], shootingOf: (player: Player) => number): Player[] =>
+    squad.map((player) => ({ ...player, attributes: { ...player.attributes, shooting: shootingOf(player) } }));
+  const SEEDS = range(1, 1500);
+  const scorersByPosition = (shootingOf: (player: Player) => number): Record<Position, number> => {
+    const counts: Record<Position, number> = { GK: 0, DF: 0, MF: 0, FW: 0 };
+    for (const seed of SEEDS) {
+      const squad = withShooting(generateSquad(seed, 0), shootingOf);
+      const side = { squad, xi: automaticXI(squad, "4-4-2") };
+      const { goals } = playMatch({ seed, matchday: 1, fixtureIndex: 0, home: side, away: automaticSide(seed, 7) });
+      for (const goal of goals) if (goal.side === "home") counts[squad[goal.playerIndex]?.position ?? "GK"] += 1;
+    }
+    return counts;
+  };
+
+  it("Given a goalkeeper with the best possible shooting (20), when 1500 seeded matches are played, then he never scores while the outfield still does @boundary @error @contract-shape:pure-function", () => {
+    const counts = scorersByPosition((player) => (player.position === "GK" ? 20 : 5));
+    expect(counts.GK).toBe(0);
+    expect(counts.DF + counts.MF + counts.FW).toBeGreaterThan(500);
+  });
+
+  it("Given every outfield player shoots equally, when 1500 seeded matches are played, then goals split by position 1 : 2 : 4 per player (4-4-2: defenders 20%, midfielders 40%, forwards 40%) within 4 points @boundary @contract-shape:pure-function", () => {
+    const counts = scorersByPosition(() => 10);
+    const total = counts.DF + counts.MF + counts.FW;
+    expect(total).toBeGreaterThan(1500);
+    expect(Math.abs(counts.DF / total - 0.2)).toBeLessThan(0.04);
+    expect(Math.abs(counts.MF / total - 0.4)).toBeLessThan(0.04);
+    expect(Math.abs(counts.FW / total - 0.4)).toBeLessThan(0.04);
+  });
+
+  it("Given one forward shoots at 20 and everyone else at 1, when 1500 seeded matches are played, then that forward takes the large majority of the goals (5/6 expected: 80 of 96 shares) @boundary @contract-shape:pure-function", () => {
+    let star = 0;
+    let all = 0;
+    for (const seed of SEEDS) {
+      const base = generateSquad(seed, 0);
+      const best = automaticXI(base, "4-4-2")[9] as number; // the first forward slot
+      const squad = withShooting(base, () => 1).map((player, index) => (index === best ? { ...player, attributes: { ...player.attributes, shooting: 20 } } : player));
+      const side = { squad, xi: automaticXI(squad, "4-4-2") };
+      for (const goal of playMatch({ seed, matchday: 1, fixtureIndex: 0, home: side, away: automaticSide(seed, 7) }).goals) {
+        if (goal.side !== "home") continue;
+        all += 1;
+        if (goal.playerIndex === best) star += 1;
+      }
+    }
+    expect(all).toBeGreaterThan(1500);
+    expect(star / all).toBeGreaterThan(0.75);
+    expect(star / all).toBeLessThan(0.9);
+  });
+});
+
+describe("@US-1 S-006 the match refuses nonsense and keeps to its own random draws", () => {
+  const base = setup(31, [0, 7]).input;
+  it.each([
+    ["matchday 0", { matchday: 0 }],
+    ["matchday 15", { matchday: 15 }],
+    ["matchday 1.5", { matchday: 1.5 }],
+    ["matchday NaN", { matchday: Number.NaN }],
+    ["fixture index -1", { fixtureIndex: -1 }],
+    ["fixture index 4", { fixtureIndex: 4 }],
+    ["fixture index 1.5", { fixtureIndex: 1.5 }],
+    ["fixture index NaN", { fixtureIndex: Number.NaN }],
+  ] as const)("Given %s, when the match is played, then it is a RangeError (a programming error, so no call can reuse another fixture's draws) @error @boundary @contract-shape:pure-function", (_label, change) => {
+    expect(() => playMatch({ ...base, ...change })).toThrow(RangeError);
+  });
+
+  it("Given every matchday and fixture, when the match is replayed from the seed that gives its first draw the stream number 200, then it is the same match: the draws come from stream 200 + (matchday - 1) x 4 + fixture index @property @contract-shape:pure-function", () => {
+    // deriveSeed mixes seed and stream as `seed ^ imul(stream, K)` before one mulberry step (rng.ts), so a second seed can
+    // alias stream 200 onto any other stream. The premise is asserted with deriveSeed itself, so a change there fails first.
+    const GOLDEN_RATIO = 0x9e3779b9;
+    for (const seed of [31, 20260, -5]) {
+      const { input } = setup(seed, [0, 7]);
+      for (const matchday of range(1, 14)) {
+        for (const fixtureIndex of range(0, 3)) {
+          const stream = 200 + (matchday - 1) * 4 + fixtureIndex;
+          const aliased = (seed ^ Math.imul(stream, GOLDEN_RATIO) ^ Math.imul(200, GOLDEN_RATIO)) | 0;
+          expect(deriveSeed(aliased, 200), "premise").toBe(deriveSeed(seed, stream));
+          expect(playMatch({ ...input, matchday, fixtureIndex }), `matchday ${matchday} fixture ${fixtureIndex}`).toEqual(playMatch({ ...input, seed: aliased, matchday: 1, fixtureIndex: 0 }));
+        }
+      }
+    }
+  });
+
+  it("Given the stream numbers -1, 0 to 7, 100 to 107 and 200 to 255, when 10000 sampled seeds are derived for each, then no two streams of one seed give the same derived seed (a sampled guard, not a proof) @property @boundary @contract-shape:pure-function", () => {
+    const streams = [-1, ...range(0, 7), ...range(100, 107), ...range(200, 255)];
+    expect(streams).toHaveLength(73);
+    for (let sample = 1; sample <= 10000; sample++) {
+      const seed = Math.imul(sample, 0x2545f491) | 0;
+      const derived = new Set(streams.map((stream) => deriveSeed(seed, stream)));
+      expect(derived.size, `seed ${seed}`).toBe(streams.length);
+    }
+  });
+
+  it("Given the source of the match model, when comments are removed and it is searched, then it uses no Math.pow, **, exp, log, trig, Math.random, Date, performance.now or crypto (only + - * /, comparisons and Math.floor, so every engine agrees) @determinism @contract-shape:pure-function", () => {
+    const source = readFileSync(join(import.meta.dirname, "..", "..", "..", "src", "domain", "match.ts"), "utf8");
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    expect(code.length, "the file was found").toBeGreaterThan(200);
+    expect(code).not.toMatch(/\*\*/);
+    expect(code).not.toMatch(/Math\.(pow|exp|expm1|log|log1p|log2|log10|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|cbrt|hypot|random)\b/);
+    expect(code).not.toMatch(/\bDate\b|performance\.now|crypto\./);
+  });
+});
+
+describe("@US-2 S-006 the browser probes for awkward names stay honest", () => {
+  it.each([
+    { seed: 8, clubs: [0, 7], fixtureIndex: 0, mark: "'", example: "Brannock O'Garrity" },
+    { seed: 6, clubs: [1, 6], fixtureIndex: 1, mark: "-", example: "Zander Fitch-Moreton" },
+  ] as const)("Given seed $seed and fixture $fixtureIndex, when the match is played, then a goal is by $example, a name holding $mark (the browser spec's probe) @environment-probe @boundary @contract-shape:pure-function", ({ seed, clubs, fixtureIndex, mark, example }) => {
+    const match = setup(seed, clubs, { fixtureIndex });
+    const scorers = playMatch(match.input).goals.map((goal) => (goal.side === "home" ? match.input.home : match.input.away).squad[goal.playerIndex]?.name ?? "");
+    expect(scorers.filter((name) => name.includes(mark))).toContain(example);
+  });
+});

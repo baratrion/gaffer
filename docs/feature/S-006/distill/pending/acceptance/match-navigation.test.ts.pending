@@ -1,0 +1,288 @@
+// @US-1 @US-2 (S-006 play my first match)
+// CONTRACT_SHAPE: bounded-change
+// Outcome anchor: DISCUSS Elevator Pitch (US-1) and D8-D10: on a club home Sam taps "Play match", sees the match, taps "Back"
+// and finds the club home, the formation and his Starting XI exactly as he left them; playing changes nothing but the
+// screen. Universe of the returned state: { league, screen, formation, xi }. No-ops are the very same state object (toBe);
+// changes are whole-state toEqual with an explicit expected value; Object.hasOwn proves no xi key is added; deep-frozen
+// states never throw or mutate. `matchFor` (pure, not stored) derives the match from the state on render.
+// Destination: tests/acceptance/S-006/match-navigation.test.ts (DELIVER step 03).
+import fc from "fast-check";
+import { describe, expect, it } from "vitest";
+import { currentXI, focusPlan, initialState, matchFor, OPENING_MATCHDAY, squadOf, update, type Action, type GameState, type Screen } from "../../../src/app/state";
+import { FORMATIONS, type FormationId } from "../../../src/domain/formation";
+import { generateLeague } from "../../../src/domain/league";
+import { playMatch } from "../../../src/domain/match";
+import { automaticXI, pickForSlot, type StartingXI } from "../../../src/domain/selection";
+import { generateSquad } from "../../../src/domain/squad";
+
+const league = generateLeague(31);
+const clubId = league.clubs[0]!.id;
+const GOLDEN_442 = [0, 7, 3, 6, 2, 9, 12, 8, 10, 17, 14] as const;
+const NORTHCOTT_FOR_DUNMORE = [0, 7, 3, 6, 2, 9, 12, 8, 13, 17, 14] as const;
+const NORTHCOTT_FOR_REDFERN_433 = [0, 7, 3, 6, 2, 9, 12, 13, 17, 14, 16] as const;
+// Matchday 1 of ADR-0010 as [home, away] club indices; a club's partner on matchday 1.
+const PAIRS: readonly (readonly [number, number])[] = [[0, 7], [1, 6], [5, 2], [3, 4]];
+
+const at = (screen: Screen, formation: FormationId = "4-4-2", xi?: readonly number[]): GameState => ({
+  ...initialState(league),
+  screen,
+  formation,
+  ...(xi === undefined ? {} : { xi }),
+});
+const onHome = (formation: FormationId = "4-4-2", xi?: readonly number[]) => at({ kind: "clubHome", clubId }, formation, xi);
+const onMatch = (formation: FormationId = "4-4-2", xi?: readonly number[]) => at({ kind: "match", clubId }, formation, xi);
+const play: Action = { type: "PlayMatch" };
+const back: Action = { type: "Back" };
+const walk = (start: GameState, steps: readonly Action[]): GameState => steps.reduce(update, start);
+const hasXiKey = (state: GameState): boolean => Object.hasOwn(state, "xi");
+
+const deepFreeze = <T>(value: T): T => {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) deepFreeze(child);
+  }
+  return value;
+};
+
+const NOT_HOME: readonly [string, GameState][] = [
+  ["the title", at({ kind: "title" })],
+  ["the club list", at({ kind: "pickClub" })],
+  ["the squad", at({ kind: "squad", clubId })],
+  ["a player", at({ kind: "player", clubId, playerIndex: 3 })],
+  ["the tactics", at({ kind: "tactics", clubId })],
+  ["the starting XI", at({ kind: "startingXI", clubId })],
+  ["the choose screen", at({ kind: "choosePlayer", clubId, slot: 8 })],
+  ["the match itself", onMatch()],
+  ["an unknown club's home", at({ kind: "clubHome", clubId: "no-such-club" })],
+];
+
+describe("@US-1 S-006 Sam sends his team out from the club home", () => {
+  it("Given a club home, when Sam taps Play match, then that club's match screen is shown and nothing else changes, no xi stored @walking_skeleton @driving_port @contract-shape:bounded-change", () => {
+    const next = update(onHome(), play);
+    expect(next).toEqual(onMatch());
+    expect(hasXiKey(next)).toBe(false);
+  });
+
+  it("Given a club home that holds picks and a formation, when Sam taps Play match, then the picks are kept as the very same list and the formation too @contract-shape:bounded-change", () => {
+    const start = onHome("4-3-3", NORTHCOTT_FOR_REDFERN_433);
+    const next = update(start, play);
+    expect(next).toEqual(onMatch("4-3-3", NORTHCOTT_FOR_REDFERN_433));
+    expect(next.xi).toBe(start.xi);
+    expect(next.league).toBe(league);
+  });
+
+  it("Given any club home and formation, when Sam taps Play match, then that club's match opens and the league and formation are the same objects @property @contract-shape:bounded-change", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 7 }), fc.constantFrom(...FORMATIONS), (club, formation) => {
+        const id = league.clubs[club]!.id;
+        const next = update(at({ kind: "clubHome", clubId: id }, formation), play);
+        expect(next.screen).toEqual({ kind: "match", clubId: id });
+        expect(next.league).toBe(league);
+        expect(next.formation).toBe(formation);
+        expect(hasXiKey(next)).toBe(false);
+      }),
+    );
+  });
+
+  it.each(NOT_HOME)("Given %s, when Sam taps Play match, then nothing happens (the very same state) @error @contract-shape:bounded-change", (_name, state) => {
+    expect(update(state, play)).toBe(state);
+  });
+});
+
+describe("@US-1 S-006 Sam taps Back from the match", () => {
+  it("Given a match screen, when Sam taps Back, then the club home of that club is shown and nothing else changes @driving_port @contract-shape:bounded-change", () => {
+    expect(update(onMatch(), back)).toEqual(onHome());
+  });
+
+  it("Given a match screen with an unknown club, when Sam taps Back, then nothing happens (the very same state) @error @contract-shape:bounded-change", () => {
+    const state = at({ kind: "match", clubId: "no-such-club" });
+    expect(update(state, back)).toBe(state);
+  });
+
+  it("Given any club, formation and stored picks or none, when Sam taps Play match and then Back, then the state is exactly as before, same xi list, no xi key added @property @contract-shape:bounded-change", () => {
+    const anyXi = fc.constantFrom<readonly number[] | undefined>(undefined, GOLDEN_442, NORTHCOTT_FOR_DUNMORE);
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 7 }), fc.constantFrom(...FORMATIONS), anyXi, (club, formation, xi) => {
+        const start = at({ kind: "clubHome", clubId: league.clubs[club]!.id }, formation, xi);
+        const after = walk(start, [play, back]);
+        expect(after).toEqual(start);
+        expect(after.xi).toBe(start.xi);
+        expect(hasXiKey(after)).toBe(hasXiKey(start));
+      }),
+    );
+  });
+
+  it("Given a state, when Sam plays and goes back and plays again (any number of times), then the screen is the same match and the state holds only league, screen, formation and xi @property @contract-shape:bounded-change", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 6 }), (rounds) => {
+        const steps = Array.from({ length: rounds }, () => [play, back]).flat();
+        const after = walk(onHome("4-2-3-1", NORTHCOTT_FOR_DUNMORE), [...steps, play]);
+        expect(after).toEqual(onMatch("4-2-3-1", NORTHCOTT_FOR_DUNMORE));
+        expect(Object.keys(after).sort()).toEqual(["formation", "league", "screen", "xi"]);
+      }),
+    );
+  });
+
+  it("Given a frozen state, when Sam plays and goes back, then nothing is mutated and nothing throws @boundary @contract-shape:bounded-change", () => {
+    const frozen = deepFreeze(onHome("4-3-3", NORTHCOTT_FOR_REDFERN_433));
+    expect(() => walk(frozen, [play, back, play])).not.toThrow();
+    expect(frozen).toEqual(onHome("4-3-3", NORTHCOTT_FOR_REDFERN_433));
+  });
+
+  it("Given Sam at Netherwold Borough who chose 4-3-3 and picked Kestrel Northcott for Calder Redfern, when he taps Play match and Back, then the club home shows with 4-3-3 and his eleven unchanged (US-1 example) @walking_skeleton @driving_port @contract-shape:bounded-change", () => {
+    const steps: Action[] = [
+      { type: "NewGame" }, { type: "ChooseClub", clubId },
+      { type: "ViewTactics" }, { type: "ChooseFormation", formation: "4-3-3" }, back,
+      { type: "ViewStartingXI" }, { type: "ChooseSlot", slot: 7 }, { type: "PickPlayer", playerIndex: 13 },
+    ];
+    const picked = walk(initialState(league), steps);
+    expect(picked.xi).toEqual(NORTHCOTT_FOR_REDFERN_433);
+    const playing = update({ ...picked, screen: { kind: "clubHome", clubId } }, play);
+    expect(playing.screen).toEqual({ kind: "match", clubId });
+    const home = update(playing, back);
+    expect(home).toEqual({ ...picked, screen: { kind: "clubHome", clubId } });
+    expect(home.xi).toBe(picked.xi);
+  });
+});
+
+describe("@US-1 S-006 the shell redraws and refocuses on every new screen", () => {
+  const MATCH: Screen = { kind: "match", clubId };
+  const OTHERS: readonly Screen[] = [
+    { kind: "title" }, { kind: "pickClub" }, { kind: "clubHome", clubId }, { kind: "squad", clubId },
+    { kind: "player", clubId, playerIndex: 3 }, { kind: "tactics", clubId }, { kind: "startingXI", clubId },
+    { kind: "choosePlayer", clubId, slot: 8 }, { kind: "match", clubId: league.clubs[3]!.id },
+  ];
+
+  it("Given a screen change from or to the match (club home to match, match to club home, every other screen, another club's match), when focus is planned, then it is the heading, even with an id @driving_port @contract-shape:pure-function", () => {
+    for (const other of OTHERS) {
+      expect(focusPlan(other, MATCH, undefined), `${other.kind} to match`).toEqual({ kind: "heading" });
+      expect(focusPlan(other, MATCH, "x"), `${other.kind} to match, id`).toEqual({ kind: "heading" });
+      expect(focusPlan(MATCH, other, "x"), `match to ${other.kind}, id`).toEqual({ kind: "heading" });
+    }
+    expect(focusPlan(undefined, MATCH, undefined)).toEqual({ kind: "heading" });
+  });
+
+  it("Given the same club's match redrawn, when focus is planned, then it is that element with an id, else the heading @boundary @contract-shape:pure-function", () => {
+    expect(focusPlan(MATCH, { kind: "match", clubId }, "back")).toEqual({ kind: "element", id: "back" });
+    expect(focusPlan(MATCH, { kind: "match", clubId }, undefined)).toEqual({ kind: "heading" });
+    expect(focusPlan(MATCH, { kind: "match", clubId }, "")).toEqual({ kind: "heading" });
+  });
+});
+
+describe("@US-1 @US-2 S-006 the match is worked out when the screen is drawn, never stored", () => {
+  const stateOf = (formation: FormationId = "4-4-2", xi?: readonly number[], managed = 0): GameState =>
+    at({ kind: "match", clubId: league.clubs[managed]!.id }, formation, xi);
+  const side = (club: number, formation: FormationId = "4-4-2", xi?: readonly number[]) => {
+    const squad = generateSquad(31, club);
+    return { squad, xi: xi ?? automaticXI(squad, formation) };
+  };
+  const expected = (home: ReturnType<typeof side>, away: ReturnType<typeof side>, fixtureIndex = 0) =>
+    playMatch({ seed: 31, matchday: 1, fixtureIndex, home, away });
+
+  it("Given an unknown club, when its match is asked for, then there is none (undefined) @error @driving_port @contract-shape:pure-function", () => {
+    expect(matchFor(stateOf(), "no-such-club")).toBeUndefined();
+  });
+
+  it("Given the opening matchday, when it is read, then it is matchday 1 (the season story replaces it with a matchday in state) @example @contract-shape:pure-function", () => {
+    expect(OPENING_MATCHDAY).toBe(1);
+  });
+
+  it("Given Netherwold Borough untouched at seed 31, when its match is asked for, then it is matchday 1 at home to the 8th club with both squads and the ADR golden result 1–2 @walking_skeleton @driving_port @contract-shape:pure-function", () => {
+    const found = matchFor(stateOf(), clubId)!;
+    expect(found.matchday).toBe(1);
+    expect(found.home.club).toEqual(league.clubs[0]);
+    expect(found.away.club).toEqual(league.clubs[7]);
+    expect(found.home.squad).toEqual(generateSquad(31, 0));
+    expect(found.away.squad).toEqual(generateSquad(31, 7));
+    expect([found.result.homeGoals, found.result.awayGoals]).toEqual([1, 2]);
+    expect(found.result).toEqual(expected(side(0), side(7)));
+  });
+
+  it("Given a club's squad, when the match is asked for, then the squad is the one squadOf gives (the single lookup) @example @contract-shape:pure-function", () => {
+    expect(matchFor(stateOf(), clubId)!.home.squad).toEqual(squadOf(league, clubId));
+  });
+
+  it("Given Sam picked Kestrel Northcott for Dorian Dunmore, when his match is asked for, then his side plays the picked eleven and the opponent its automatic 4-4-2 @driving_port @contract-shape:pure-function", () => {
+    const state = stateOf("4-4-2", NORTHCOTT_FOR_DUNMORE);
+    expect(matchFor(state, clubId)!.result).toEqual(expected(side(0, "4-4-2", NORTHCOTT_FOR_DUNMORE), side(7)));
+    expect(currentXI(state, generateSquad(31, 0))).toBe(NORTHCOTT_FOR_DUNMORE);
+  });
+
+  it("Given Sam chose 4-3-3 and picked nobody, when his match is asked for, then his side plays the 4-3-3 automatic eleven and the opponent still plays 4-4-2 @boundary @contract-shape:pure-function", () => {
+    expect(matchFor(stateOf("4-3-3"), clubId)!.result).toEqual(expected(side(0, "4-3-3"), side(7, "4-4-2")));
+  });
+
+  it("Given Sam manages the away club (the 8th), when his match is asked for, then the same fixture is shown home first and his own side is the away one, with his formation and picks @boundary @contract-shape:pure-function", () => {
+    const awayId = league.clubs[7]!.id;
+    const found = matchFor(stateOf("4-3-3", undefined, 7), awayId)!;
+    expect(found.home.club).toEqual(league.clubs[0]);
+    expect(found.away.club).toEqual(league.clubs[7]);
+    expect(found.result).toEqual(expected(side(0, "4-4-2"), side(7, "4-3-3")));
+  });
+
+  it("Given any seed, managed club, formation and run of picks, when the managed club's match is asked for, then its side plays exactly the state's eleven (stored, else the formation's automatic one) and the other club plays automatic 4-4-2, in the club's own fixture slot @property @driving_port @contract-shape:pure-function", () => {
+    const anyPicks = fc.array(fc.tuple(fc.integer({ min: 0, max: 10 }), fc.integer({ min: 0, max: 17 })), { maxLength: 12 });
+    fc.assert(
+      fc.property(
+        fc.record({ seed: fc.integer({ min: -2147483648, max: 2147483647 }), club: fc.integer({ min: 0, max: 7 }), formation: fc.constantFrom(...FORMATIONS), picks: anyPicks }),
+        ({ seed, club, formation, picks }) => {
+          const world = generateLeague(seed);
+          const squadOfClub = (index: number) => generateSquad(seed, index);
+          const own = squadOfClub(club);
+          const stored: StartingXI | undefined = picks.length === 0 ? undefined : picks.reduce<StartingXI>((xi, [slot, player]) => pickForSlot({ squad: own, formation, xi }, slot, player) ?? xi, automaticXI(own, formation));
+          const state: GameState = { ...initialState(world), screen: { kind: "match", clubId: world.clubs[club]!.id }, formation, ...(stored === undefined ? {} : { xi: stored }) };
+          const fixtureIndex = PAIRS.findIndex(([home, away]) => home === club || away === club);
+          const [homeIndex, awayIndex] = PAIRS[fixtureIndex] as readonly [number, number];
+          const sideOf = (index: number) => ({ squad: squadOfClub(index), xi: index === club ? (stored ?? automaticXI(own, formation)) : automaticXI(squadOfClub(index), "4-4-2") });
+          const wanted = playMatch({ seed, matchday: 1, fixtureIndex, home: sideOf(homeIndex), away: sideOf(awayIndex) });
+          expect(matchFor(state, world.clubs[club]!.id)!.result).toEqual(wanted);
+        },
+      ),
+    );
+  });
+
+  it("Given untouched tactics and any seed, when each club of a fixture asks for its match, then both get the very same fixture, clubs home first, and a deep-equal result @property @driving_port @contract-shape:pure-function", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: -2147483648, max: 2147483647 }), fc.integer({ min: 0, max: 3 }), (seed, fixture) => {
+        const world = generateLeague(seed);
+        const [homeIndex, awayIndex] = PAIRS[fixture] as readonly [number, number];
+        const ask = (managed: number) => matchFor({ ...initialState(world), screen: { kind: "match", clubId: world.clubs[managed]!.id } }, world.clubs[managed]!.id)!;
+        const fromHome = ask(homeIndex);
+        const fromAway = ask(awayIndex);
+        expect(fromHome.home.club).toEqual(world.clubs[homeIndex]);
+        expect(fromHome.away.club).toEqual(world.clubs[awayIndex]);
+        expect(fromAway.home.club).toEqual(fromHome.home.club);
+        expect(fromAway.away.club).toEqual(fromHome.away.club);
+        expect(fromAway.result).toEqual(fromHome.result);
+      }),
+    );
+  });
+
+  it("Given the 8 clubs of one league, when each asks for its match, then the 8 fixtures form 4 pairings with every club in exactly one @property @contract-shape:pure-function", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: -2147483648, max: 2147483647 }), (seed) => {
+        const world = generateLeague(seed);
+        const pairings = world.clubs.map((club) => {
+          const found = matchFor({ ...initialState(world), screen: { kind: "match", clubId: club.id } }, club.id)!;
+          return [found.home.club.id, found.away.club.id] as const;
+        });
+        expect(new Set(pairings.map(([home, away]) => `${home}>${away}`)).size).toBe(4);
+        for (const club of world.clubs) expect(pairings.filter(([home, away]) => home === club.id || away === club.id)).toHaveLength(2);
+        for (const [home, away] of pairings) expect(home).not.toBe(away);
+      }),
+    );
+  });
+
+  it("Given a frozen state, when its match is asked for twice, then both answers are deep-equal and the state is untouched @boundary @contract-shape:pure-function", () => {
+    const frozen = deepFreeze(stateOf("4-3-3", NORTHCOTT_FOR_REDFERN_433));
+    expect(matchFor(frozen, clubId)).toEqual(matchFor(frozen, clubId));
+    expect(frozen).toEqual(stateOf("4-3-3", NORTHCOTT_FOR_REDFERN_433));
+  });
+
+  it("Given seed 8 and the 4th club, when its match is asked for, then it is Mossdale Athletic against Pickering Dene Rovers, goalless: the empty Goals list @error @boundary @contract-shape:pure-function", () => {
+    const world = generateLeague(8);
+    const found = matchFor({ ...initialState(world), screen: { kind: "match", clubId: world.clubs[3]!.id } }, world.clubs[3]!.id)!;
+    expect([found.home.club.name, found.away.club.name]).toEqual(["Mossdale Athletic", "Pickering Dene Rovers"]);
+    expect(found.result).toEqual({ homeGoals: 0, awayGoals: 0, goals: [] });
+  });
+});
