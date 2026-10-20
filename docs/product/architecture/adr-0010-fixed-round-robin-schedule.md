@@ -1,6 +1,6 @@
 # ADR-0010: Fixed round-robin schedule (S-006)
 
-- Status: Accepted
+- Status: Accepted (accepted after nw-solution-architect-reviewer cycle 1, approved_with_notes)
 - Date: 2026-10-20
 - Deciders: nWave solution-architect (S-006 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core), ADR-0004 (seed and world: `league.clubs` order is already seeded), ADR-0007 (frozen read-only domain data). Supersedes nothing. ADR-0011 (match model) consumes it.
@@ -47,6 +47,15 @@ Constraints and facts checked:
 - Positive: D5 by construction (perfect matching, fixed home, symmetric because both clubs read the same table entry); no stream, no seed, no RNG; the season story inherits the full double round-robin and its home rule unchanged; Stryker mutates it (domain glob) and exact goldens kill arithmetic mutants.
 - Negative: index pairings are identical across leagues (only names differ); the home pattern has some breaks (two home or two away matchdays in a row), which nothing in scope measures. Changing the formula later changes every fixture for every seed: it is frozen with this ADR (any change needs a superseding ADR).
 - Contract shape: pure data plus pure return-only functions; universe = the returned frozen arrays; assertion = goldens, `Object.isFrozen` at each level, and properties.
-- Properties to test (DISTILL, fast-check where a generator helps): for every matchday 1..14, the 8 indices of its 4 fixtures are a permutation of 0..7 and `home !== away`; over 1..14 every ordered pair of distinct clubs occurs exactly once; matchday `m + 7` is matchday `m` with home and away swapped; `fixtureOf(m, c).fixture` contains `c` and equals `fixturesOf(m)[index]`; both clubs of a fixture get the same `index` and the same `Fixture` object; home counts over 1..7 are 4 for even clubs and 3 for odd clubs; matchday 0, 15, 1.5, NaN and club -1, 8, 1.5 throw `RangeError`; the three goldens above.
+- Checks to test (DISTILL; the domain is finite, 14 x 8, so exhaustive loops replace fast-check here):
+  - For every matchday 1..14, the 8 indices of its 4 fixtures are a permutation of 0..7.
+  - Over 1..14, every ordered pair of distinct clubs occurs exactly once.
+  - Matchday `m + 7` is matchday `m` mirrored.
+  - Home counts over 1..7 are 4, 3, 4, 3, 4, 3, 4, 3.
+  - For every (m, c), one combined check: `fixtureOf(m, c)` returns `fixturesOf(m)[index]` (the same object), and that fixture contains `c`. This also covers "both clubs get the same fixture"; do not test it twice.
+  - Frozen at every level.
+  - One `RangeError` table test: matchday 0, 15, 1.5, NaN; club -1, 8, 1.5.
+  - The three goldens above.
+  - The DESIGN spike confirmed the perfect matchings, the 56 ordered pairs and the home counts against this exact formula.
 - Earned Trust: no adapter and no environment dependency (pure integer arithmetic), so nothing to probe beyond the goldens.
 - Enforcement: oxlint domain boundaries (imports only `league.ts`); the PR guard; Stryker domain glob; no new dependency.
