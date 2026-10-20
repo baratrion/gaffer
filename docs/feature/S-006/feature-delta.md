@@ -259,3 +259,142 @@ Cycle 2 (final): approved_with_notes. Cycle-1 findings all resolved. Notes folde
 | L-3 journey wording | "never decreasing", "44px or taller" |
 | L-4..L-8 | Accepted as notes for DISTILL; no outcome change |
 
+## Wave: DESIGN
+
+- **Setup**: mode propose; scope application; one solo team, so no Conway constraint. Paradigm: functional core, imperative shell (ADR-0003; recorded in the ADRs and the brief, not in CLAUDE.md).
+- **New ADRs**: `adr-0010-fixed-round-robin-schedule.md` (schedule algorithm and home rule) and `adr-0011-match-model-stream-and-match-screen.md` (match model, RNG stream, where the result is derived, navigation and screen).
+- **Brief**: `docs/product/architecture/brief.md` gains the "Match (S-006, ADR-0010, ADR-0011)" subsection, effect-isolation and inventory rows, the C4 L2 descriptions, and "For Acceptance Designer" ports 19-23 plus the S-006 observable bullet.
+- **No new C4 container.**
+- **Calibration**: a scratch spike (outside the repo, nothing committed) ran the exact ADR-0011 rules against the real generator to calibrate D7 before DELIVER. Results are in ADR-0011.
+- **No outcomes registry**: `docs/product/outcomes/` does not exist, so the collision check is skipped.
+
+### Wave: DESIGN / [REF] DDD list
+- **New small context**: "Match" (supporting), made of two pure modules.
+  - "Schedule" (`schedule.ts`): seed-free fixed data.
+  - "Match" (`match.ts`): the seeded quick-sim.
+  - Both are built over "League setup" (squads, overall) and "Selection" (`StartingXI`).
+- **Language**: Schedule, Matchday, Fixture (home first), Fixture index, Side (squad plus XI), Strength (sum of 11 overalls), Chance, Conversion, Goal event, Score line, Goal item.
+- **Value objects**: `Fixture { home, away }`, `MatchSide { squad, xi }`, `MatchInput`, `GoalEvent { minute, side, playerIndex }`, `MatchResult { homeGoals, awayGoals, goals }`.
+- **No aggregate and no stored entity**: the match is derived on render (D8).
+- **Invariants by construction**:
+  - Every matchday is a perfect matching with a fixed home.
+  - Each ordered pair meets once over the 14 matchdays.
+  - At most 9 goals per side (9 chances).
+  - Minutes 1..90 in windows.
+  - Scorers are outfield starters.
+  - The RNG consumption (54 draws) is independent of the XIs, so a stronger side never scores fewer on the same seed.
+
+### Wave: DESIGN / [REF] Decisions
+| # | Decision | Source |
+|---|---|---|
+| D1 | **Schedule**: a seed-independent circle method over club indices, in new pure `src/domain/schedule.ts`.<br>- Round `r`: {`r`, 7} with `r` at home when `r` is even; {`(r+k) mod 7`, `(r-k) mod 7`} for `k` = 1..3, the first at home when `k` is odd.<br>- Matchdays 8..14 mirror 1..7. Matchday 1 is `[0 v 7, 1 v 6, 5 v 2, 3 v 4]`.<br>- `fixturesOf(matchday)` and `fixtureOf(matchday, clubIndex)` read a deeply frozen table; out of range throws `RangeError`.<br>- All 14 matchdays now (a mirror is one expression).<br>Rejected: a seeded permutation (a stream for no visible gain, since `league.clubs` is already seeded); seeded home choice (home balance lost); a literal table (56 hand-typed pairs); matchday 1 only (the season story could pick another home rule). | ADR-0010; DISCUSS D5 |
+| D2 | **Goal generation**: fixed chances. 9 per side, one per 10-minute window. Each chance always draws 3 floats (minute, conversion, scorer), so there are 54 draws per match whatever the XIs.<br>Rejected: a per-minute loop (180+ draws, and the cap is a rule instead of a structure); a Poisson count (needs `Math.exp`, implementation-approximated across engines; variable draws; truncation). | ADR-0011 (1); DISCUSS D3, D6, D7(c) |
+| D3 | **Strength and conversion**: `S` = the sum of the XI's 11 overalls; the overall is the position-weighted attribute rating (ADR-0006). Conversion `p = 0.30 x S_own^3 / (S_own^3 + S_opp^3)`.<br>D7(b) holds for the DISCUSS measure itself, per seed (monotone coupling).<br>Overrules the brief's leaning towards attack and defence ratings from attributes: an XI 20 higher only through its GK and defenders would score less, which violates D7(b).<br>Rejected: linear with a clamp (equal at the clamp); logistic (`Math.exp`). | ADR-0011 (2); DISCUSS D7 |
+| D4 | **No home advantage**. This overrules the brief's leaning: DISCUSS Out-of-scope and D15 list home advantage as deferred. The simulated home share is about 50%. | DISCUSS D15, Out-of-scope |
+| D5 | **Scorer**: weighted among the side's outfield starters by shooting x {DF 1, MF 2, FW 4}, walked in slot order with integer cumulative weights. Never the GK, no own goals.<br>Simulated shares: DF 12%, MF 36%, FW 51%.<br>Rejected: shooting only (DF 27%); uniform. | ADR-0011 (3); DISCUSS D4 |
+| D6 | **Stream**: `deriveSeed(seed, 200 + (matchday - 1) x 4 + fixtureIndex)`, streams 200..255, one per scheduled fixture. Table: -1, 0..7, 100..107, 200..255; the spike found no derived-seed collision over 10000 seeds.<br>The result is independent of other fixtures and of which club is managed.<br>Rejected: one stream per matchday (couples fixtures); a stream per club pair (collides on a cup or replay). | ADR-0011 (4); DISCUSS D6 |
+| D7 | **Determinism across engines**: the model uses only `+ - * /`, comparisons and `Math.floor`. No `Math.pow`, `**`, `exp` or `log`: a grep unit test, plus the e2e comparing the browser's seed-31 screen with the Node golden. | ADR-0011 Earned Trust; DISCUSS D6 |
+| D8 | **Result not stored**. A pure `matchFor(state, clubId)` in `state.ts` derives it on render; `main.ts` calls it and maps it to view props. The managed side is `currentXI`; the other side is `automaticXI(squad, DEFAULT_FORMATION)`. `OPENING_MATCHDAY = 1`.<br>This refines the DISCUSS note "derived in `main.ts`": the derivation sits in a unit-tested, Stryker-covered selector, as `currentXI` does.<br>Rejected: inline in `main.ts` (untested, unmutated); storing the result in `GameState` (breaks D8 and whole-state assertions). | ADR-0011 (5); DISCUSS D8, D10 |
+| D9 | **Navigation**: `Screen` adds `match{clubId}`. `Action` adds `PlayMatch`, valid only from a known club's clubHome. `Back` goes from match to clubHome. Every other case is a no-op.<br>`GameState` and `initialState` are unchanged. `sameScreen` adds `match` by `clubId`; every navigation changes the screen, so focus goes to the `<h1>` and no focus ids are added. | ADR-0011 App; ADR-0008; DISCUSS D9, D10 |
+| D10 | **UI**:<br>- The club home gains a fourth `button.primary` "Play match".<br>- `renderMatch(root, view, dispatch)` renders as section children: `<h1 tabindex="-1">Matchday 1</h1>`; `<p class="score-line">` (inline spans and literal single-space text nodes, so `textContent` and `innerText` read exactly `Home 2–1 Away`); `<p id="goals-label">Goals</p>`; `<ul role="list" aria-labelledby="goals-label">` with items reading exactly `23' Name (Club)`; and "Back".<br>- Scoreboard look: a panel on the `<p>` (chalk border, pitch-light background, gold tabular score, centred, wrapping names). No flex, grid, float or inline-block on the score line, the items or their spans.<br>- The "Goals" label has no `text-transform` (so `.section-label` is not reused). The list keeps a non-zero box when empty.<br>Rejected: a flex or grid three-column scoreboard (breaks `innerText`); a `<table>` or `<dl>` (splits the score line). | ADR-0011 (6); DISCUSS D1-D3, D9, D12, D13, open item |
+| D11 | **Names**: "Play match", "Goals" and "Matchday" are in no `names.ts` array (checked by hand: no "play", "match" or "goal" substring in `TOWNS`, `CLUB_SUFFIXES`, `COLOUR_PALETTE`, `FIRST_NAMES` or `SURNAMES`). "Play match" does not contain "Players". "Goals" is not a substring of "Goalkeeping". The match screen has one "Back". DISTILL adds the unit check. | DISCUSS D11 |
+
+### Wave: DESIGN / [REF] Component decomposition
+| Path | Change | Responsibility | Indicative lines |
+|---|---|---|---|
+| `src/domain/schedule.ts` | CREATE | `Fixture`, `MATCHDAYS`, `FIXTURES_PER_MATCHDAY`, frozen table, `fixturesOf`, `fixtureOf` | 35 |
+| `src/domain/match.ts` | CREATE | Types, constants, `teamStrength`, `playMatch` (chances, conversion, scorer, sort) | 95 |
+| `src/domain/squad.ts` | EXTEND (comment only) | The stream-table comment points at ADR-0011's 200..255 block | 1 |
+| `src/app/state.ts` | EXTEND | `match` screen, `PlayMatch` action and helper, `Back` and `sameScreen` cases, `OPENING_MATCHDAY`, `matchFor` | 35 |
+| `src/ui/screens/match.ts` | CREATE | `renderMatch` | 45 |
+| `src/ui/screens/club-home.ts` | EXTEND | Fourth button "Play match" | 3 |
+| `src/main.ts` | EXTEND | `match` render case: `matchFor`, map to view (scorer and club names), `renderMatch` | 25 |
+| `src/ui/styles.css` | EXTEND | `.match h1`, `.score-line` panel, `.score-goals`, `.goals-label`, `.goal-list` (min-height), goal item accents | 30 |
+
+**Code total**: about 270 lines, against 309 in DISCUSS. **Tests**: 580, as in DISCUSS. That gives about 850 changed lines for DELIVER, within the 889 budget and well under 1100.
+
+### Wave: DESIGN / [REF] Driving ports
+- **Domain**: `fixturesOf`, `fixtureOf` (ADR-0010); `playMatch` and `teamStrength` (ADR-0011).
+- **App**: `update` with `PlayMatch` and `Back`; `matchFor`; `focusPlan` (extended).
+- **Browser**:
+  - "Play match" on the club home.
+  - The match screen: `<h1>` "Matchday 1", the score line `<p>`, the list "Goals" and "Back".
+- Detail and properties: brief, "For Acceptance Designer", ports 19-23.
+
+### Wave: DESIGN / [REF] Driven ports and adapters
+None: no storage, clock or network. The match is in memory and derived on render. Environment assumptions are named and probed (ADR-0011 Earned Trust):
+1. **Cross-engine float determinism.** The browser must reproduce the Node golden. Probes: the e2e compares the seed-31 screen with the golden, and a grep test forbids approximated functions in `match.ts`.
+2. **Inline flow.** The score line and the items must give exact `textContent` and `innerText`. Probe: the e2e checks equality, including apostrophe and hyphen names. Faults: flex or grid turns `innerText` red; missing space nodes turn `textContent` red.
+3. **The empty "Goals" list is visible and named exactly.** Probe: an e2e at a seed pinned by a domain unit test as having a matchday-1 0–0 (seed 8, fixture 3, clubs 3 v 4, found by the spike). Faults: `text-transform` on the label or a zero-height list.
+
+No external integrations, so no contract tests.
+
+**Enforcement**:
+- oxlint boundaries are unchanged: the new domain modules import only domain, and `state.ts` imports no ui.
+- `max-params` 3: `playMatch` takes one object.
+- `complexity` 15.
+- The PR guard and oxlint globals.
+- Stryker's existing globs cover `schedule.ts`, `match.ts` and `state.ts` with no config change.
+- The `.focus(` grep covers `renderMatch`.
+
+### Wave: DESIGN / [REF] Technology choices
+- No new technology or dependency (ADR-0001, 0002 and 0003 apply; all OSS).
+- No DOM test environment is added: the M-D 0–0 case is probed by the e2e at a domain-pinned seed, not by a jsdom view test, which would be a new dependency.
+- No newer CSS is relied on.
+
+### Wave: DESIGN / [REF] Reuse Analysis
+| Existing Component | File | Overlap | Decision | Justification / contract shape |
+|---|---|---|---|---|
+| `deriveSeed`, `createRng`, `nextFloat` | `src/domain/rng.ts` | Seeded draws | EXTEND (use; new stream block 200..255, no code change) | Pure return-only; stream table extended in ADR-0011; distinct-derived-seed property extended |
+| `generateSquad`, `Player`, `overall` | `src/domain/squad.ts` | Player ratings for strength and scorer weights | EXTEND (use; one comment line) | Pure; `overall` already is the position-weighted attribute rating (ADR-0006), so no new rating function |
+| `automaticXI`, `StartingXI` | `src/domain/selection.ts` | The opponent's side; XI shape for `MatchSide` | EXTEND (use unchanged) | Pure; S-005 properties and goldens |
+| `lineUp`, `DEFAULT_FORMATION` | `src/domain/formation.ts` | The opponent's formation | EXTEND (use unchanged) | Frozen data |
+| `CLUBS_PER_LEAGUE`, `generateLeague` | `src/domain/league.ts` | Club count for the schedule; club names | EXTEND (use unchanged) | Pure |
+| (none) | `src/domain/schedule.ts` | none | CREATE NEW | No schedule or fixture code exists in `src/` or `salvage/` (`salvage/` has an RNG, tactics and a formation resolver only). Contract: pure frozen data plus return-only functions; universe = the returned frozen arrays; goldens and properties |
+| (none) | `src/domain/match.ts` | none | CREATE NEW | No match or simulation code exists (`salvage/random.ts` is the already-ported mulberry32). Contract: pure return-only; universe = the returned `MatchResult`; deep-equal on repeat, inputs frozen and compared, golden, properties |
+| `update`, `focusPlan`, `currentXI`, `squadOf`, `back`, `sameScreen` | `src/app/state.ts` | Navigation, effective XI | EXTEND (screen, action, `Back` case, `sameScreen` case, `matchFor`, `OPENING_MATCHDAY`) | Pure return-only. Universe of the returned state: `{ league, screen, formation, xi? }`, with only `screen` changing; whole-state `toEqual`, `toBe` for no-ops, deep-freeze for no mutation. `matchFor` reuses `currentXI` (the only effective-XI derivation) |
+| `renderClubHome` | `src/ui/screens/club-home.ts` | The club-actions stack | EXTEND (fourth button) | Bounded-change; existing club-home regression e2e stays green (it iterates every button for 44px) |
+| `.section-label`, `.back-button`, `button.primary`, tokens | `src/ui/styles.css` | Label and button styles | EXTEND (reuse `.back-button`, `button.primary`, colour tokens; new match classes) | `.section-label` is NOT reused for "Goals": its `text-transform: uppercase` could change `innerText` and the exact accessible name |
+| `renderStartingXI` markup | `src/ui/screens/starting-xi.ts` | Inline spans with space text nodes | REFERENCE (same inline-flow pattern, not shared code) | Different elements (paragraph, list items, no buttons); a shared helper would couple two screens for about 3 lines |
+| (none) | `src/ui/screens/match.ts` | none | CREATE NEW | No match screen exists. Contract: bounded-change; universe = root's children; never moves focus (grep test); e2e |
+| `render`, `findClub`/`squadOrThrow` | `src/main.ts` | Render switch | EXTEND (`match` case under the existing `never` guard) | Unbounded shell; universe unchanged (reads `location.search` once, writes root and focus) |
+| S-001..S-005 acceptance, e2e and protected tests | `tests/` | Regression | REUSE unchanged | `GameState` and every generator output unchanged; no club-home button count is asserted |
+
+### Wave: DESIGN / [REF] Changed Assumptions
+- **DISCUSS note "the result is derived in `main.ts`"**: it is derived on render through the pure `matchFor` selector in `state.ts`, which `main.ts` calls. It is still not stored (D8). The reason: unit tests and Stryker reach it.
+- **Home advantage**: the brief's leaning was a small one; it is not adopted, per DISCUSS Out-of-scope and D15. Strength comes only from the XIs.
+- **"Team strength from the XI's attributes" (D7)**: realised as the sum of the 11 overalls, each a position-weighted attribute rating (ADR-0006), plus scorer weights from the shooting attribute. No separate attack or defence rating, so D7(b) holds for the DISCUSS measure itself.
+- **DISCUSS M-D**: the injected 0–0 view-level test becomes an e2e at a domain-pinned 0–0 seed. There is no DOM unit-test environment, and adding one would be a new dependency.
+- **DISCUSS open item** (visual weight of the score line, goal items at 390px): a scoreboard panel on the `<p>` in inline flow; goal items as single wrapping lines with a gold minute.
+- No change to the roadmap outcome text.
+
+### Wave: DESIGN / [REF] Open questions
+- **None blocking.**
+- **Model constants**: they are tunable but freeze with DELIVER's golden. If the owner later finds 1.35 goals per side or the 51% forward share off, the change needs an ADR note: every result for every seed changes.
+- **Formation effect**: the formation has no effect beyond who plays. A later opponent-tactics or formation-effect story may add a factor; D7(b) must then be re-checked for the sum measure.
+- **Outcome trace**:
+  - "Play match" 44px: D10.
+  - h1 "Matchday 1", focused: D9, D10.
+  - Score line format, one element, en dash: D10, ADR-0011.
+  - Goals 0-9: D2.
+  - Opponent another club, every club exactly one opponent, the same order from both sides: D1, D8.
+  - Goals list format, order, counts: D2, D5, D10.
+  - Scorers from the XI, never the GK, the opponent's from its squad: D5, D8.
+  - Determinism, and `?seed=abc` the same as no seed: D6, D7 (and `parseSeed`).
+  - Not all 0–0: calibration (no seed in 1..2000 had all four at 0–0; 5.5% per match).
+  - Back with formation and XI unchanged: D9.
+  - Instant result: one synchronous render (D10).
+  - No sideways scroll and no console errors: D10 CSS and the e2e.
+- **Handoff for DISTILL**:
+  - Properties and goldens: brief ports 19-22 and ADR-0010/0011 Consequences.
+  - The D7 statistics over at least 1000 matches: all 4 matchday-1 fixtures of 250+ seeds, plus fast-check seeds honouring `FC_SEED`.
+  - A domain unit test pinning a matchday-1 0–0 seed, for the e2e empty-list probe (seed 8, fixture 3, clubs 3 v 4 under the ADR rules).
+  - The e2e golden comparison at seed 31.
+  - The D11 names check.
+  - Exact locators: "Play match", "Back", list "Goals", heading "Matchday 1".
+  - `update` no-ops for `PlayMatch` on every other screen, with `xi` and `formation` untouched.
+  - Extend the stream-distinctness test with 200..255.
+
+### Wave: DESIGN / [REF] Peer review
+pending
+
