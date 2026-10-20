@@ -118,3 +118,42 @@ stories:
       the new formation. In this story any formation change re-picks the automatic XI of the new
       formation (a later story may keep the player's picks). "New game" starts from the automatic XI
       again. No horizontal scroll at 390px and no console errors.
+
+  - id: S-006
+    week: 4
+    title: Play my first match
+    tags: [match, league]
+    outcome: >
+      From the club home screen the player taps a button named exactly "Play match" (44px or taller;
+      the club home's heading is still the club's name and its "Squad", "Tactics" and "Starting XI"
+      buttons stay) and sees the match screen of the club's matchday-1 league fixture, already
+      played (quick-sim, no pitch): its only top-level heading (h1) is "Matchday 1", focused on
+      arrival. On arrival, the score line and the Goals list are already visible when the heading
+      has focus (the result is not revealed over time); any later commentary is additive and never
+      delays them. The score line is exactly one piece of text on the match screen whose whole text
+      reads the home club's name, one space, the home goals, an en dash (–), the away goals, one
+      space and the away club's name, with no spaces around the dash (pattern ^(.+) (\d)–(\d)
+      (.+)$), for example "Netherwold Borough 2–1 Brindlecombe Rovers"; no other text on the match
+      screen (commentary or stats included) reads in that format. Goals are whole numbers from 0 to
+      9. One of the two clubs is the player's club and the other is a different club from the
+      "Clubs" list of the same league. On matchday 1 every club of the league plays exactly one
+      other club, and the pairing and which club is named first come from the league's fixed
+      schedule: in a new game with the same seed, picking the opponent instead shows the same two
+      clubs in the same order. A list named "Goals" holds exactly one item per goal (home goals plus
+      away goals; for 0–0 the list is there with no items), in match order with minutes never
+      decreasing. Each item reads exactly the minute (a whole number from 1 to 90), a straight
+      apostrophe ('), one space, the scorer's name, one space and the scorer's club name in round
+      brackets, for example "23' Ivo Elderkin (Netherwold Borough)"; names may hold an apostrophe or
+      a hyphen, as in "61' Ulric O'Garrity (Oakhampton Rise Borough)". The number of items naming
+      each club equals that club's goals in the score line. Every goal for the player's club is
+      scored by one of the 11 players on its Starting XI screen at the time of the match, never the
+      one in the GK slot; every goal for the opponent is scored by a player of the opponent's
+      "Squad" list who is not a goalkeeper (GK), never by a player of the player's squad. The match
+      comes from the seed: two fresh visits with the same "?seed=" and the same club, without
+      changing the formation or the Starting XI, show the identical match screen, and "?seed=abc"
+      shows the same match as no seed. Over the 8 clubs of a league, not every matchday-1 match ends
+      0–0. A button named exactly "Back" (44px or taller) returns to the club home with focus on its
+      heading, the club's name, and the formation in Tactics and the Starting XI are unchanged.
+      These hold for the first match of a new game in every later version of the game: the h1
+      "Matchday 1", the one score line in this format, the "Goals" list in this format, both shown
+      on arrival, and "Back" to the club home. No horizontal scroll at 390px and no console errors.

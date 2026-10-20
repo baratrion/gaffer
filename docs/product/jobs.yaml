@@ -70,3 +70,20 @@ jobs:
     opportunity: >-
       An automatic best-rated eleven, one tap per swap within a position and picks that survive
       a formation change, makes "pick team" a five-minute step and gives the match stories a side to play.
+  - id: J-06
+    name: see-my-team-play
+    statement: >-
+      When I have picked my team and set how it lines up, I want to send it out and
+      see the result at once, so that I find out whether my choices worked.
+    dimensions:
+      functional: Play the next match in one tap from the club home, starting with the first match of the season, and read the final score and who scored, on a phone, in seconds.
+      emotional: Feel the result was earned by my eleven, not a dice roll, and feel the pride (or the sting) of it.
+      social: Be able to tell other football fans "we won 2-1, Elderkin got the winner".
+    forces:
+      push: A team picked with no match to play is decisions without consequences; the five-minute loop stops at "pick team".
+      pull: The instant result and scorer list of the quick-sim management games Sam grew up with, with no match to sit through.
+      anxiety: A result that feels random or ignores the picks; a scorer Sam never fielded; a wait or a cluttered match screen on a phone.
+      habit: Imagining how the team would do, or expecting to watch every minute of a simulated match.
+    opportunity: >-
+      One tap from the club home to a final score and a goal list drawn from Sam's own eleven, seeded and
+      repeatable, gives the loop its "play match" step and sets up commentary, stats, the season and the table.
