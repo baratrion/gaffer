@@ -1,0 +1,105 @@
+{
+  "roadmap": {
+    "project_id": "S-006",
+    "created_at": "2026-10-23T19:33:30Z",
+    "total_steps": 4
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Fixed league schedule (ADR-0010)",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Add the pure double round-robin schedule module",
+          "criteria": [
+            "14 matchdays of 4 fixtures for 8 clubs; every club is in exactly one fixture per matchday; every ordered pair meets once; matchdays 8..14 mirror 1..7",
+            "fixtureOf returns the very fixture at its index, matchday 1 puts clubs 0 and 7 in fixture 0 with club 0 at home, out-of-range input throws RangeError",
+            "The schedule table is deeply frozen",
+            "git mv of schedule.test.ts.pending into tests/acceptance/S-006/schedule.test.ts lands in the same commit as the code, RED first for the missing module",
+            "ci:lint, ci:typecheck, ci:test and ci:e2e stay green, including names-avoid-match-words and S-001..S-005 suites"
+          ],
+          "test_file": "tests/acceptance/S-006/schedule.test.ts",
+          "scenario_name": "Given matchday 1, when each club's fixture is asked for, then clubs 0 and 7 are in fixture 0, 3 and 4 in fixture 3, and club 0 is at home @driving_port @contract-shape:pure-function"
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Deterministic match model (ADR-0011)",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Add the deterministic match model and its calibration",
+          "criteria": [
+            "Seed 31 matchday 1 club 0 plays to the ADR-0011 golden 1-2 with three goals; default seed 20260 gives 0-1 with 65' Joren Northcott; results are pure and deterministic",
+            "Scores are 0 to 9, minutes 1 to 90 in order, scorers never goalkeepers, stronger eleven never scores fewer; match.ts uses no ambient randomness, time or pow/exp/log",
+            "Same commit git mv-s match.test.ts, match-calibration.test.ts (K1-K5, incl. K2 canonical-figure pin) and fixtures/lowest-rated-xi.ts into tests/acceptance/S-006/",
+            "Stream-table comment added in squad.ts; 56 match streams 200..255, all 73 stream numbers distinct",
+            "ci:lint, ci:typecheck, ci:test and ci:e2e stay green, including names-avoid-match-words"
+          ],
+          "test_file": "tests/acceptance/S-006/match.test.ts",
+          "scenario_name": "when seed 31's matchday-1 match of club 0 plays, then Netherwold Borough lose 1\u20132 to Marlbrook Athletic with the three ADR-0011 goals (strengths 130 and 143) @walking_skeleton @driving_port @contract-shape:pure-function"
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Match state and navigation",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Add match state, PlayMatch, Back, matchFor and minimal shell case",
+          "criteria": [
+            "PlayMatch shows the match screen and changes nothing else; Back keeps formation and picks; an unknown club or other screens return the same state",
+            "matchFor returns the matchday-1 fixture played with the managed side's current eleven against the other side's automatic 4-4-2, and stores nothing; focus goes to the heading",
+            "Minimal match case in src/main.ts maps matchFor to a view and throws on an unknown club, keeping the never guard, so ci:typecheck stays green",
+            "Same commit git mv-s match-navigation.test.ts.pending into tests/acceptance/S-006/match-navigation.test.ts; S-001..S-005 tests and existing-navigation-unchanged stay unedited and green",
+            "ci:lint, ci:typecheck, ci:test and ci:e2e stay green, including names-avoid-match-words"
+          ],
+          "test_file": "tests/acceptance/S-006/match-navigation.test.ts",
+          "scenario_name": "when Sam taps Play match, then the match screen of that club is shown and nothing else in the game changes @walking_skeleton @driving_port @contract-shape:bounded-change"
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "name": "Match screen, Play match button and e2e",
+      "steps": [
+        {
+          "id": "04-01",
+          "name": "Add match screen, Play match button and e2e (U-1)",
+          "criteria": [
+            "Play match is the fourth club-home button, all 44px or taller; the match screen shows Matchday 1, one score line and goals, with no horizontal scroll or console errors",
+            "Same commit git mv-s S-006-match.spec.ts.pending into tests/e2e/S-006-match.spec.ts and updates only the S-005 club-home button assertion (U-1: four names in order)",
+            "S-004, S-005 and S-006 club-home regression specs and tests/protected/S-001..S-006 pass; ci:lint, ci:typecheck, ci:test, ci:build and ci:e2e stay green, including names-avoid-match-words",
+            "docs/feature/S-006/distill/pending/ deleted, zero .pending files"
+          ],
+          "test_file": "tests/e2e/S-006-match.spec.ts",
+          "scenario_name": "@walking_skeleton @kpi Sam taps Play match (1 tap), sees Matchday 1 with the golden score and goals already there and focus on its heading, taps Back (1 tap) to the club home @contract-shape:bounded-change"
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/domain/",
+      "src/app/",
+      "src/ui/",
+      "src/main.ts"
+    ],
+    "test_directories": [
+      "tests/acceptance/S-006/",
+      "tests/e2e/"
+    ],
+    "excluded_patterns": [
+      "__init__.py",
+      "__pycache__/**"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-acceptance-designer-reviewer (haiku), conditionally approved on re-review",
+    "approved_at": "2026-10-23T00:00:00Z"
+  }
+}

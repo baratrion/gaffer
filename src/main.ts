@@ -1,12 +1,13 @@
 import "./ui/styles.css";
 import { parseSeed } from "./app/seed";
-import { currentXI, focusPlan, initialState, squadOf, update, type Action, type FocusPlan, type GameState } from "./app/state";
+import { currentXI, focusPlan, initialState, matchFor, type MatchView, squadOf, update, type Action, type FocusPlan, type GameState } from "./app/state";
 import { formationLines, lineUp } from "./domain/formation";
 import { generateLeague, type League } from "./domain/league";
 import { playersForPosition } from "./domain/selection";
 import { generateSquad } from "./domain/squad";
 import { renderChoosePlayer } from "./ui/screens/choose-player";
 import { renderClubHome } from "./ui/screens/club-home";
+import { renderMatch, type MatchScreenView } from "./ui/screens/match";
 import { renderPickClub } from "./ui/screens/pick-club";
 import { renderPlayer } from "./ui/screens/player";
 import { renderSquad } from "./ui/screens/squad";
@@ -26,6 +27,22 @@ const squadOrThrow = (league: League, clubId: string) => {
   if (!squad) throw new Error(`Unknown club in game state: ${clubId}`);
   return squad;
 };
+
+const scorerName = (side: MatchView["home"], playerIndex: number): string => {
+  const player = side.squad[playerIndex];
+  if (!player) throw new Error(`Unknown player in game state: ${playerIndex}`);
+  return player.name;
+};
+
+const matchScreenView = ({ matchday, home, away, result }: MatchView): MatchScreenView => ({
+  matchday,
+  home: { name: home.club.name, goals: result.homeGoals },
+  away: { name: away.club.name, goals: result.awayGoals },
+  goals: result.goals.map(({ minute, side, playerIndex }) => {
+    const scoring = side === "home" ? home : away;
+    return { minute, scorer: scorerName(scoring, playerIndex), club: scoring.club.name };
+  }),
+});
 
 type Dispatch = (action: Action, focusId?: string) => void;
 
@@ -69,6 +86,12 @@ const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void =
       if (!position) throw new Error(`Unknown slot in game state: ${screen.slot}`);
       const candidates = playersForPosition(squad, position);
       renderChoosePlayer(root, { squad, position, candidates, xi: currentXI(state, squad) }, dispatch);
+      break;
+    }
+    case "match": {
+      const match = matchFor(state, screen.clubId);
+      if (!match) throw new Error(`Unknown club in game state: ${screen.clubId}`);
+      renderMatch(root, matchScreenView(match), dispatch);
       break;
     }
     default: {

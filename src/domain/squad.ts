@@ -42,7 +42,7 @@ const ATTRIBUTE_OFFSETS: Readonly<Record<Position, Attributes>> = {
 
 export const CONDITION_MIN = 75;
 export const CONDITION_MAX = 100;
-/** Stream numbers in use: -1 names, 0..7 clubs (age, quality), 100..107 attributes and condition. */
+/** Stream numbers in use: -1 names, 0..7 clubs (age, quality), 100..107 attributes and condition, 200..255 matches (match.ts, ADR-0011). */
 export const ATTRIBUTE_STREAM_BASE = 100;
 
 /** Position-weighted rating, integer maths, round half up; always within the lowest and highest attribute. */

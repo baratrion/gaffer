@@ -101,7 +101,7 @@ Tooling:
 
 **Constants**
 - `CHANCES_PER_SIDE = 9`, `MINUTES_PER_CHANCE = 10`, `MAX_CONVERSION = 0.30`, the strength exponent 3 (written as two multiplications), `SCORER_FACTOR = { DF: 1, MF: 2, FW: 4 }` (GK excluded) and `MATCH_STREAM_BASE = 200`.
-- These constants and the draw order are frozen by this ADR. Changing any of them changes every result for every seed, so it needs an ADR amendment, like the name pools.
+- These constants and the draw order are frozen by this ADR. Changing any of them needs an ADR amendment, like the name pools. They are guarded by the two goldens (seed 31 and seed 20260) plus the K2 canonical-figure pin in `match-calibration.test.ts`; the goldens alone do not catch every constant change (for example `MAX_CONVERSION = 0.31` leaves both unchanged, see S-006 U-3).
 - The stream-table comment in `squad.ts` gains a pointer to this table.
 
 **Arithmetic rule**: only `+ - * /`, comparisons and `Math.floor`, which are all exact or correctly rounded. So Chromium, WebKit and Node compute the same result. `match.ts` uses no `Math.pow`, `**`, `Math.exp`, `Math.log` or other approximated function.
