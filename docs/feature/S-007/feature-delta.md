@@ -413,3 +413,112 @@ No external integrations, so no contract tests.
 
 ### Wave: DESIGN / [REF] Peer review
 pending
+
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered. No platform change: phone-viewport Chromium in CI and the deployed Pages URL. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope, `tests/protected/`, `stryker.config.mjs`) are read-only. Machine-readable environments: `docs/feature/S-007/environments.yaml`. Inherits the S-006 DEVOPS setup (`docs/feature/S-006/environments.yaml`); only the deltas are recorded.
+
+Checklist: ✓ existing infra reused | ✓ K1-K3 mapped to instruments | ✓ rollback defined | ✓ mutation strategy (nightly-delta, inherited; `standings.ts`, `match.ts`, `state.ts` inside the mutate globs, no config change) | ⊘ new IaC/containers (none) | ⊘ server-side observability (no backend) | ⊘ continuous learning | ⊘ CLAUDE.md edit (already states strategy) | ⊘ `docs/product/kpi-contracts.yaml` (not created by S-001..S-006)
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test; unit, property, e2e and `tests/protected/S-001..S-007/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke via `BASE_URL` |
+
+Unchanged from S-006: no staging (static site, recreate); Chromium, Pixel 7 profile, 390px viewport in local-preview and production. Deltas:
+- The matchday-1 results are recorded in session memory (`GameState.results`, ADR-0012) at the first "Play match" and the table is derived from them on render (ADR-0013). Nothing is persisted: a reload shows the title screen, so no environment holds state between visits.
+- Cross-engine determinism now covers all 4 matchday-1 fixtures (ADR-0012 Earned Trust 1): the e2e compares the browser's seed-31 table with the golden the Node test pins (Tarnbeck Borough, Oakhampton Rise Borough, Marlbrook Athletic, Fennimore Town, Valebridge Albion, Netherwold Borough, Juniper Hollow United, Rushmoor Heath Albion). It runs in Chromium on local-preview and, through `smoke`, on the live site. WebKit and iOS Safari are not probed in CI.
+- Native table roles (ADR-0013 Earned Trust 2): the e2e counts 9 rows, 8 columnheaders, 8 rowheaders, 56 cells in Chromium. A `display` override on a table part would drop the roles and fail the count.
+- 390px fit: `scrollWidth <= clientWidth` on document and table with the longest club names of seeds 31 and `abc`; cell `innerText` equals `textContent` (GD uses ASCII U+002D); exactly one `aria-current` row. All Chromium only.
+- Every S-007 navigation ("Table", "Back") is a screen change, so focus goes to the new `<h1>` (ADR-0008).
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch): PR guards (locked paths, append-only protected, diff size 1200, `Math.random`/`Date` in `src/domain/`), roadmap lint, `ci:lint`, `ci:typecheck`, `ci:test` (fresh `FC_SEED`; the standings and 40-action properties honour it), `ci:build`, `ci:e2e`, protected-scenario no-regression check vs main (new `tests/protected/S-007/table.spec.ts` must fail on main).
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` runs `ci:e2e` against the live URL (includes the new S-007 spec and its seed-31 golden table probe).
+- `nightly`: `ci:mutation`; failure opens a `mutation-alarm` issue.
+- `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- S-007 needs no pipeline change: it adds unit, property and e2e specs run by the existing scripts and no dependency (ADR-0012/0013: native HTML table, no DOM test environment). The DELIVER diff (about 701 lines planned) stays under the 1200-line PR guard.
+- Local gate: `pnpm run check` mirrors the commit stage. No git hooks (locked paths; CI is the gate).
+- Security: no secrets, no runtime deps, no network. Club names enter the DOM only via `el()`/`textContent` (ADR-0002); a review check. SAST/SCA/SBOM not added (workflows locked; inherited open question).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI/AC to instrument)
+E2E instrument is the new `tests/e2e/S-007-table.spec.ts` (Pixel 7, 390px), run by `ci:e2e` on PR and main and by `smoke` on the live URL after each deploy. "Unit" and "property" rows run in `ci:test` (properties with a fresh `FC_SEED`). `tests/protected/S-007/` runs on local-preview in `ci` and must pass on main.
+
+| KPI / criterion (DISCUSS) | Instrument | Pass condition |
+|---|---|---|
+| K1: standing read in 1 tap from the club home ("Table"), 2 taps from the match screen ("Back", "Table"); all 8 rows shown on arrival; back home in 1 tap | e2e: page-side capture-phase click counter (as S-003..S-006); after "Table" assert `document.activeElement` is h1 "League table" and 8 body rows are visible with no wait; "Play match", "Back", "Table" counts 2 clicks from the match screen; "Back" returns to the club h1 with focus. Protected: the same, rule-based | 1 click in, 8 rows on arrival, 2 clicks from the match, 1 click back |
+| K2: 100% of rows satisfy W + D + L = P and Pts = 3W + D; Sam's row matches his score line and the opponent's mirrors it; 0 mismatches over seeds 1..1000 x 8 managed clubs | property (fast-check, `FC_SEED`; standings row rules, totals W = L, D even, GD 0, order non-increasing; and an `update`-level check over seeds x 8 clubs that Sam's row agrees with `matchFor`). e2e: seed-31 golden table cell for cell (cross-engine probe) and seed `abc`. Protected: matchday-1 scenarios by rule | 100%; 0 mismatches; golden exact |
+| K3: 0 changes to the table or the re-shown match over any run of up to 40 formation, pick and navigation taps after playing | property on `update` (40-action runs, `results` is the same array until `NewGame`) plus `standingsOf` and `matchFor` equality. e2e: formation change and pick, "Table" unchanged cell for cell, "Play match" re-shows the same score line and "Goals". Protected: "What is played stays played" | 0 changes |
+| Standings rules and tie-breaks (D4, D8) | unit: each tie-break (Pts, GD, goals for, name), a name-only full tie, space before letter, empty list gives the all-zero A to Z table; grep: no `localeCompare` in `standings.ts`; no `Math.random`/`Date` (PR guard) | holds |
+| GD format (D9) | unit sign table (`+N`, `0`, `-N` with U+002D); e2e cell text `+4`, `0`, `-1` | holds |
+| Table structure (D10) | e2e: role counts 9 / 8 / 8 / 56; table named "League table"; column headers exact and in order; cell `innerText` equals `textContent` | holds |
+| Highlight (D7, D11) | e2e: exactly one `aria-current` row and its row header is the managed club (visual styling not black-box tested) | holds |
+| Recording (ADR-0012) | unit: `playMatchday` equals `playMatch` per fixture; `PlayMatch` records exactly the 4 entries, managed side `currentXI`, others automatic; later taps keep the same array; `NewGame` drops it; JSON round trip; `RangeError` table | holds |
+| S-006 goldens unchanged | unit: seed 31 fixture 0 stays 1–2 and seed 20260 fixture 0 stays 0–1 (no new stream, streams 200..203); S-006 `matchFor` cases green unedited | holds |
+| Navigation and no-ops (D13) | unit on `update`: `ViewTable` only from a known club's home, `Back` from the table, same-object `toBe` for no-ops, deep-freeze; `focusPlan` table case; `.focus(` grep covers `renderTable` | holds |
+| Names avoid table words (D11) | unit: "Table" and "League table" in no `names.ts` array | holds |
+| 44px tap targets | e2e: `boundingBox().height >= 44` on "Table" and "Back"; club-home regression specs check every club home button | holds |
+| No horizontal scroll at 390px | `scrollWidth <= clientWidth` on club home and table screens (long names wrap) | holds |
+| No console errors | `page.on("console"/"pageerror")` across the DoD journey (club home, Table, Back, Play match, Back, Table, formation change, Table, Play match, Back) | zero |
+| S-001..S-006 unchanged | existing e2e, acceptance tests (only the D12 amendments, which replace and never weaken) and `tests/protected/S-001..S-006/` | green |
+| Domain test strength | Stryker on `src/domain/**` (covers `standings.ts`, `match.ts`) and `src/app/state.ts` (covers `ViewTable`, recording, `NewGame` reset, `Back`, `sameScreen`, `standingsOf`, `matchFor`) | nightly, at or above break threshold (70) |
+
+No analytics (POC). The e2e tap count and the property tests are the KPIs' sole measurements.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact. Idempotent: redeploying the same ref yields the same artifact.
+- Rollback (designed first): revert the S-007 squash commit on main; the merge triggers `deploy` and `smoke` validates the restored site. Alternative: `workflow_dispatch` of `deploy.yml` on a known-good ref (the commit before the S-007 squash, which is the S-006 deploy). Fallback: fix-forward on a `claude/*` branch. As in S-003..S-006, the append-only protected-tests and no-regression guards may block a plain revert of a squash that added `tests/protected/S-007/`; if so, the dispatch route is the owner action. Time to restore: one deploy cycle (about 5 minutes).
+- Failure detection: a red `smoke` job marks the deploy run red. A cross-engine fault shows as a red seed-31 table probe in `smoke` while `ci:test` stays green; a dropped table role shows as a red role count.
+- Data: nothing is persisted (`results` lives in memory for the page's life), so no migration, no save version and no user data at risk. Rolling back removes the "Table" button and the table screen, and "Play match" goes back to deriving the S-006 match on render.
+- Result stability across deploys: results stay frozen by ADR-0011 (constants, draw order, streams 200..255; matchday 1 uses 200..203). The table is a pure function of them. Any later change to them changes every seed's table and needs an ADR amendment; it is not a deploy concern.
+- Blast radius: one static page.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` (owner-locked, read) mutates `src/domain/**/*.ts` except `names.ts`, plus `src/app/state.ts`; thresholds high 85, low 70, break 70. Glob check:
+- `src/domain/standings.ts` (new): matches `src/domain/**/*.ts`, not excluded. Mutants are killed by the seed-31 golden, each tie-break case (Pts, GD, goals for, name), the name-only full tie, the space-before-letter case, the empty-list all-zero table, the GD sign table (including the zero and U+002D cases), the row-rule and order properties and the `RangeError` table.
+- `src/domain/match.ts` (extended with `PlayedMatch`, `playMatchday`): already matches. Killed by the `playMatchday` equals `playMatch` per fixture case, the independence of the other fixtures from one club's XI, the `RangeError` table and the S-006 goldens and calibration, which still run.
+- `src/app/state.ts` (`results`, `table` screen, `ViewTable`, recording in `PlayMatch`, `NewGame` reset, `Back` and `sameScreen` table cases, `playOpeningMatchday`, `standingsOf`, `matchFor`): already listed. The whole-state `toEqual`, same-object `toBe` for no-ops, the 4-entry record check, the same-array-on-later-taps check, `focusPlan` pairs and the 40-action property carry it.
+- UI renderers (`table.ts`, `club-home.ts`) and `main.ts` are outside the globs (as before); the e2e covers them.
+- Runtime watch: `state.ts` mutants rerun the 40-action property and the `update` suites, on top of the S-006 4000-match calibration for `match.ts` mutants. Nightly stays under the 45-minute `nightly.yml` timeout by estimate; check the first nightly after the merge (open question 3 of S-006 still applies).
+- No `stryker.config.mjs` change needed (nothing for DELIVER to change). Run by `nightly.yml` via `ci:mutation`; failure opens `mutation-alarm`, `needs-human`.
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy (including the seed-31 golden table probe). Alerting: a red `deploy` run; a red nightly opens `mutation-alarm`. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-007-*` branches, PR to main, squash merge. CI green and protected scenarios not regressing. Deploy fires on merge. No release branches. The DELIVER diff (about 701 lines planned, 841 with the protected scenarios) stays under the 1200-line PR guard; `docs/` is outside the count. If DELIVER nears the cap, the DESIGN cut order applies.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-007 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml` | none; run existing `ci:*` scripts | reuse |
+| `ci:*` scripts, `playwright.config.ts` | none; Pixel 7, 390px, `BASE_URL` already fit | reuse |
+| `stryker.config.mjs` | `src/domain/**` covers `standings.ts` and `match.ts`; `src/app/state.ts` covers the new state code; no change needed | none |
+| `scripts/guards/pr-guards.mjs` | determinism grep covers `standings.ts`; diff cap 1200 vs about 701 planned | none |
+| `tests/protected/S-001..S-006/` | club home gains a fifth button "Table" (no name collision with "Squad", "Tactics", "Starting XI", "Play match", "Back"; does not contain "Players"); they do not count club home buttons | must stay green |
+| `tests/protected/S-007/` | locked scenario for this story (written in the plan run) | must pass on main |
+| `tests/acceptance/S-001..S-006/` | `GameState.results` is an absent-key optional field, so never-played states keep their exact keys; streams unchanged, so every generator output and S-006 golden is unchanged. Only the D12 amendments (button lists, three `update` cases restated with the record) are edited, replace-not-weaken | reuse; amend per D12 |
+| `tests/e2e/S-005-starting-xi.spec.ts`, `S-006-match.spec.ts` | exact four-button club-home lists gain "Table" (D12) | amend in the same commit as the production change |
+| `tests/e2e/S-004/S-005/S-006` club-home regression specs | the new `button.primary` is 48px | reuse unchanged |
+| `tests/e2e/S-001..S-006*.spec.ts`, `shell.spec.ts` | focus on `<h1>` after navigation still holds (ADR-0008) | reuse unchanged, regression-watch |
+| `tests/e2e/S-007-table.spec.ts`, `tests/acceptance/S-007/` | new specs | add (DISTILL) |
+| `src/domain/standings.ts`, `src/ui/screens/table.ts` | new | S-007 tests guard |
+| `src/domain/match.ts`, `src/app/state.ts`, `src/ui/screens/club-home.ts`, `src/main.ts`, `src/ui/styles.css` | extended | S-001..S-006 tests guard |
+| `docs/product/ui/design-system.md` | gains the table pattern and `--highlight` token in DELIVER | doc edit |
+| Pages artifact | grows slightly; base path `/gaffer/` unchanged | none |
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-006 delivered and deployed; GitHub Pages source "GitHub Actions" enabled (✓).
+- Node 22 or later, pnpm 10.12.4 pinned, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0013 accepted (✓; ADR-0012 and ADR-0013 landed in DESIGN, before DELIVER; ADR-0011 carries a status-line note).
+- `tests/protected/S-007/table.spec.ts` committed by the plan run (append-only from then on).
+- `BASE_URL` derived from repository owner and name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001..S-006 (smoke `sleep 20`, no security scanning, smoke has no commit-SHA check, deploy not gated on `ci`, squash revert possibly blocked by the append-only guards, no uptime probe, WebKit not probed) are unchanged and none block S-007. New:
+1. No `.github/` or `stryker.config.mjs` change is needed for S-007 (`standings.ts`, `match.ts` and `state.ts` are inside the existing `mutate` globs).
+2. Nightly mutation runtime: `state.ts` gains more mutants and test paths (40-action property). Watch the first nightly after the S-007 merge against the 45-minute `nightly.yml` timeout; if it nears it, DELIVER trims test cost (not bounds), or the owner raises the timeout.
+3. Smoke on the live URL runs the S-007 e2e spec too; its seed-31 golden table relies on `?seed=` being honoured on Pages (same as S-001..S-006).
+4. The squash revert of S-007 may be blocked by the append-only protected guards (new `tests/protected/S-007/`); the `workflow_dispatch` route is the owner action.
