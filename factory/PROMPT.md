@@ -22,7 +22,7 @@ You are the unattended Gaffer factory, running in GitHub Actions. No human is wa
 
 ## Tools you have
 - **Context7** (`mcp__context7`): before writing code against any library or tool API, look up its current docs (`resolve-library-id`, then `query-docs`). Don't rely on memory for versions or signatures. ADRs that pick a library should cite what you checked.
-- **Playwright browser** (`mcp__playwright`, Pixel 7, localhost only): before the final commit of any UI change, start `ci:serve` in the background, open `http://localhost:4173/gaffer/`, walk the changed flow, take a screenshot, and check the console for errors. Fix what looks broken; tests miss visual bugs. Screenshots are saved to `factory-out/screens/`.
+- **Playwright browser** (`mcp__playwright`, Pixel 7, localhost only): before the final commit of any UI change, start `ci:serve` with a shell `&` (background tasks are disabled in this session), open `http://localhost:4173/gaffer/`, walk the changed flow, take a screenshot, and check the console for errors. Stop the server before `ci:e2e`, which needs port 4173. Fix what looks broken; tests miss visual bugs. Screenshots are saved to `factory-out/screens/`.
 - **frontend-design** skill: use it for any visual or UI work, within the visual identity in `docs/product/scope.md`. nWave's crafter subagents can't load skills, so you run it yourself in deliver mode's visual pass.
 
 ## Modes

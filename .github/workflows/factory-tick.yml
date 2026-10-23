@@ -197,6 +197,10 @@ jobs:
         continue-on-error: true
         timeout-minutes: 330
         uses: anthropics/claude-code-action@v1
+        # Subagents must run in the foreground. A background Agent call returns at once; the session ends its turn to
+        # "wait" and exits, killing the subagent (ticks 16-40). PROMPT.md asks for foreground, but that is followed only half the time.
+        env:
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
