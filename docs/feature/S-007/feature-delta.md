@@ -286,7 +286,7 @@ Cycle 2 (final): rejected_pending_revisions (H-1, H-2, M-1, M-3, L-A..L-D, plus 
 ## Wave: DESIGN
 
 - **Setup**: mode propose; scope application; one solo team, so no Conway constraint. Paradigm: functional core, imperative shell (ADR-0003; recorded in the ADRs and the brief, not in CLAUDE.md). Unattended run; no questions asked.
-- **New ADRs**: `adr-0012-recorded-matchday-results.md` (what is recorded, where the 4-fixture simulation lives, how the match screen reads; supersedes ADR-0011 section 5 and S-006 D8) and `adr-0013-league-standings-and-table-screen.md` (standings, order, GD format, table markup, highlight, 390px layout, navigation). ADR-0011 gets only a status-line note ("Superseded in part by ADR-0012 (section 5)").
+- **New ADRs**: `adr-0012-recorded-matchday-results.md` (what is recorded, where the 4-fixture simulation lives, how the match screen reads; supersedes ADR-0011 section 5 and S-006 D8) and `adr-0013-league-standings-and-table-screen.md` (standings, order, GD format, table markup, highlight, 390px layout, navigation). ADR-0011 gets a status-line note ("Superseded in part by ADR-0012 (S-007)": section 5, the App line "`GameState` and `initialState` are unchanged", the Consequence "Nothing is stored", and "`matchFor` is the one place that derives a match") and one clarifying documentation edit to its Domain step 2 (the frozen conversion expression, as the code writes it; see Changed Assumptions).
 - **Brief**: `docs/product/architecture/brief.md` gains the "Table and recorded results (S-007, ADR-0012, ADR-0013)" subsection, effect-isolation and inventory rows, the C4 L2 descriptions, "For Acceptance Designer" ports 24-28 plus the S-007 observable bullet, and a Changed Assumptions note.
 - **No new C4 container.** The domain gains `standings.ts` and extends `match.ts`; the L2 holds, descriptions updated.
 - **Library check**: no library is involved (native HTML table, ADR-0002 plain DOM, no new dependency). No Context7 lookup applies; none was run. The only external facts are web-platform semantics (`th scope`, `aria-current`, Chromium dropping table roles when `display` is overridden); they are not looked up here but probed by the e2e (ADR-0013 Earned Trust 1).
@@ -318,10 +318,13 @@ Cycle 2 (final): rejected_pending_revisions (H-1, H-2, M-1, M-3, L-A..L-D, plus 
 | D9 | **GD text** `+N` / `0` / `-N` (ASCII U+002D) by `formatGoalDifference` exported from `standings.ts` (pure, mutated by Stryker, sign table test); the renderer calls it. Rejected: in the renderer (unmutated); in `state.ts` (bloat, mixes concerns). | ADR-0013 (3) |
 | D10 | **Markup**: native `<table aria-labelledby="table-title">` named by the `<h1 id="table-title">`; `<thead>` one row of 8 `<th scope="col">`; `<tbody>` 8 rows of `<td>` Pos, `<th scope="row">` Club, six `<td>`. Roles: 9 rows, 8 columnheaders, 8 rowheaders, 56 cells. Rejected: `<caption>` (visible duplicate of the h1); ARIA `div`s; a card list (not a table). | ADR-0013 (4); DISCUSS D4 |
 | D11 | **Highlight**: `aria-current="true"` on the managed club's `<tr>`, styled by the attribute selector with new token `--highlight` (gold at 18%), a 4px gold inset edge on the first cell, bold text. One hook for meaning and style; no text change. Rejected: class only; a "(you)" text. | ADR-0013 (5); DISCUSS D7 |
-| D12 | **390px**: automatic table layout, `width: 100%`, numeric cells `nowrap` and `width: 1%`, tabular numerals, 0.9rem, the Club cell wraps (`overflow-wrap: anywhere`), no `text-transform`. Binding: no `display` override on any table part (Chromium drops roles). Rejected: fixed layout with `colgroup`; an `overflow-x` wrapper (forbidden); hiding columns. | ADR-0013 (6); DISCUSS D10 |
+| D12 | **390px**: automatic table layout, `width: 100%`, numeric cells `nowrap` and `width: 1%`, tabular numerals, 1rem body and 0.85rem headers (kept only if the 390px `scrollWidth` probe passes; DELIVER verifies, else 0.9rem and 0.8rem), the Club cell wraps (`overflow-wrap: anywhere`), no `text-transform`. Binding: no `display` override on any table part (Chromium drops roles). Rejected: fixed layout with `colgroup`; an `overflow-x` wrapper (forbidden); hiding columns. | ADR-0013 (6); DISCUSS D10 |
 | D13 | **Navigation**: `Screen` adds `table{clubId}`; `Action` adds `ViewTable` (known club's home only); `Back` table to home; `sameScreen` groups `table` with the `clubId` kinds; every navigation changes the screen, so focus goes to the `<h1>` and no focus ids are added. The club home gains a fifth `button.primary` "Table" after "Play match". `update` is at 13 of the 15 allowed cases. | ADR-0013 (7); ADR-0008; DISCUSS D3, D8 |
 | D14 | **Names**: "Table" and "League table" are in no `names.ts` array (grep: none). "Table" is a substring of no existing name and contains none of them. "Club" (a columnheader) does not clash with the list "Clubs". The short column names are substrings of other text, so locators use `exact: true`. DISTILL adds the unit check. | ADR-0013; DISCUSS D11 |
 | D15 | **No dependency**; no DOM test environment is added. The table renderer is covered by the e2e (role counts, scroll width, text) and the protected scenarios; its data by unit tests. | ADR-0013 |
+| D16 | **`renderTable` takes the full `dispatch`** (the ADR-0002/0003 renderer convention) as an accepted exception, with the contract "emits only `{ type: "Back" }`": an e2e clicks every element of the screen and asserts that nothing navigates but Back, the screen has exactly one `button` and no other control, and a grep test allows one `dispatch(` call and one `addEventListener` in `table.ts`.<br>Rejected: a narrower `onBack` callback for this one renderer (a second renderer signature). | ADR-0013 (UI); reviewer H1 |
+| D17 | **Closed universes**: `section.club-home` = swatch, h1, `div.club-actions` of exactly 5 `button.primary` in the order Squad, Tactics, Starting XI, Play match, Table (delta: one button). `main.ts` is unbounded-preservation: only the `table` render case is new; the other render cases, the loop and the focus calls are unchanged. | ADR-0013; reviewer M1, M2 |
+| D18 | **The other clubs' side policy** ("every club but the managed one fields `automaticXI(squad, DEFAULT_FORMATION)`") is an app-level policy owned by `playOpeningMatchday` alone; the season story revisits it. The re-show on a second "Play match" is not pinned in `tests/protected/S-007`. | ADR-0012; reviewer L5, L9; DISCUSS D2, D14 |
 
 ### Wave: DESIGN / [REF] Component decomposition
 | Path | Change | Responsibility | Indicative lines |
@@ -342,13 +345,13 @@ Test lines, re-estimated from the ADR-0012/0013 check lists (finite checks as ta
 |---|---|---|
 | `tests/acceptance/S-007/standings.test.ts` | seed-31 golden (RED-first); each tie-break (Pts, GD, goals for, name) and a name-only full tie; space before letter; empty list gives the all-zero A to Z table; GD sign table; row rules and totals as fast-check properties; permutation and order property; no mutation; `RangeError`; grep: no `localeCompare` | 110 |
 | `tests/acceptance/S-007/matchday.test.ts` | `playMatchday` equals `playMatch` per fixture; deep-equal on repeat; frozen sides; other fixtures independent of one club's XI; JSON round trip; `RangeError` table | 60 |
-| `tests/acceptance/S-007/table-navigation.test.ts` | `ViewTable`/`Back` and no-op table; `PlayMatch` records exactly the 4 entries of `playMatchday` (managed side `currentXI`, others automatic) and keeps the same array on later taps; formation/XI/visits never change `results`; `NewGame` drops it; `matchFor` recorded vs fallback; `standingsOf` before/after; `focusPlan` table cases; 40-action property | 150 |
+| `tests/acceptance/S-007/table-navigation.test.ts` | `ViewTable`/`Back` and no-op table; `PlayMatch` records exactly the 4 entries of `playMatchday` (managed side `currentXI`, others automatic) and keeps the same array on later taps; formation/XI/visits never change `results`; `NewGame` drops it; `matchFor` recorded vs fallback, plus the fallback-equivalence property (`matchFor` without results deep-equals `matchFor` with `results: playOpeningMatchday(...)`); `standingsOf` before/after; `focusPlan` table cases; 40-action property | 150 |
 | `tests/acceptance/S-007/names-avoid-table-words.test.ts` | D11 check over every `names.ts` array | 20 |
-| `tests/e2e/S-007-table.spec.ts` | Role counts (9 rows, 8 columnheaders, 8 rowheaders, 56 cells), focus on each heading, 44px, exactly one `aria-current` row = managed club, cell `innerText` = `textContent`, seed-31 golden table (cross-engine), no sideways scroll or console errors, the formation-change walk | 110 |
+| `tests/e2e/S-007-table.spec.ts` | Role counts (9 rows, 8 columnheaders, 8 rowheaders, 56 cells), focus on each heading, 44px, exactly one `aria-current` row = managed club, cell `innerText` = `textContent`, seed-31 golden table (Chromium vs Node), the click-everything check that only "Back" navigates, no sideways scroll or console errors, the formation-change walk | 110 |
 | Amended S-005/S-006 tests (D12) | button lists gain "Table"; three `update` cases restated with the record | 30 |
 | **Tests total** | | **480** |
 
-**DELIVER total**: about 701 changed lines (221 code + 480 tests), against 640 in DISCUSS and the 1100 cap; 841 with the plan run's 140 protected lines. No cut is needed. If DELIVER runs over, the cut order is: (1) the 40-action property (the unit cases carry the logic); (2) the e2e formation-change walk (units cover it); (3) the seed-`abc` rows of the e2e.
+**DELIVER total**: about 701 changed lines (221 code + 480 tests), against 640 in DISCUSS; 841 with the plan run's 140 protected lines. The additions from review (the fallback-equivalence property, the click-everything check and the `table.ts` grep, about 20 lines) are absorbed inside the per-file estimates above (the 40-action property shrinks to what the units do not cover). One cap applies: the factory's hard limit of about 1200 changed lines per PR; the DELIVER target stays at or under 1100, and the estimate leaves about 400 lines of room. No cut is needed. If DELIVER runs over, the cut order is: (1) the 40-action property (the unit cases carry the logic); (2) the e2e formation-change walk (units cover it); (3) the seed-`abc` rows of the e2e.
 
 ### Wave: DESIGN / [REF] Driving ports
 - **Domain**: `playMatchday` (ADR-0012); `standings` and `formatGoalDifference` (ADR-0013).
@@ -364,7 +367,7 @@ New and changed shapes, for the acceptance designer:
 
 ### Wave: DESIGN / [REF] Driven ports and adapters
 None: no storage, clock or network. The record lives in memory for the page's life. Environment assumptions are named and probed (ADR-0012/0013 Earned Trust):
-1. **Cross-engine determinism of all 4 fixtures.** The browser's seed-31 table after matchday 1 equals the table the Node test pins (derived from the ADR-0011 fixture values). Fault: an approximated function in `match.ts` (the grep test also covers it).
+1. **Chromium vs Node determinism of all 4 fixtures.** Chromium's seed-31 table after matchday 1 equals the table the Node test pins (derived from the ADR-0011 fixture values); WebKit and iOS Safari are not probed. Fault: an approximated function in `match.ts` (the grep test also covers it).
 2. **Native table roles in the browser.** The e2e counts the roles (9 rows, 8 columnheaders, 8 rowheaders, 56 cells). Faults: a `display` override on a table part, or a missing `scope`.
 3. **390px fit.** The e2e asserts document and table `scrollWidth <= clientWidth` with the long club names of both pinned seeds. Faults: a fixed width, `overflow-wrap` removed.
 4. **Text.** Cell `innerText` equals `textContent`; GD cells read `+4`, `0`, `-1` with U+002D. Faults: `text-transform`, a Unicode minus.
@@ -398,11 +401,11 @@ No external integrations, so no contract tests.
 | `focusPlan` | `src/app/state.ts` | Focus on the new screen | EXTEND (`table` in the `clubId` group via `sameScreen`) | Pure plan value; no focus ids needed |
 | (none) | `src/domain/standings.ts` | League table rules | CREATE NEW | No standings, points or table code exists in `src/` or `salvage/` (`salvage/` has an RNG, tactics and a formation resolver only). Contract: pure return-only; universe = the returned rows; properties, goldens, sign table |
 | `renderMatch`, `renderStartingXI` markup | `src/ui/screens/` | Section, h1, Back, list named by heading | REFERENCE (same pattern, not shared code) | A table needs different elements; a shared helper would couple screens for about 3 lines |
-| (none) | `src/ui/screens/table.ts` | The table screen | CREATE NEW | No table screen exists. Contract: bounded-change; universe = `root.replaceChildren(section.league-table)` with exactly h1, table and Back; never moves focus (grep test); e2e role counts |
-| `renderClubHome` | `src/ui/screens/club-home.ts` | The club-actions stack | EXTEND (fifth button) | Bounded-change; the existing club-home e2e iterates every button for 44px |
+| (none) | `src/ui/screens/table.ts` | The table screen | CREATE NEW | No table screen exists. Contract: bounded-change; universe = `root.replaceChildren(section.league-table)` with exactly h1, table and Back; never moves focus (grep test); emits only `{ type: "Back" }` (accepted full-`dispatch` exception, D16); e2e role counts and click-everything check |
+| `renderClubHome` | `src/ui/screens/club-home.ts` | The club-actions stack | EXTEND (fifth button) | Bounded-change; closed universe: `section.club-home` = swatch, h1, `div.club-actions` of exactly 5 `button.primary` in the order Squad, Tactics, Starting XI, Play match, Table; the existing club-home e2e iterates every button for 44px |
 | `el()` | `src/ui/dom.ts` | Builds every cell and its text node | REUSE unchanged | Bounded-change, detached nodes only; string children become text (ADR-0002); `aria-current`, `scope` and `aria-labelledby` pass as attributes |
 | `.back-button`, tokens, `h1` rules | `src/ui/styles.css` | Back button, colours, headings | EXTEND (`--highlight`, table rules; reuse `.back-button` and the other tokens) | `.section-label` is not used (uppercase); no `text-transform` on table text |
-| `render`, `findClub` | `src/main.ts` | Render switch | EXTEND (`table` case under the `never` guard) | Unbounded shell; universe unchanged |
+| `render`, `findClub` | `src/main.ts` | Render switch | EXTEND (`table` case under the `never` guard) | Unbounded-preservation shell. Universe: only the `table` render case is new; the other render cases, the loop and the focus calls are unchanged |
 | S-001..S-006 acceptance, e2e and protected tests | `tests/` | Regression | REUSE unchanged, except the D12 amendments | Never-played states have no `results` key, so whole-state assertions hold; the `matchFor` cases stay green via the fallback |
 
 ### Wave: DESIGN / [REF] Changed Assumptions
@@ -412,6 +415,11 @@ No external integrations, so no contract tests.
 - **DISCUSS D2 wording** ("the S-006 on-demand derivation is used only to produce the recording"): refined, not contradicted. `matchFor` also derives as a total fallback when nothing is recorded; `update` records before it ever shows the match screen, so the fallback is unreachable in play.
 - **DISCUSS line budget**: DELIVER is about 701 lines (DISCUSS 640), because the matchday function and the persistence-ready shape add a test file. Under the 1100 cap.
 - **DISCUSS D12 amendments**: unchanged in size, because `matchFor` keeps its S-006 behaviour on never-played states. The amended `update` cases are the three named in D12.
+- **ADR-0011 Domain step 2 (clarifying edit, documentation only)**: the ADR described the conversion as `MAX_CONVERSION * share`; the code computes `(MAX_CONVERSION * cube) / (homeCube + awayCube)`. The ADR now states the code's expression, because the order of operations is frozen to the last bit. Constants, draw order and goldens are unchanged.
+- **Brief and ADR claims "`matchFor` is the one place that derives a match"**: no longer true; `playOpeningMatchday` produces the recording and `matchFor` falls back to it.
+- **S-006 feature-delta D8 and D10** carry a "(superseded by ADR-0012)" marker.
+- **Lifetime wording**: the user-visible lifetime is "until the page is reloaded"; "`NewGame` clears `results`" is a unit-level invariant (DISCUSS D9).
+- **Durable order**: only "Pts never increases down the table and GD never increases between rows with equal Pts" plus the all-zero A to Z table are durable (DISCUSS D14); the goals-for and name tie-breaks and the re-show are this version only, and the re-show is not pinned in `tests/protected/S-007`.
 - No change to the roadmap outcome text.
 
 ### Wave: DESIGN / [REF] Open questions
@@ -428,7 +436,7 @@ No external integrations, so no contract tests.
   - All-zero A to Z before kick-off: D7 (empty list).
   - First "Play match" records the matchday for the whole league: D1, D3, D4.
   - Sam's row agrees with the score line, mirror for the opponent: D3, D5, D6.
-  - What is played stays played; kept until reload or "New game": D1, D4.
+  - What is played stays played; kept until the page is reloaded (`NewGame` clearing is a unit-level invariant): D1, D4.
   - Same seed same table; `?seed=abc` equals no seed: D6.
   - Highlight: D11. Back with focus on the club heading: D13.
   - No sideways scroll, no console errors: D12 and the e2e.
@@ -438,10 +446,30 @@ No external integrations, so no contract tests.
   - Locators: role `table` named "League table", `columnheader`, `rowheader`, `cell`, `row`; `exact: true` for "Table", "Back", the heading and every column header ("P", "W", "D", "L", "GD", "Pts", "Pos" are substrings of other texts).
   - The pending-then-activate pattern of S-006 applies to the amended S-005/S-006 cases (D12), in the same commit as the production change.
   - `update` no-ops for `ViewTable` on every other screen; `results` untouched by every action but `PlayMatch` (first tap) and `NewGame`.
-  - Unit check D11 for "Table" and "League table"; grep tests for `localeCompare` in `standings.ts`.
+  - Unit check D11 for "Table" and "League table"; grep tests for `localeCompare` in `standings.ts` and for one `dispatch(` call and one `addEventListener` in `table.ts`.
+  - Property (M5): `matchFor(state without results, clubId)` deep-equals `matchFor({ ...state, results: playOpeningMatchday(state, clubId) }, clubId)` over seeds, all 8 clubs, formations and optional picks.
+  - e2e: click every element of the table screen and assert that only "Back" navigates (the `renderTable` emits-only-Back contract); the club home has exactly 5 `button.primary` in the order Squad, Tactics, Starting XI, Play match, Table.
+  - The re-show on a second "Play match" is e2e and unit only; `tests/protected/S-007` must not pin it.
 
 ### Wave: DESIGN / [REF] Peer review
-pending
+`nw-solution-architect-reviewer`, cycle 1: **rejected_pending_revisions**. Revision applied as below; cycle 2 is pending.
+
+| Finding | How it landed |
+|---|---|
+| H1 (medium after discussion) `renderTable` gets the full `dispatch` | Kept for consistency (the ADR-0002/0003 renderer convention). Recorded in ADR-0013 as an accepted exception with the reason, the contract "`renderTable` emits only `{ type: "Back" }`", an e2e that clicks every element and records navigation, and a grep test on `table.ts`. Vitest has no DOM environment, so the "DOM test" is the e2e (D16) |
+| M1 club home universe | ADR-0013, brief and D17: `section.club-home` = swatch, h1, `div.club-actions` of exactly 5 `button.primary` in the order Squad, Tactics, Starting XI, Play match, Table; the delta is one button |
+| M2 `main.ts` label | Labelled unbounded-preservation with its universe (only the `table` case is new) in ADR-0013, the brief's effect table, D17 and the Reuse table |
+| M3 / PO M-2 ADR-0011 status | Status line extended: section 5, the App line "`GameState` and `initialState` are unchanged", the Consequence "Nothing is stored", and "`matchFor` is the one place that derives a match". Also in ADR-0012's supersession header |
+| M4 brief wording | Brief S-006 App bullet now reads "Since S-007 `playOpeningMatchday` produces the recording; `matchFor` reads it and, when none is recorded, falls back to the same producer (unreachable through `update`)" |
+| M5 fallback equivalence | Property added to ADR-0012 (contract shapes), the brief (port 26), the component test table and the DISTILL handoff |
+| L1 ADR-0011 step 2 | Restated with the code's expression `(MAX_CONVERSION * cube) / (homeCube + awayCube)`; documentation only; goldens unchanged |
+| L2 S-006 markers | "(superseded by ADR-0012, S-007)" added to S-006 feature-delta D8 and D10 |
+| L3 "cross-engine" | Replaced by "Chromium vs Node" (WebKit and iOS Safari not probed) in ADR-0012, ADR-0013, the brief's S-007 text and this section |
+| L5 re-show not pinned | Recorded in ADR-0012, the brief's durable clause, D18 and the handoff: e2e and unit only, not in `tests/protected/S-007` |
+| L6 one cap | One cap stated: the factory's hard limit of about 1200 changed lines per PR; the DELIVER target stays at or under 1100 with the about 701 estimate |
+| L8 font sizes | Header 0.85rem and body 1rem, kept only if the 390px `scrollWidth` probe passes (DELIVER verifies; fallback 0.9rem and 0.8rem) in ADR-0013, the brief and D12 |
+| L9 other-club policy | Named in ADR-0012 and D18 as an app-level policy owned by `playOpeningMatchday`, to be revisited by the season story |
+| Consistency with DISCUSS cycle 2 | Lifetime is "until the page is reloaded" and `NewGame` clearing is a unit-level invariant (ADR-0012, brief, trace); the durable order is only Pts non-increasing and GD non-increasing within equal Pts (ADR-0013, brief) |
 
 ## Wave: DEVOPS
 

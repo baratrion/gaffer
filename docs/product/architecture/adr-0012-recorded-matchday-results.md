@@ -4,13 +4,13 @@
 - Date: 2026-10-23
 - Deciders: nWave solution-architect (S-007 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core; future `toSave`/`fromSave`), ADR-0005 (d) (derive on render), ADR-0009 (optional state field pattern, `exactOptionalPropertyTypes`), ADR-0010 (schedule), ADR-0011 (match model and streams), ADR-0013 (standings and table screen, which reads what this ADR records).
-- **Supersedes in part: ADR-0011 section 5 ("Where the result lives", option 5A "Not stored") and the S-006 decision D8 ("Result not stored")**, together with the ADR-0011 App line "`GameState` and `initialState` are unchanged" and the brief line "`GameState` gains nothing: the result is never stored (D8)". Everything else in ADR-0011 stands unchanged: the model, the constants, the draw order, the goldens, the streams, the screen markup.
+- **Supersedes in part: ADR-0011 section 5 ("Where the result lives", option 5A "Not stored") and the S-006 decision D8 ("Result not stored")**, together with the ADR-0011 App line "`GameState` and `initialState` are unchanged", the ADR-0011 Consequence "Nothing is stored", the claim that `matchFor` is the one place that derives a match (since S-007 `playOpeningMatchday` also derives), and the brief line "`GameState` gains nothing: the result is never stored (D8)". Everything else in ADR-0011 stands unchanged: the model, the constants, the draw order, the goldens, the streams, the screen markup.
 
 ## Context
 S-007 shows a league table after matchday 1 (DISCUSS D1, D2, D9). The binding rules:
 - **D1**: the first "Play match" of a new game plays matchday 1 for the whole league. Sam's fixture uses his formation and current XI (as in S-006); the other 3 fixtures use both clubs' automatic XI in 4-4-2. The 4 results are recorded in session state at that moment.
 - **D2**: afterwards, the match screen and the table read only the recorded results. Changing the formation or XI never moves them. A second "Play match" re-shows the recorded matchday-1 match (this version only).
-- **D9**: kept until reload or "New game"; "New game" clears them; no persistence yet. The results are a pure function of the seed, the fixtures and both sides; no new RNG stream.
+- **D9**: the user-visible lifetime is "until the page is reloaded" (no persistence yet); a new game after a page load starts from the all-zero table. "New game" is only on the title screen, which only a page load reaches, so "the `NewGame` action clears `results`" is a unit-level invariant, not a user-visible step. The results are a pure function of the seed, the fixtures and both sides; no new RNG stream.
 - DISCUSS H1 requires this ADR, accepted, before DELIVER.
 
 What S-006 decided, quoted so the supersession is explicit:
@@ -65,6 +65,8 @@ Facts checked in the code:
 - `playOpeningMatchday(state, managedClubId) => readonly PlayedMatch[] | undefined` (exported, pure): `undefined` for a club not in the league. Otherwise it builds the 8 sides through `squadOf(league, club.id)`: the managed club's XI is `currentXI(state, squad)`, every other club's is `automaticXI(squad, DEFAULT_FORMATION)`, then calls `playMatchday({ seed: league.seed, matchday: OPENING_MATCHDAY, sides })`. It is the only producer of recorded results.
 - `PlayMatch` (valid only from a known club's `clubHome`, as before) goes to `match` of the same club, and sets `results` to `state.results ?? playOpeningMatchday(state, clubId)`. So the first tap records, and any later tap leaves `results` as it is (the re-show, D2). Nothing else about `PlayMatch` changes.
 - No other action touches `results`. `ChooseFormation`, `PickPlayer`, `Back`, `ViewSquad`, `ViewTable` and the rest return states that keep it (they spread the state), so Sam's changes never move the record (K3).
+- **The re-show is not pinned in `tests/protected/S-007`**: a second "Play match" showing the same recorded match is this version only (DISCUSS D2, D14). It is covered by the e2e and unit tests, so the season story may replace it with "play the next matchday" without amending a protected scenario.
+- **Policy, with one owner (reviewer L9)**: "every club but the managed one fields `automaticXI(squad, DEFAULT_FORMATION)`" is an app-level policy, not a domain rule. Its single owner is `playOpeningMatchday` (the side builder in `state.ts`, using the `DEFAULT_FORMATION` constant); no other code restates it. The season story, which may give AI clubs their own formation or XI, revisits it there.
 - `NewGame` also drops `results` (a `withoutResults` helper that returns the same state when none is stored, like `withoutPicks`, so a never-played state keeps its exact keys). It is future-proofing today, as for `xi`.
 - `matchFor(state, clubId)` per option 3A: unknown club gives `undefined`; else the entry of `state.results ?? playOpeningMatchday(state, clubId)` with `matchday === OPENING_MATCHDAY` that contains the club's index, returned as the unchanged `MatchView` `{ matchday, home: { club, squad }, away: { club, squad }, result }`.
 - `OPENING_MATCHDAY = 1` stays. The season story replaces its uses by a matchday held in state.
@@ -96,11 +98,11 @@ Facts checked in the code:
 | Component | Shape | Universe and assertion |
 |---|---|---|
 | `playMatchday` | pure, return-only | The returned array: deep-equal on repeat, inputs (deep-frozen sides) unchanged, each entry equal to `playMatch` for that fixture, plain-JSON round trip, `RangeError` table |
-| `playOpeningMatchday`, `matchFor` | pure, return-only | Unit tests on frozen states; `matchFor` after a tactics change still returns the recorded value |
+| `playOpeningMatchday`, `matchFor` | pure, return-only | Unit tests on frozen states; `matchFor` after a tactics change still returns the recorded value. **Fallback equivalence property** (M5): over seeds, all 8 clubs, formations and optional picks, `matchFor(state without results, clubId)` deep-equals `matchFor({ ...state, results: playOpeningMatchday(state, clubId) }, clubId)`, so the fallback and the record can never disagree |
 | `update` (`PlayMatch`, `NewGame`) | pure, return-only | Returned state is `{ ...state, screen, results }`: only `screen` and, on the first tap, `results` change; whole-state `toEqual`, `toBe` for no-ops; deep-freeze for no mutation; property: any run of up to 40 actions never changes `results` once set except by `NewGame` |
 
 ### Earned Trust (no adapter; environment assumptions named and probed)
-1. **Cross-engine determinism of all 4 fixtures** (the browser must compute what Node computes): the e2e compares the seed-31 table after matchday 1 with the table pinned by the Node test (the DISCUSS example, derived from the ADR-0011 fixture values). Fault: an approximated function in `match.ts` changes a last bit; the existing grep test catches it structurally.
+1. **Chromium vs Node determinism of all 4 fixtures** (Chromium must compute what Node computes; WebKit and iOS Safari are not probed): the e2e compares the seed-31 table after matchday 1 with the table pinned by the Node test (the DISCUSS example, derived from the ADR-0011 fixture values). Fault: an approximated function in `match.ts` changes a last bit; the existing grep test catches it structurally.
 2. **Recording is not silently lost or doubled**: the property "first tap sets 4 entries; any later action keeps the same array object (`toBe`)" fails if a spread or a re-record sneaks in.
 3. **Future persistence** will be the first real adapter (`localStorage` lies: quota, private mode, stale versions). It needs its own `probe()` and a shape validator; not in this story. The JSON round-trip test keeps the data honest until then.
 

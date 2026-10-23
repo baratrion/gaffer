@@ -7,7 +7,7 @@
 
 ## Context
 S-007 adds a "Table" button and a "League table" screen (DISCUSS D3-D8, D10, D11, D14). The binding rules:
-- **D4**: a table named "League table" with one header row "Pos", "Club", "P", "W", "D", "L", "GD", "Pts" and 8 body rows. Per body row: Pos (cell), Club (row header), then P, W, D, L, GD, Pts (cells). Order: Pts, then GD, then goals scored, then club name in code-point order. GD reads "+N", "0" or "-N" with an ASCII hyphen-minus. W + D + L = P and Pts = 3W + D on every row. Goals scored is not shown, so its tie-break is unit-tested only.
+- **D4**: a table named "League table" with one header row "Pos", "Club", "P", "W", "D", "L", "GD", "Pts" and 8 body rows. Per body row: Pos (cell), Club (row header), then P, W, D, L, GD, Pts (cells). Order: Pts, then GD, then goals scored, then club name in code-point order. GD reads "+N", "0" or "-N" with an ASCII hyphen-minus. W + D + L = P and Pts = 3W + D on every row. Goals scored is not shown, so its tie-break is unit-tested only. Durable in later versions (D14): only that Pts never increases down the table and GD never increases between equal-Pts rows, plus the all-zero A to Z table of a new game; the goals-scored and name tie-breaks are this version only.
 - **D5**: before any match, all rows are zero and in A to Z order.
 - **D7**: Sam's row is highlighted visually, without changing any cell text or the row's accessible structure.
 - **D10**: no horizontal scroll at 390px with 8 narrow columns, long club names wrap, buttons 44px or taller, no console errors, text through `el()`/`textContent`, renderers never move focus.
@@ -64,12 +64,12 @@ Rule inside A: positive gives `+` and the number, zero gives `0` (no sign), nega
 ### 6. Fitting 8 columns at 390px
 | Option | Pros | Cons |
 |---|---|---|
-| **A. Automatic table layout at `width: 100%`; numeric columns `white-space: nowrap`, narrow padding, `width: 1%` so they take their content width; the Club column takes the rest and wraps with `overflow-wrap: anywhere`; 0.9rem text, `font-variant-numeric: tabular-nums`, numbers right-aligned (chosen)** | Keeps native table display. With `overflow-wrap: anywhere` the Club cell's minimum width is tiny, so the table cannot force a horizontal scroll. Numeric columns follow their widest value ("+12", "42") as a season grows | Column widths follow content; headers and rows can shift a few pixels between states (acceptable for a static table) |
+| **A. Automatic table layout at `width: 100%`; numeric columns `white-space: nowrap`, narrow padding, `width: 1%` so they take their content width; the Club column takes the rest and wraps with `overflow-wrap: anywhere`; 1rem body text and 0.85rem headers (kept only if the 390px probe passes, else 0.9rem and 0.8rem), `font-variant-numeric: tabular-nums`, numbers right-aligned (chosen)** | Keeps native table display. With `overflow-wrap: anywhere` the Club cell's minimum width is tiny, so the table cannot force a horizontal scroll. Numeric columns follow their widest value ("+12", "42") as a season grows | Column widths follow content; headers and rows can shift a few pixels between states (acceptable for a static table) |
 | B. `table-layout: fixed` with a `<colgroup>` of set widths | Predictable | Extra nodes; fixed widths need re-tuning when D14 adds columns, and clip or wrap two-digit season values |
 | C. `overflow-x: auto` wrapper | Always fits | Horizontal scroll is forbidden by D10 |
 | D. Hide columns on small screens | Fits | D4 requires all 8 columns |
 
-Budget (an estimate at 0.9rem = 14.4px; the e2e measures the real thing): Pos, P, W, D, L about 24px each, GD about 34px, Pts about 28px, together about 180px, leaving the Club cell about 170px of the 358px, enough for most club names on one line and the rest on two.
+Budget (an estimate at a 1rem = 16px body, about 9px per digit; the e2e measures the real thing): Pos, P, W, D, L about 26px each, GD about 36px, Pts about 30px, together about 195px, leaving the Club cell about 160px of the 358px, enough for most club names on one or two lines. The 1rem body and 0.85rem header sizes are a DELIVER choice, kept only if the `scrollWidth` probe (Earned Trust 2) passes at 390px with the longest names; otherwise fall back to 0.9rem body and 0.8rem headers (about 180px and 170px). Either size keeps the Club cell wrapping, so the rule that matters does not change.
 
 ### 7. Navigation
 | Option | Pros | Cons |
@@ -97,6 +97,7 @@ Budget (an estimate at 0.9rem = 14.4px; the e2e measures the real thing): Pos, P
 
 ### UI: `src/ui/screens/table.ts` (new) and `club-home.ts` (EXTEND)
 - Club home: a fifth `button.primary` "Table" after "Play match" in `div.club-actions`, dispatching `ViewTable`. The order is a layout choice, not part of the durable outcome.
+  - **Closed universe of the club home after S-007** (bounded-change; the delta is exactly one button): `section.club-home` holds exactly the swatch, the `<h1>` and `div.club-actions`; `div.club-actions` holds exactly 5 `button.primary`, in the order Squad, Tactics, Starting XI, Play match, Table. Nothing else is added, so the existing club-home regression e2e (which iterates every button for 44px) still describes the whole screen.
 - `renderTable(root, { rows, managedClubId }, dispatch)`; bounded-change: it calls `root.replaceChildren(<section class="league-table">)` once, and the section has exactly three children in order:
   1. `<h1 id="table-title" tabindex="-1">League table</h1>`.
   2. `<table class="standings" aria-labelledby="table-title">` with:
@@ -104,19 +105,21 @@ Budget (an estimate at 0.9rem = 14.4px; the e2e measures the real thing): Pos, P
      - `<tbody>` of 8 `<tr>` (rows in `rows` order), each holding in order a `<td>` Pos (the position), a `<th scope="row">` with the club name, then `<td>` for P, W, D, L, GD (through `formatGoalDifference`) and Pts;
      - the row of `managedClubId` carries `aria-current="true"`; no other row has the attribute.
   3. `<button type="button" class="back-button">Back</button>` dispatching `Back`.
+- **Accepted exception (reviewer finding H1, downgraded to medium): `renderTable` receives the full `dispatch`**, although it emits one action. Every renderer in `src/ui/screens/` takes `dispatch` (the ADR-0002/ADR-0003 shell convention: `render<Screen>(root, props, dispatch)`), and one renderer with a narrower callback would be a second signature for one screen. The cost, a wider capability than the screen needs, is bounded by a contract instead: **`renderTable` emits only `{ type: "Back" }`**. It is checked two ways. Behaviourally, a DOM test records the dispatched actions: the e2e clicks every element of the screen (heading, header cells, each body row and cell) and asserts that nothing navigates and the screen is unchanged, then clicks "Back" and asserts the club home; the screen must contain exactly one `button` and no link, input or other control. (Vitest has no DOM environment; if one is ever added, the same test becomes a unit test with a recording `dispatch`.) Structurally, a grep test over `table.ts` allows exactly one `dispatch(` call and one `addEventListener`. The rows are plain display, with no listeners.
 - Every cell is text set through `el()` (a string child, so `textContent`). No `innerHTML`, no focus call, no timers, no `document` or `window` access.
 - Text rules: a cell's `textContent` is exactly its value ("1", "+4", "0", "-1", the club name). No `text-transform` on any header or cell, so `innerText` equals `textContent`. The only text on the screen besides the table is the `<h1>` and "Back".
 
 ### CSS (binding; tokens extend design-system.md)
 - Never set `display` (to `block`, `flex`, `grid`, `inline-*`) on `table`, `thead`, `tbody`, `tr`, `th` or `td`: Chromium drops table roles from elements whose display is not a table value. The e2e role counts probe this.
-- `.standings`: `width: 100%`, `border-collapse: collapse`, `font-size: 0.9rem`, `font-variant-numeric: tabular-nums`.
-- Cells: `padding: 10px 4px`; numeric cells right-aligned, `white-space: nowrap`, `width: 1%`. The Club `th` is left-aligned, `font-weight: 600` and `overflow-wrap: anywhere`. Header cells use the gold `--accent`, `font-size: 0.8rem`, `font-weight: 700`, a chalk 25% bottom border, no `text-transform`. Body rows have a chalk 25% bottom border on a faint chalk wash (the row-surface language of the design system).
+- `.standings`: `width: 100%`, `border-collapse: collapse`, `font-size: 1rem`, `font-variant-numeric: tabular-nums` (see the size note under option 6).
+- Cells: `padding: 10px 4px`; numeric cells right-aligned, `white-space: nowrap`, `width: 1%`. The Club `th` is left-aligned, `font-weight: 600` and `overflow-wrap: anywhere`. Header cells use the gold `--accent`, `font-size: 0.85rem`, `font-weight: 700`, a chalk 25% bottom border, no `text-transform`. Body rows have a chalk 25% bottom border on a faint chalk wash (the row-surface language of the design system).
 - New token `:root { --highlight: rgba(242, 193, 78, 0.18); }` (gold at 18%). `tr[aria-current="true"]` uses it as the background, a 4px `--accent` left edge on its first cell (an inset box-shadow, not a border, so column widths do not move) and bold text.
 - The `.league-table h1` follows the other screens (1.75rem, 16px bottom margin, `overflow-wrap: anywhere`); the table has a 16px bottom margin before "Back".
 - Buttons stay 48px. Nothing scrolls sideways at 390px; the Club cell wraps.
 
 ### Shell: `src/main.ts`
 - A `table` render case: `findClub(league, screen.clubId)` (throws on an unknown club, as the other cases), then `renderTable(root, { rows: standingsOf(state), managedClubId: screen.clubId }, dispatch)`. The `never` guard keeps the switch exhaustive. The `match` case is unchanged.
+- Contract shape of `main.ts`: **unbounded-preservation**. Universe of the S-007 delta: only the `table` render case is new. The other render cases, the dispatch/update/render loop, the single `location.search` read, and the focus calls (`applyFocus` as `focusPlan` says) are unchanged. Covered by the e2e and the protected scenarios.
 
 ### Names (D11)
 - "Table" and "League table" appear (as case-insensitive substrings) in no array of `names.ts` (checked by grep: none). DISTILL adds the unit check, as for "Play match".
@@ -142,7 +145,9 @@ Budget (an estimate at 0.9rem = 14.4px; the e2e measures the real thing): Pos, P
 |---|---|---|
 | `standings`, `formatGoalDifference`, `standingsOf` | pure, return-only | Deep-equal on repeat, inputs (deep-frozen) unchanged, properties above, goldens (the seed-31 table), a sign table for the formatter, a code-point order case with a space |
 | `update` (`ViewTable`, `Back`) | pure, return-only | Returned state is `{ ...state, screen }`; whole-state `toEqual`, `toBe` for no-ops, deep-freeze |
-| `renderTable` | bounded-change | Universe: root's one `section.league-table` child with exactly h1, table and Back; e2e role counts; the `.focus(` grep test over `src/ui/` |
+| `renderTable` | bounded-change | Universe: root's one `section.league-table` child with exactly h1, table and Back; **emits only `{ type: "Back" }`** (accepted full-`dispatch` exception, see UI); e2e role counts and the click-everything dispatch check; the `.focus(` grep test over `src/ui/`; the one-`dispatch(`-call grep on `table.ts` |
+| `renderClubHome` | bounded-change | Universe: `section.club-home` = swatch, h1, `div.club-actions` of exactly 5 `button.primary` in the order Squad, Tactics, Starting XI, Play match, Table; delta = one button |
+| `main.ts` | unbounded-preservation | Only the `table` case is new; every other render case, the loop and the focus calls are unchanged |
 
 ### Earned Trust (no adapter; environment assumptions named and probed)
 1. **Native table roles survive the CSS and the browser's role mapping** (`th[scope=row]` is a `rowheader` in Chromium; no `display` override).
@@ -151,7 +156,7 @@ Budget (an estimate at 0.9rem = 14.4px; the e2e measures the real thing): Pos, P
 2. **The table fits 390px**: the e2e asserts `document.documentElement.scrollWidth <= clientWidth` and the table's `scrollWidth <= clientWidth` with the longest club names of `?seed=31` and `?seed=abc`, after matchday 1 (two-digit values appear in later seasons; the nowrap cells would grow, which the same check catches then). Fault: removing `overflow-wrap: anywhere` or adding a fixed width turns it red.
 3. **Text equality**: each cell's `innerText` equals `textContent` and the GD cells read `+4`, `0`, `-1` with U+002D. Fault: `text-transform` or a Unicode minus.
 4. **Highlight**: exactly one row has `aria-current="true"` and its rowheader is the managed club. Fault: a class-only highlight or two rows marked.
-5. **Cross-engine determinism of the table**: the seed-31 table after matchday 1 equals the Node-pinned table (shared with ADR-0012 probe 1).
+5. **Chromium vs Node determinism of the table**: the seed-31 table after matchday 1, read in Chromium, equals the Node-pinned table (shared with ADR-0012 probe 1). WebKit and iOS Safari are not probed.
 6. **Sort order is engine-independent**: no `localeCompare` (grep test) and a unit case where a name with a space precedes a longer-prefix name.
 
 ### Enforcement
