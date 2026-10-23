@@ -21,3 +21,9 @@ Patterns:
 - **Pitch line-up** (`ul` "Line-up"): 12-column grid on a chalk-outlined pitch panel; each position code is a chalk disc, one row per formation line, goalkeeper at the top.
 - **Club actions** now stack "Squad", "Tactics" and "Starting XI".
 - **Pick button** (`.pick-button`, in a `.pick-list`): the row-button surface for the Starting XI slots and the Choose list. The position code is gold (`.pick-code`), the name bold (`.pick-name`), the overall plain, and "Starting" gold (`.pick-starting`). The button is `display: block` with inline spans and literal single-space text nodes, so its `innerText`, `textContent` and accessible name are identical; long names wrap inside it (`overflow-wrap: anywhere`). Reviewed at 390px for S-005: no change needed.
+
+## Match screen (S-006)
+- **Score line**: one block `p` in a chalk 2px-bordered card on `--pitch-light`, 12px radius, centred, 1.5rem bold; the digits (`1–2`) are the only gold element and use tabular numerals. Names and score stay inline text so the whole line reads as one string.
+- **Goals**: gold 1rem label, then a list of rows with a 4px gold left edge on a faint chalk wash, minute in bold gold with tabular numerals. An empty list keeps a minimum height so 0–0 does not collapse the layout.
+- **Back**: the shared outlined gold `.back-button` (48px high), placed after the list.
+- **Club home**: "Play match" is the fourth primary action button, same pitch-gold fill as Squad, Tactics and Starting XI.

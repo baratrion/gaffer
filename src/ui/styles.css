@@ -272,7 +272,7 @@ h1:focus { outline: none; }
 .score-goals { color: var(--accent); font-variant-numeric: tabular-nums; }
 .score-name { overflow-wrap: anywhere; }
 
-.goals-label { margin: 16px 0 8px; font-size: 0.9rem; font-weight: 700; color: var(--accent); }
+.goals-label { margin: 20px 0 8px; font-size: 1rem; font-weight: 700; color: var(--accent); }
 
 .goal-list {
   list-style: none;
@@ -286,7 +286,9 @@ h1:focus { outline: none; }
 .goal-item {
   padding: 10px 12px;
   border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
   background: rgba(244, 241, 232, 0.08);
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
