@@ -1,6 +1,6 @@
 import "./ui/styles.css";
 import { parseSeed } from "./app/seed";
-import { currentXI, focusPlan, initialState, squadOf, update, type Action, type FocusPlan, type GameState } from "./app/state";
+import { currentXI, focusPlan, initialState, matchFor, squadOf, update, type Action, type FocusPlan, type GameState } from "./app/state";
 import { formationLines, lineUp } from "./domain/formation";
 import { generateLeague, type League } from "./domain/league";
 import { playersForPosition } from "./domain/selection";
@@ -69,6 +69,11 @@ const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void =
       if (!position) throw new Error(`Unknown slot in game state: ${screen.slot}`);
       const candidates = playersForPosition(squad, position);
       renderChoosePlayer(root, { squad, position, candidates, xi: currentXI(state, squad) }, dispatch);
+      break;
+    }
+    case "match": {
+      if (!matchFor(state, screen.clubId)) throw new Error(`Unknown club in game state: ${screen.clubId}`);
+      root.replaceChildren();
       break;
     }
     default: {

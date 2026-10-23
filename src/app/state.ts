@@ -1,5 +1,7 @@
 import { DEFAULT_FORMATION, isFormationId, type FormationId } from "../domain/formation";
-import type { League } from "../domain/league";
+import type { Club, League } from "../domain/league";
+import { playMatch, type MatchResult, type MatchSide } from "../domain/match";
+import { fixtureOf } from "../domain/schedule";
 import { automaticXI, isSlotIndex, pickForSlot, type StartingXI } from "../domain/selection";
 import { generateSquad, PLAYERS_PER_SQUAD, type Player } from "../domain/squad";
 
@@ -11,7 +13,8 @@ export type Screen =
   | { readonly kind: "player"; readonly clubId: string; readonly playerIndex: number }
   | { readonly kind: "tactics"; readonly clubId: string }
   | { readonly kind: "startingXI"; readonly clubId: string }
-  | { readonly kind: "choosePlayer"; readonly clubId: string; readonly slot: number };
+  | { readonly kind: "choosePlayer"; readonly clubId: string; readonly slot: number }
+  | { readonly kind: "match"; readonly clubId: string };
 
 export interface GameState {
   readonly league: League;
@@ -30,6 +33,7 @@ export type Action =
   | { readonly type: "ViewStartingXI" }
   | { readonly type: "ChooseSlot"; readonly slot: number }
   | { readonly type: "PickPlayer"; readonly playerIndex: number }
+  | { readonly type: "PlayMatch" }
   | { readonly type: "Back" };
 
 type ActionOf<T extends Action["type"]> = Extract<Action, { readonly type: T }>;
@@ -66,6 +70,7 @@ const sameScreen = (previous: Screen, next: Screen): boolean => {
     case "pickClub":
       return next.kind === previous.kind;
     case "clubHome":
+    case "match":
     case "tactics":
     case "squad":
     case "startingXI":
@@ -137,10 +142,15 @@ const pickPlayer = (state: GameState, { playerIndex }: ActionOf<"PickPlayer">): 
   return next === base ? backToXI : { ...backToXI, xi: next };
 };
 
+const playMatchAction = (state: GameState): GameState =>
+  state.screen.kind === "clubHome" && isKnownClub(state.league, state.screen.clubId)
+    ? toScreen(state, { kind: "match", clubId: state.screen.clubId })
+    : state;
+
 const back = (state: GameState): GameState => {
   const { screen, league } = state;
   if (!("clubId" in screen) || !isKnownClub(league, screen.clubId)) return state;
-  if (screen.kind === "squad" || screen.kind === "tactics" || screen.kind === "startingXI") return toScreen(state, { kind: "clubHome", clubId: screen.clubId });
+  if (screen.kind === "squad" || screen.kind === "match" || screen.kind === "tactics" || screen.kind === "startingXI") return toScreen(state, { kind: "clubHome", clubId: screen.clubId });
   if (screen.kind === "player" && isSquadIndex(screen.playerIndex)) {
     return toScreen(state, { kind: "squad", clubId: screen.clubId });
   }
@@ -148,6 +158,38 @@ const back = (state: GameState): GameState => {
     return toScreen(state, { kind: "startingXI", clubId: screen.clubId });
   }
   return state;
+};
+
+/** Matchday of the one match played until the season story keeps a matchday in state. */
+export const OPENING_MATCHDAY = 1;
+
+export interface MatchSideView {
+  readonly club: Club;
+  readonly squad: readonly Player[];
+}
+
+export interface MatchView {
+  readonly matchday: number;
+  readonly home: MatchSideView;
+  readonly away: MatchSideView;
+  readonly result: MatchResult;
+}
+
+const sideOf = (state: GameState, clubIndex: number, managedId: string): MatchSide & MatchSideView => {
+  const club = state.league.clubs[clubIndex]!;
+  const squad = squadOf(state.league, club.id)!;
+  return { club, squad, xi: club.id === managedId ? currentXI(state, squad) : automaticXI(squad, DEFAULT_FORMATION) };
+};
+
+/** The managed club's opening match, derived on demand; undefined for a club not in the league. */
+export const matchFor = (state: GameState, clubId: string): MatchView | undefined => {
+  const clubIndex = state.league.clubs.findIndex((club) => club.id === clubId);
+  if (clubIndex < 0) return undefined;
+  const { index, fixture } = fixtureOf(OPENING_MATCHDAY, clubIndex);
+  const home = sideOf(state, fixture.home, clubId);
+  const away = sideOf(state, fixture.away, clubId);
+  const result = playMatch({ seed: state.league.seed, matchday: OPENING_MATCHDAY, fixtureIndex: index, home, away });
+  return { matchday: OPENING_MATCHDAY, home, away, result };
 };
 
 export const update = (state: GameState, action: Action): GameState => {
@@ -170,6 +212,8 @@ export const update = (state: GameState, action: Action): GameState => {
       return chooseSlot(state, action);
     case "PickPlayer":
       return pickPlayer(state, action);
+    case "PlayMatch":
+      return playMatchAction(state);
     case "Back":
       return back(state);
   }
