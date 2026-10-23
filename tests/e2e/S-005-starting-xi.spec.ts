@@ -170,10 +170,10 @@ test.describe("@US-1 S-005 see my best eleven at once", () => {
     expect(errors).toEqual([]);
   });
 
-  test("Starting XI is the last of three club home buttons, after Squad and Tactics @contract-shape:bounded-change", async ({ page }) => {
+  test("Starting XI is the third of four club home buttons, after Squad and Tactics, before Play match @contract-shape:bounded-change", async ({ page }) => {
     await openClubHome(page, "?seed=31", 0);
     const names = await page.getByRole("button").allInnerTexts();
-    expect(names.map((name) => name.trim())).toEqual(["Squad", "Tactics", "Starting XI"]);
+    expect(names.map((name) => name.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match"]);
   });
 
   for (const [query, clubIndex, formation, expected] of [
