@@ -564,3 +564,172 @@ Owner-only items inherited from S-001..S-005 (smoke `sleep 20`, no security scan
 4. After 4-3-3 and a bench forward into the last FW slot (`?seed=7`, 3rd club), the player's goals are by outfield players of the current Starting XI. "Back" leaves the picked XI unchanged.
 
 Not pinned, by design: the same score from both sides of a fixture (DISCUSS M-C, unit-level), replaying the match (D8, the season story advances matchdays), and the empty "Goals" list (conditional on a 0–0, which DISTILL covers with the `?seed=8` e2e). All 4 fail on the current app (no "Play match" button). The plan run checked that they are achievable and discriminating. Against a throwaway prototype (not committed: circle-method matchday 1, 9 chances per side, outfield scorers from the XI), all 27 protected scenarios S-001..S-006 passed. Three faulty variants were each caught: a duplicated score line (all 4 failed), the managed club always named first (scenario 2 failed) and a score line revealed 300 ms after arrival (failed on "visible on arrival").
+
+## Wave: DISTILL
+
+Unattended. Language: TypeScript; runners: vitest + fast-check (`FC_SEED` honoured through `tests/setup/fast-check-seed.ts`) and Playwright (Pixel 7, 390px); package manager pnpm. No Gherkin runner exists, so scenarios are `describe/it` blocks whose titles read Given/When/Then in domain language, with `@tags` and `@contract-shape:<pure-function|bounded-change|unbounded-preservation>` in every title and a `CONTRACT_SHAPE` + outcome-anchor header, as in S-003..S-005 (`schedule.ts`, `match.ts`, `matchFor` and `focusPlan` are `pure-function`; `update` navigation and the e2e specs are `bounded-change`; no `unbounded-preservation` shape applies: nothing is written outside the screen). Wave-decision reconciliation: DISCUSS, DESIGN and DEVOPS read, 0 contradictions (DESIGN refines DISCUSS's "derived in `main.ts`" to the `matchFor` selector and overrules the brief's home-advantage leaning, both recorded in DESIGN "Changed Assumptions"; the tests use DESIGN's names). The test sources were not derived from `tests/protected/` (not opened). One upstream issue is open for the orchestrator: `distill/upstream-issues.md` U-1 (an existing S-005 e2e assertion lists exactly three club-home buttons, which D1 makes false).
+
+### Wave: DISTILL / [REF] Hand-off model: green tree, new-behaviour specs held out until DELIVER (Mandate 7 adapted)
+CI forbids committing failing, skipped or `.todo` tests, and test counts may only go up. As in S-004 and S-005:
+- **Committed and running now (green regression guards, 4 files, 19 cases):**
+  - `tests/acceptance/S-006/existing-navigation-unchanged.test.ts` (6): club home, Squad, a player, Tactics, a formation, Starting XI, a slot, Back still work for any club and formation; states are built without naming `match` or `PlayMatch`, so it compiles before and after DELIVER.
+  - `tests/acceptance/S-006/fixture-matches-pinned.test.ts` (5): pins the inputs of the ADR-0011 goldens: the 8 club names of seed 31, the sum of the 11 overalls of each automatic 4-4-2 (130 v 143, 131 v 124, 154 v 141, 144 v 171 at seed 31; 152 v 138 at seed 20260; 153 v 161 at seed 8), and that Rurik Fairbourne, Calder Redfern and Joren Northcott are the forward, midfielder and forward the goldens name. A generator change turns this file red, not the match specs.
+  - `tests/acceptance/S-006/names-avoid-match-words.test.ts` (7): DISCUSS D11. No entry of `TOWNS`, `CLUB_SUFFIXES`, `COLOUR_PALETTE`, `FIRST_NAMES`, `SURNAMES` (nor any "First Last" or "Town Suffix" text built from them) contains "Play match", "Goals" or "Matchday" (case-insensitive substrings); "Play match", "Goals" and "Matchday" contain none of the nine S-001..S-005 locator words. It passes today, so it is committed, not held out.
+  - `tests/e2e/S-006-club-home-regression.spec.ts` (1): heading is the club name and focused, every club-home button is 44px or taller, Squad, Starting XI and Tactics still open and Back returns with the heading focused, a 4-3-3 choice survives, no sideways scroll, no console error; it never names "Play match".
+  - The renderers-never-move-focus guard is reused: `tests/unit/ui/renderers-never-move-focus.test.ts` scans every file under `src/ui`, so it covers `match.ts`.
+  - Net: `ci:test` 573 to 591 tests (+18, 27 files), `ci:e2e` +1. `ci:lint`, `ci:typecheck`, `ci:test` green on the committed tree; the new e2e passes on the current app.
+- **Held out, complete and verified:** five executable specs and one fixture stored as `docs/feature/S-006/distill/pending/{acceptance,acceptance/fixtures,e2e}/*.pending` (outside every glob: `vitest include`, `tsc include`, `oxlint .`, Playwright `testDir`). Nothing skipped, weakened or marked todo; they are simply not in the tree yet. 93 vitest cases and 11 e2e cases (about 1260 lines including the fixture).
+- **Verification done in DISTILL** (`distill/verification-note.md`): a throwaway reference implementation in a scratch git worktree (since removed), written from ADR-0010/0011 only, reproduced the ADR goldens and the canonical 4000-match figures exactly and made all 93 held-out vitest cases and all 11 held-out e2e cases pass (`ci:test` 684 passed, `ci:typecheck` and `ci:lint` clean), with 19 seeded domain faults and 6 UI faults caught (the one survivor is the documented equivalent `<` v `<=` mutant). In the real repo the same files are lint-clean and fail only for missing modules and symbols (RED for missing functionality).
+- **No scaffold stubs in `src/`:** a throwing stub would turn the committed run red. The scaffold equivalent is the `.pending` files plus the exact-symbol list below.
+- **DELIVER mechanics:** `git mv` each file to its destination, dropping `.pending`, in the same commit as the code that makes it green. Never edit an assertion to fit the implementation; if one is wrong, record it in `distill/upstream-issues.md`. The ADR goldens are expected values: a mismatch means the code is fixed, never the golden.
+
+### Wave: DISTILL / [REF] Scenario list with tags
+Tier A only (production code: real `generateSquad`, `automaticXI`, `fixturesOf`, `playMatch`, `matchFor`, `update`, `focusPlan`, the built app). Tier B skipped: the journey is a few chained steps, and the pure rules and `update` are already covered by fast-check properties over seeds, all 8 clubs, all 3 formations and arbitrary action runs, which explore the state space directly.
+
+Committed now:
+
+| # | Scenario (title in the file) | File | Tags | Kind |
+|---|---|---|---|---|
+| R1 | Any club home, Squad, a player, Back, Back: club home again, formation kept | `existing-navigation-unchanged.test.ts` | `@regression @property` | PBT |
+| R2 | Any club home, Tactics, another formation, Back: club home with that formation | same | `@regression @property` | PBT |
+| R3 | Any club home, Starting XI, a slot, Back, Back: club home, formation kept | same | `@regression @property` | PBT |
+| R4 | Club home: Squad, Tactics, Starting XI each open that club's screen | same | `@regression @driving_port` | example |
+| R5 | Tactics, 4-3-3: only the formation changes | same | `@regression` | example |
+| R6 | Back on the club home changes nothing | same | `@regression @error` | example |
+| Q1 | Seed 31: the 8 club names | `fixture-matches-pinned.test.ts` | `@regression` | example |
+| Q2 | Seed 31 matchday 1: the four strength pairs | same | `@regression` | example |
+| Q3 | Seed 20260 clubs 0 and 7: names and strengths 152 v 138 | same | `@regression` | example |
+| Q4 | Seed 8 clubs 3 and 4: names and strengths 153 v 161 (the 0–0) | same | `@regression @boundary` | example |
+| Q5 | The three golden scorers' positions | same | `@regression` | example |
+| W1 | Each of the 5 name arrays holds none of "Play match", "Goals", "Matchday" | `names-avoid-match-words.test.ts` | `@regression @error` | example (5) |
+| W2 | Built "First Last" and "Town Suffix" texts hold none either | same | `@regression @boundary` | example |
+| W3 | The new names hold none of the nine existing locator words | same | `@regression @boundary` | example |
+| C1 | Club home keeps working: heading, 44px, Squad, Starting XI, Tactics, kept formation, no scroll, no errors | `tests/e2e/S-006-club-home-regression.spec.ts` | `@regression` | e2e |
+
+Held out (`distill/pending/`):
+
+| # | Scenario (title in the file) | File | Tags | Kind |
+|---|---|---|---|---|
+| H1 | Matchday 1, 2, 8 goldens `[0v7, 1v6, 5v2, 3v4]`, `[7v1, 2v0, 6v3, 4v5]`, `[7v0, 6v1, 2v5, 4v3]`; matchday 14 golden | `schedule.test.ts` | `@walking_skeleton @driving_port @boundary` | example (3 rows; the matchday-14 golden is in the edges case) |
+| H2 | Constants 14 / 4 / 8; every club in exactly one fixture of every matchday | same | `@property @boundary` | exhaustive (2) |
+| H3 | Every ordered pair once over 14 matchdays; matchday m+7 mirrors m; home counts 4,3,4,3,4,3,4,3 and 7 each | same | `@property @boundary` | exhaustive (3) |
+| H4 | `fixtureOf` returns the very fixture at its index, holding the club, the opponent sees the same; matchday-1 clubs 0/7 and 3/4 | same | `@driving_port @property` | exhaustive (2) |
+| H5 | Frozen at every level, writes throw, table unchanged | same | `@boundary` | example |
+| H6 | RangeError for matchday 0, 15, 1.5, NaN, -1, 100 and club -1, 8, 1.5, NaN, 100; edges 1 and 14 work | same | `@error @boundary` | example (12) |
+| M1 | Seed 31 fixture 0: Netherwold Borough 1–2 Marlbrook Athletic, the three ADR goals, strengths 130 and 143 | `match.test.ts` | `@walking_skeleton @driving_port` | golden |
+| M2 | Seed 20260 fixture 0: Harrowgate Lane United 0–1 Oakhampton Rise Borough, 65' Joren Northcott | same | `@walking_skeleton @driving_port` | golden |
+| M3 | Seed 31 fixtures 1-3 score lines (2–2, 5–1, 1–3); seed 8 fixture 3 0–0 with no goals | same | `@boundary` | golden (4) |
+| M4 | Seed 11 / seed 15 fixture 0 have an apostrophe / a hyphen scorer (e2e name probe) | same | `@environment-probe @boundary` | pin (2) |
+| M5 | Played twice: deep-equal, deep-frozen inputs unchanged; seed, fixture and matchday each change the draws | same | `@property @boundary` | PBT + example (2) |
+| M6 | Any seed, matchday, fixture, formation, eleven: 0..9 goals per side, counts add up, minutes 1..90 non-decreasing home first at a tie | same | `@property` | PBT (2) |
+| M7 | Every scorer is in that side's eleven and never a GK | same | `@property` | PBT |
+| M8 | Per-seed monotonicity: a higher sum of overalls never scores fewer and concedes no more; a stronger opponent never raises the side's goals | same | `@property` | PBT (2) |
+| M9 | `teamStrength` is the sum of the 11 overalls, 11..220; Netherwold 4-4-2 is 130 | same | `@driving_port @property @boundary` | PBT + example (2) |
+| M10 | RangeError for matchday 0, 15, 1.5, NaN and fixture -1, 4, 1.5, NaN; edges (1,0) and (14,3) work | same | `@error @boundary` | example (9) |
+| M11 | 73 stream numbers (-1, 0..7, 100..107, 200..255) pairwise distinct; 73 derived seeds distinct over sampled seeds | same | `@boundary @property` | example + PBT (2) |
+| M12 | `match.ts` source has no `Math.pow/exp/log`, no `**`, no `Math.random`, `Date`, `performance.now`, `crypto.` | same | `@determinism @error` | grep (2) |
+| K1 | 4000 matches: mean goals per side in [1.0, 2.0], under 20% 0–0 | `match-calibration.test.ts` | `@kpi @property` | fixed seeds |
+| K2 | The canonical figures of ADR-0011 exactly: 10901 goals, 220 goalless, distribution, home 1.384, scorers 12.5/36.3/51.2% | same | `@kpi @determinism` | fixed seeds |
+| K3 | No side above 9; no GK scores; forwards over midfielders over defenders | same | `@kpi @boundary @property` | fixed seeds (2) |
+| K4 | No league's four matches all 0–0 (seeds 1..1000), and seeds 31 and 20260 are not | same | `@kpi @boundary` | fixed seeds |
+| K5 | Lowest-rated XI is 20+ weaker, scores fewer home goals (0.481) and never more on any seed; an XI 20+ above scores more and never fewer | same | `@kpi @property` | fixed seeds (2) |
+| N1 | `PlayMatch` from a club home: only the screen changes, any club, formation, picks; Back after it restores the whole state; replay is identical | `match-navigation.test.ts` | `@walking_skeleton @driving_port @property` | example + PBT (4) |
+| N2 | Unknown club home: same object; every other screen (8) and with picks stored: same object | same | `@driving_port @error @boundary` | example (10) |
+| N3 | `Back` from the match: club home with formation and picks as they were; unknown club same object; any other action on the match screen: same object | same | `@driving_port @error` | example (3) |
+| N4 | Whole walks: title, club list, club home, match, club home; 4-3-3 and a pick survive a match; any run of up to 40 taps never throws, playing taps never touch formation or picks, a match is always for a league club | same | `@walking_skeleton @property @error` | example + PBT (3) |
+| N5 | `matchFor`: `OPENING_MATCHDAY` is 1; unknown club gives `undefined`; Netherwold at seed 31 is the golden | same | `@walking_skeleton @driving_port @error` | example (3) |
+| N6 | `matchFor` symmetry: the opponent's screen has the same two clubs in the same order and an equal result; any seed: 8 clubs form 4 pairings, home first as scheduled | same | `@driving_port @property` | example + PBT (2) |
+| N7 | `matchFor` any seed, club, formation, optional picks equals the schedule's fixture played with the managed side's current XI and the opponent's automatic 4-4-2; stored XI followed; 4-3-3 followed; opponent stays 4-4-2 also when away; repeatable and non-mutating | same | `@driving_port @property @boundary` | PBT + example (5) |
+| P1 | `focusPlan`: club home to match and match to club home: heading; any other screen to match: heading; match redrawn: element only when same club and non-empty id | same | `@walking_skeleton @driving_port @boundary` | example (3) |
+| E1 | Club home to the golden result in 1 tap, heading focused, one score line (a `P`, visible, `textContent` = `innerText`, the only en dash), list Goals with the three golden items, 44px, Back 1 tap to the club home focused | `S-006-match.spec.ts` | `@walking_skeleton @kpi` | e2e |
+| E2 | "Play match" is the last of four club-home buttons, all 44px or taller | same | | e2e |
+| E3 | `?seed=abc` and no seed: Harrowgate Lane United 0–1 Oakhampton Rise Borough with 65' Joren Northcott | same | `@example` | e2e |
+| E4 | Managing Marlbrook Athletic shows the same names in the same order and the same match | same | `@boundary` | e2e |
+| E5 | The same seed in a second fresh page gives the same screen | same | `@boundary` | e2e |
+| E6 | Environment probe: an apostrophe (O'Garrity) and a hyphen (Fitch-Moreton) scorer read as in the Squad list | same | `@environment-probe @boundary` | e2e |
+| E7 | After Northcott for Dunmore: Sam's goals name only the 11, never the GK or Dunmore; the pick survives; replay is the same match; the opponent's scorers are in its Squad | same | `@example` | e2e |
+| E8 | The empty list at `?seed=8` (clubs 3 and 4): 0–0, list Goals visible, named exactly, no items, label not upper-cased, keeps a box | same | `@boundary` | e2e |
+| E9 | One Back, one list, one heading on the match screen | same | `@boundary` | e2e |
+| E10 | 4-3-3, play, Back: club home focused, 4-3-3 still checked | same | `@boundary` | e2e |
+| E11 | Whole DoD journey with no console error and no sideways scroll: club home, Play match, Back, Starting XI, a pick, Back, Play match, Back | same | `@walking_skeleton` | e2e |
+
+Counts: 19 committed now (18 vitest: R 6, Q 5, W 7; 1 e2e: C1); 93 vitest cases held out (schedule 23, match 30, calibration 7, navigation 33) and 11 e2e cases. Error/edge share: estimated by tag over the expanded `it.each` cases (not machine-counted), at about half of the vitest cases (RangeError tables, off-home screens, unknown clubs, forbidden functions, bounds) and low in e2e (about 5 of 11 carry `@boundary`; the UI cannot send a wrong-screen action or an unknown club, so N2/N3 enumerate them at the `update` level). **Waiver (share):** the whole-suite share is estimated at or above the 40% target, not the e2e share. **Waiver (environment):** E1-E11 run on local-preview and on a `BASE_URL` deployment; local-dev is not a supported target (inherited). Viewport is the Pixel 7 profile at 390px from `playwright.config.ts`; "fresh visits" are new pages of the same browser context (nothing is persisted). **Waiver (line budget):** DESIGN budgeted 530 test lines; the held-out and committed tests total about 1340. They are written and verified in DISTILL, not part of DELIVER's authoring; DELIVER's code (about 270 lines per DESIGN) is within budget and DELIVER records the measured count. Held-out files move one step per tick and `docs/` is outside the 1200-line PR guard.
+
+### Wave: DISTILL / [REF] WS strategy (Architecture of Reference)
+- Driving ports: in-process pure calls (`fixturesOf`, `fixtureOf`, `playMatch`, `teamStrength`, `initialState`, `update`, `matchFor`, `focusPlan`) and the built browser app at `http://localhost:4173/gaffer/`. All real; no DI container exists.
+- Driven ports: none (no storage, clock or network; the match is derived in memory). Nothing to fake. The seeded `createRng`/`deriveSeed` are the production ones.
+- Walking skeleton: extends the S-001..S-005 skeleton by one branch (club home, Play match, Back). Browser proof: E1, E10, E11. Domain proof: H1 + M1 + M2 and N1 + N4 + N5. Litmus: the title is a user goal (send my team out, read the result and who scored) and the Then is what Sam reads.
+- Infrastructure policy: as S-003..S-005, no `docs/architecture/atdd-infrastructure-policy.md`; "everything real, nothing faked". Mandate 8 is met by comparing whole `GameState` values (league + screen + formation + xi, a closed universe), the whole `MatchResult` (homeGoals, awayGoals, goals) and deep-freeze no-mutation properties (M5, N1-N4, N7).
+
+### Wave: DISTILL / [REF] Adapter coverage table
+There are no driven adapters (DESIGN, "Driven ports and adapters": none).
+
+| Adapter | @real-io scenario | Covered by |
+|---|---|---|
+| (none) | n/a | n/a; the three named environment assumptions are probed on the built app: (1) cross-engine float determinism by E1, E3, E4 (the browser equals the Node goldens M1 and M2) plus the grep M12; (2) inline flow (`textContent` = `innerText`, apostrophe and hyphen names) by E1, E6, E7; (3) the empty "Goals" list by E8, kept honest by the unit pin M3 |
+
+### Wave: DISTILL / [REF] Scaffolds
+No `__SCAFFOLD__` stubs are written under `src/` (a throwing stub would turn the committed run red). Symbols DELIVER must export, all used by the held-out tests:
+- `src/domain/schedule.ts`: `Fixture = { readonly home: number; readonly away: number }`, `MATCHDAYS = 14`, `FIXTURES_PER_MATCHDAY = 4`, `fixturesOf(matchday): readonly Fixture[]` (the same frozen array on every call), `fixtureOf(matchday, clubIndex): { readonly index: number; readonly fixture: Fixture }` (the very object at `fixturesOf(matchday)[index]`); `RangeError` for a matchday not an integer 1..14 or a club not an integer 0..7; every level `Object.freeze`d; imports only `league.ts` (oxlint boundary).
+- `src/domain/match.ts`: `MatchSide { squad, xi }`, `MatchInput { seed, matchday, fixtureIndex, home, away }`, `GoalEvent { minute, side: "home" | "away", playerIndex }`, `MatchResult { homeGoals, awayGoals, goals }`, `teamStrength(side): number`, `playMatch(input): MatchResult` (one parameter; `RangeError` for matchday not 1..14 or fixtureIndex not 0..3; draws from stream `200 + (matchday - 1) x 4 + fixtureIndex`; rules and draw order exactly as ADR-0011; only `+ - * /`, comparisons, `Math.floor`; no `Math.pow`, `**`, `Math.exp`, `Math.log`, `Math.random`, `Date`, `performance.now`, `crypto.` in the file, M12 greps the source with comments stripped); imports `rng.ts`, `schedule.ts` and types only.
+- `src/app/state.ts`: `Screen` gains `{ kind: "match"; clubId }`; `Action` gains `{ type: "PlayMatch" }`; `OPENING_MATCHDAY = 1`; `matchFor(state, clubId): { matchday, home: { club, squad }, away: { club, squad }, result } | undefined` (`club` is the `League` club with `id` and `name`; home first as the schedule says; squads through `squadOf`; managed side `currentXI`, the other `automaticXI(squad, "4-4-2")`); `PlayMatch` valid only from `clubHome` of a known club; `Back` from `match` of a known club goes to `clubHome`; every other case returns the very same state object; `GameState` and `initialState` unchanged (no new key, `xi` and `formation` untouched); `sameScreen` gains `match` by `clubId`.
+- UI contract (brief ports 19-23; roles and names only): the club-home button "Play match" (exact name, 44px or taller, the fourth after "Squad", "Tactics" and "Starting XI", the only four buttons); the match screen has exactly one heading "Matchday 1" (focused on arrival, no other heading), exactly one deepest element whose whole text matches `^(.+) (\d)–(\d) (.+)$`, a `P` that is direct child of the screen section (no wrapper), `textContent` equal to `innerText`, and no other en dash on the screen; a visible non-heading label "Goals" (not upper-cased) and exactly one `list` on the page named exactly "Goals" with one `listitem` per goal reading exactly `<minute>' <scorer> (<club>)` (`textContent` = `innerText`), present with a non-zero box even with no items; exactly one button "Back" (44px or taller) and no other button. The score line and the list are in the DOM, visible, when the heading has focus (no timers).
+- Learned from the scratch run: the score line and the items must stay in inline flow (no flex, grid, float or `inline-block`; `display: grid` on the score line turns the `innerText` check red) with literal single-space text nodes between the spans; the "Goals" label must not reuse `.section-label` (it uppercases); the empty list needs a `min-height`; `oxlint` caps `max-params` at 3 (`playMatch` takes one object) and cyclomatic complexity at 15; the `main.ts` `match` case maps goals to `{ minute, scorer, club }` and keeps the `never` guard; the test-side `max-params` is 3 too.
+
+### Wave: DISTILL / [REF] Test placement
+`tests/acceptance/S-006/` (vitest, same convention as S-001..S-005; the fixture `fixtures/lowest-rated-xi.ts` is a test helper per DESIGN), `tests/e2e/S-006-club-home-regression.spec.ts` (committed) and `tests/e2e/S-006-match.spec.ts` (held out; DEVOPS coexistence matrix). Held-out sources live in `docs/feature/S-006/distill/pending/{acceptance,acceptance/fixtures,e2e}/` as `*.pending`. Existing tests are untouched. DESIGN's "extend the S-003 sampled derived-seed guard" lives in new cases of `match.test.ts` (M11) because the S-003 file is existing. Exactly one existing assertion will go red on the DELIVER button commit (see Open points).
+
+### Wave: DISTILL / [REF] Driving port coverage
+| Port (brief 19-23) | Scenarios |
+|---|---|
+| 19 schedule (`fixturesOf`, `fixtureOf`) | H1-H6, N6, N7 |
+| 20 match (`playMatch`, `teamStrength`) | M1-M12, K1-K5, N5, N7 |
+| 21 `update` with `PlayMatch`, `Back`, `matchFor` | N1-N7, R1-R6 |
+| 22 `focusPlan` (extended) | P1, E1, E10, E11 (heading focus), the reused `.focus(` guard |
+| 23 UI: "Play match", Matchday 1 screen, score line, list "Goals", "Back" | E1-E11, C1 |
+Ports 1-18 are unchanged and covered by S-001..S-005 tests. Driving adapters (CLI/HTTP/hook): none; the browser app is covered by E1-E11.
+
+### Wave: DISTILL / [REF] DEVOPS monitoring-contract trace
+| Contract row | Scenario |
+|---|---|
+| K1: 1 tap to the result, score line and Goals already visible with the heading focused (D13), 1 tap back | E1 (pointerdown counter, snapshot taken in the same evaluate as the focus check, no wait) |
+| K2: 100% of the managed club's goal items name one of the 11 on the Starting XI; 0 GK; 0 benched | M7, E7, K3 |
+| K3: stronger XI scores more; mean 1.0-2.0; under 20% 0–0; at most 9 | K1, K3, K5, M6, M8 |
+| Expected goldens (cross-engine) | M1, M2, M3, E1, E3, E4 |
+| Approximated-function ban | M12 |
+| Schedule (D5, ADR-0010) | H1-H6, N6 |
+| Determinism (D6) and stream disjointness | M5, M11, E3, E5 |
+| Score line and goal item text (D2, D3) | E1, E3, E6, E9 (exactly one score line, `textContent` = `innerText`) |
+| Empty "Goals" list (M-D) | M3, Q4, E8 |
+| Navigation, no-ops, no state change (D8, D10) | N1-N4, R1-R6 |
+| Back keeps tactics and XI (D9) | N3, N4, E7, E10 |
+| Names avoid match words (D11) | W1-W3 |
+| 44px tap targets | E1, E2, C1 |
+| No horizontal scroll at 390px | E1, E2, E8, E11, C1 |
+| No console errors | E1, E8, E11, C1 |
+| S-001..S-005 unchanged | R1-R6, Q1-Q5, C1, existing suites (see Open points for the one S-005 assertion) |
+| Domain test strength (Stryker) | H1-H6 (goldens, exhaustive loops, RangeError table, frozen), M1-M12 and K2 (goldens, exact canonical figures, draw order, constants, stream block), N2-N3 (same-object no-ops), N7 (managed side, stored XI, formation), P1 (club field) |
+
+### Wave: DISTILL / [REF] DELIVER step plan (which files to add, and when)
+1. **Step 01, schedule**: implement `src/domain/schedule.ts` per ADR-0010. First run the committed guards and see them green. `git mv docs/feature/S-006/distill/pending/acceptance/schedule.test.ts.pending tests/acceptance/S-006/schedule.test.ts`; confirm RED for the missing module before coding, then GREEN. Gates: `ci:lint`, `ci:typecheck`, `ci:test`.
+2. **Step 02, match model**: implement `src/domain/match.ts` per ADR-0011 (exact draw order and constants; the goldens are expected values) and the one-line stream-table comment in `squad.ts`. In the same commit `git mv` `match.test.ts.pending`, `match-calibration.test.ts.pending` and `fixtures/lowest-rated-xi.ts.pending` to `tests/acceptance/S-006/` (`match.test.ts`, `match-calibration.test.ts`, `fixtures/lowest-rated-xi.ts`). Watch the calibration test cost (about 0.4 s) for the nightly mutation run.
+3. **Step 03, state, focus and the club-home button** (one commit, so the tree is never red): `match` screen, `PlayMatch`, `Back` and `sameScreen` cases, `OPENING_MATCHDAY`, `matchFor` in `src/app/state.ts`; in the same commit `git mv` `match-navigation.test.ts.pending` to `tests/acceptance/S-006/match-navigation.test.ts`. No existing fixture or assertion changes. `existing-navigation-unchanged.test.ts` and `tests/acceptance/S-001..S-005/` stay green and unedited.
+4. **Step 04, screen, button, shell, CSS** (one commit): `src/ui/screens/match.ts`, the club-home "Play match" button in `div.club-actions`, the `main.ts` `match` case (map `matchFor` to the view, throw on an unknown club, keep the `never` guard), CSS per ADR-0011 (inline flow, no `text-transform` on the label, list `min-height`). In the same commit `git mv` `e2e/S-006-match.spec.ts.pending` to `tests/e2e/S-006-match.spec.ts` and resolve upstream-issues U-1 (the one S-005 e2e assertion listing three club-home buttons). `ci:e2e`, `tests/e2e/S-006-club-home-regression.spec.ts`, `S-004/S-005-club-home-regression.spec.ts` and `tests/protected/S-001..S-006` must pass.
+5. Delete `docs/feature/S-006/distill/pending/` once all six files are moved; zero `.pending` files is the DISTILL-to-DELIVER completion check.
+
+### Wave: DISTILL / [REF] Pre-requisites
+DESIGN: ADR-0010, ADR-0011, ADR-0008, ADR-0009 and brief ports 19-23 (read). DEVOPS: local-preview `http://localhost:4173/gaffer/` via `ci:serve`, Pixel 7 at 390px, `FC_SEED` per CI run (the fast-check properties honour it; the calibration test uses fixed seeds), `BASE_URL` for post-deploy smoke (the e2e uses `?seed=`, roles and names only, so it holds on Pages). No new dependency, no `.github/`, `stryker.config.mjs` or other locked-path change.
+
+### Wave: DISTILL / [REF] Mandate checks (adapted)
+- CM-A: tests import only `fixturesOf`, `fixtureOf`, `playMatch`, `teamStrength`, `automaticXI`, `playersForPosition`, `generateSquad`, `generateLeague`, `deriveSeed`, `initialState`, `update`, `currentXI`, `squadOf`, `matchFor`, `focusPlan`, `OPENING_MATCHDAY`; UI tests enter through the built app by role and name (plus one in-page snapshot of the DOM for the score line, which is the shape being specified). CM-B: titles use domain terms (match, score line, goals, scorer, eleven, fixture, Back, Squad). CM-D: pure rules are tested against independent expected data (ADR goldens written out, a hand-written matchday-14 table, an independent fixture-plus-`playMatch` oracle in N7, a published-figures pin in K2) and the e2e reads expected names from the Squad and Starting XI screens. CM-F: PBT only in layer 1-2 files; e2e is example-only with named sad paths (E8 empty list, E4/E5 repeat, E9 collisions). Mandate-12 domain types/DSL and step-reuse-ratio do not apply: there are no Gherkin steps; e2e helpers (`openClubHome`, `playAndRead`, `readNow`) hold no business logic beyond the expected tables written out in the file.
+- Open points for DELIVER: (1) **U-1**: `tests/e2e/S-005-starting-xi.spec.ts:173-177` asserts the club home has exactly the buttons Squad, Tactics, Starting XI; D1 adds "Play match", so that one assertion must change in DELIVER step 04 (stricter: four names in order) or get an owner exception; see `distill/upstream-issues.md`. (2) The ADR goldens do not by themselves pin `MAX_CONVERSION` (U-3), so K2 pins the canonical figures; if K2 fails and the goldens pass, the constants or the draw order differ from ADR-0011. (3) M4/E6 depend on seeds 11 and 15 (apostrophe and hyphen scorers), which follow from the frozen model. (4) `focusPlan` tests for the match screen live in `match-navigation.test.ts` so they are counted with the story.
+
+### Wave: DISTILL / [REF] Reviewer outcome (Final Wave Review Gate, one cycle, Haiku, foreground)
+| Reviewer | Verdict | Disposition |
+|---|---|---|
+| nw-product-owner-reviewer (DISCUSS) | needs_revision (1 blocker, 1 high, 1 medium, 3 low) | The blocker and the high are U-1: DISCUSS's DoD ("assertions not edited") and the claim "no club-home count" (line 167, repeated in DESIGN, DEVOPS) are false for `S-005-starting-xi.spec.ts:173-177`. Needs a DISCUSS/DESIGN/DEVOPS wording fix plus an explicit decision; not DISTILL's to make. Others (row count of outlines, slice line estimates, "h1" jargon) are DISCUSS notes, no test impact |
+| nw-solution-architect-reviewer (DESIGN) | needs_revision (1 blocker, 1 high, 1 medium, 3 low) | Blocker: same U-1. High: ADR-0011 and DESIGN say any constant change "changes every result for every seed"; DISTILL showed it does not for the two goldens (U-3, K2 pins the canonical figures). Wording fix for the ADR. Medium/low: add the matchday-14 golden to ADR-0010, exact scorer counts to ADR-0011; no test change |
+| nw-platform-architect-reviewer (DEVOPS) | conditionally_approved (0 blockers, 2 high) | High 1: U-1 again (and the "existing tests are never edited" rule is the lead's instruction, not a CI guard: `pr-guards.mjs` only makes `tests/protected/` append-only). High 2: rollback by reverting the squash cannot merge while `tests/protected/S-006` stays on main; dispatch of `deploy.yml` on the pre-S-006 SHA is the real route (owner action). Medium: per-step PR sizes stay under 1200 only if one PR per step; nightly mutation runtime unmeasured |
+| nw-acceptance-designer-reviewer (DISTILL) | conditionally_approved (0 blockers, 1 high, 3 medium, 7 low) | High: U-1. Fixed here: H1 and N1 row counts, E7 tag. DELIVER-scope action items: per-club item count in the e2e `playAndRead`, extend the M12 source grep to `schedule.ts`, whole-`MatchResult` equality next to the goldens, a `src/ui` guard against `innerHTML`/`outerHTML`/`insertAdjacentHTML`, the E6 check also for an opponent-scored marked name. Error share by `@error` tag alone is about a third of cases (about half when `@boundary` counts): the waiver above stands on the `@error or @boundary` rule |
+
+Unresolved, for the orchestrator or owner before DELIVER step 04: U-1 (explicit decision on the one-line edit of the S-005 e2e assertion, then fix the false "no club-home count" statements in DISCUSS/DESIGN/DEVOPS).
