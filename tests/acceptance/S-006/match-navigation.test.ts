@@ -300,7 +300,9 @@ describe("@US-1 @US-2 S-006 the match behind the screen is worked out from the g
     fc.assert(
       fc.property(fc.constantFrom(...league.clubs.map((c) => c.id)), fc.constantFrom(...FORMATIONS), (id, formation) => {
         const state = deepFreeze(onHome(id, formation));
+        const before = JSON.stringify(state);
         expect(matchFor(state, id)).toEqual(matchFor(state, id));
+        expect(JSON.stringify(state)).toBe(before);
       }),
     );
   });

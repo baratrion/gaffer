@@ -88,6 +88,10 @@ const playChance = (rng: Rng, setup: ChanceSetup): Chance => {
   return { goal: { minute, side: name, playerIndex: pickScorer(side, scorerDraw.value) }, rng: scorerDraw.rng };
 };
 
+/** The RNG stream of one fixture: 200..255 across the season (ADR-0011). */
+export const matchStream = (matchday: number, fixtureIndex: number): number =>
+  MATCH_STREAM_BASE + (matchday - 1) * FIXTURES_PER_MATCHDAY + fixtureIndex;
+
 export const playMatch = (input: MatchInput): MatchResult => {
   assertInRange("matchday", input.matchday, [1, MATCHDAYS]);
   assertInRange("fixtureIndex", input.fixtureIndex, [0, FIXTURES_PER_MATCHDAY - 1]);
@@ -97,8 +101,7 @@ export const playMatch = (input: MatchInput): MatchResult => {
     home: (MAX_CONVERSION * homeCube) / (homeCube + awayCube),
     away: (MAX_CONVERSION * awayCube) / (homeCube + awayCube),
   };
-  const stream = MATCH_STREAM_BASE + (input.matchday - 1) * FIXTURES_PER_MATCHDAY + input.fixtureIndex;
-  let rng = createRng(deriveSeed(input.seed, stream));
+  let rng = createRng(deriveSeed(input.seed, matchStream(input.matchday, input.fixtureIndex)));
   const goals: GoalEvent[] = [];
   for (let c = 0; c < CHANCES_PER_SIDE; c++) {
     for (const name of ["home", "away"] as const) {

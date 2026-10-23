@@ -1,5 +1,6 @@
 // @US-1 @US-2 (S-006 play my first match) @kpi
 // CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS Elevator Pitch (US-1/US-2)
 // Outcome anchor: DISCUSS D7 and KPI K3 ("an XI whose overall sum is at least 20 higher scores more on average; mean goals per side
 // 1.0-2.0 and under 20% 0-0 between two automatic XIs; at most 9 goals per side") and the realism floor ("a league's matchday is not
 // all goalless"). Committed fixed-seed test (no fast-check, so it does not use FC_SEED): seeds 1..1000 x the 4 matchday-1 fixtures =

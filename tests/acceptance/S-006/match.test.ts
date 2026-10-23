@@ -12,9 +12,9 @@ import { join } from "node:path";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { generateLeague } from "../../../src/domain/league";
-import { playMatch, teamStrength, type GoalEvent, type MatchInput, type MatchResult, type MatchSide } from "../../../src/domain/match";
+import { matchStream, playMatch, teamStrength, type GoalEvent, type MatchInput, type MatchResult, type MatchSide } from "../../../src/domain/match";
 import { deriveSeed } from "../../../src/domain/rng";
-import { FIXTURES_PER_MATCHDAY, fixturesOf } from "../../../src/domain/schedule";
+import { fixturesOf } from "../../../src/domain/schedule";
 import { FORMATIONS, lineUp, type FormationId } from "../../../src/domain/formation";
 import { automaticXI, playersForPosition } from "../../../src/domain/selection";
 import { generateSquad, type Player, type Position } from "../../../src/domain/squad";
@@ -226,6 +226,16 @@ describe("@US-1 @US-2 S-006 the match Sam sees is decided by the seed, the fixtu
     });
   });
 
+  describe("Given a late-season fixture (matchday 9, fixture 2) of seed 31", () => {
+    it("when it plays, then it uses stream 234 (hand-computed: 200 + 8 * 4 + 2) and gives the recorded result @regression @contract-shape:pure-function", () => {
+      // Figures below were recorded once from the frozen model (ADR-0011); the stream number is hand-computed, not read from code.
+      expect(matchStream(9, 2)).toBe(200 + (9 - 1) * 4 + 2);
+      expect(matchStream(9, 2)).toBe(234);
+      const result = playMatch(inputOf(31, 2, 9));
+      expect({ home: result.homeGoals, away: result.awayGoals, minutes: result.goals.map((g) => g.minute) }).toEqual({ home: 2, away: 3, minutes: [13, 16, 34, 64, 79] });
+    });
+  });
+
   describe("Given a matchday or fixture outside the schedule", () => {
     it.each([
       ["matchday 0", { matchday: 0 }],
@@ -250,12 +260,19 @@ describe("@US-1 @US-2 S-006 the match Sam sees is decided by the seed, the fixtu
 
   describe("Given the random streams used by the generator and the matches, when the seeds derived for them are compared", () => {
     // Streams in use after S-006 (ADR-0011): -1 names, 0..7 clubs, 100..107 attributes, 200..255 matches.
-    const matchStreams = Array.from({ length: 14 * FIXTURES_PER_MATCHDAY }, (_, i) => 200 + i);
+    // ADR-0011 formula, restated independently: stream = 200 + (matchday - 1) * 4 + fixtureIndex.
+    const pairs = Array.from({ length: 14 }, (_, d) => Array.from({ length: 4 }, (_, f) => [d + 1, f] as const)).flat();
+    const matchStreams = pairs.map(([matchday, fixtureIndex]) => matchStream(matchday, fixtureIndex));
     const streams = [-1, ...Array.from({ length: 8 }, (_, i) => i), ...Array.from({ length: 8 }, (_, i) => 100 + i), ...matchStreams];
 
-    it("then the 56 match streams are 200..255 and all 73 stream numbers are pairwise distinct @boundary @contract-shape:pure-function", () => {
-      expect(matchStreams[0]).toBe(200);
-      expect(matchStreams.at(-1)).toBe(255);
+    it("then the 56 match streams follow 200 + (matchday - 1) * 4 + fixture, span 200..255, and all 73 stream numbers are pairwise distinct @boundary @contract-shape:pure-function", () => {
+      expect(pairs).toHaveLength(56);
+      pairs.forEach(([matchday, fixtureIndex], i) => {
+        expect(matchStream(matchday, fixtureIndex)).toBe(200 + (matchday - 1) * 4 + fixtureIndex);
+        expect(matchStream(matchday, fixtureIndex)).toBe(200 + i);
+      });
+      expect(Math.min(...matchStreams)).toBe(200);
+      expect(Math.max(...matchStreams)).toBe(255);
       expect(new Set(streams).size).toBe(73);
     });
 

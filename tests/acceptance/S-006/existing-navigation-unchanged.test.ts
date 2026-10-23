@@ -1,5 +1,6 @@
 // @US-1 (S-006 play my first match) @regression
 // CONTRACT_SHAPE: bounded-change
+// Outcome anchor: DISCUSS Elevator Pitch (US-1/US-2)
 // Outcome anchor: DISCUSS Notes and DoD: adding "Play match" to the club home must keep S-001..S-005 working: club home,
 // "Squad", a player, "Tactics", a formation, "Starting XI", a slot, "Back". Choosing a formation keeps the league and the screen rules.
 // States are built without naming the S-006 `match` screen or `PlayMatch` action, so this file compiles and passes before and after DELIVER.

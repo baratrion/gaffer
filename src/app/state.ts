@@ -150,7 +150,12 @@ const playMatchAction = (state: GameState): GameState =>
 const back = (state: GameState): GameState => {
   const { screen, league } = state;
   if (!("clubId" in screen) || !isKnownClub(league, screen.clubId)) return state;
-  if (screen.kind === "squad" || screen.kind === "match" || screen.kind === "tactics" || screen.kind === "startingXI") {
+  if (
+    screen.kind === "squad" ||
+    screen.kind === "match" ||
+    screen.kind === "tactics" ||
+    screen.kind === "startingXI"
+  ) {
     return toScreen(state, { kind: "clubHome", clubId: screen.clubId });
   }
   if (screen.kind === "player" && isSquadIndex(screen.playerIndex)) {

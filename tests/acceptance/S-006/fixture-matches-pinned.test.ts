@@ -1,5 +1,6 @@
 // @US-1 @US-2 (S-006 play my first match) @regression
 // CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS Elevator Pitch (US-1/US-2)
 // Outcome anchor: DESIGN D7 and ADR-0011 "Expected golden matches": the goldens (seed 31 and seed 20260 fixture 0, seed 8 fixture 3)
 // were computed from these real generator values. This test pins the inputs (club names behind the indices, the sum of the 11
 // overalls of each automatic 4-4-2 XI, the scorers' squads), so a change to the league or squad generator turns this file red

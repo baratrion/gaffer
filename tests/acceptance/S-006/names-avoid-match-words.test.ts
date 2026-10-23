@@ -1,5 +1,6 @@
 // @US-1 @US-2 (S-006 play my first match) @regression
 // CONTRACT_SHAPE: pure-function
+// Outcome anchor: DISCUSS Elevator Pitch (US-1/US-2)
 // Outcome anchor: DISCUSS D11: no new accessible name may collide with an existing one, nor a generated name with a new one.
 // Playwright matches names as case-insensitive substrings, so no club, player or colour name may contain "Play match", "Goals"
 // or "Matchday", and the new button name may not contain a word that names an existing screen or button.
