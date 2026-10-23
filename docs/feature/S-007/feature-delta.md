@@ -253,3 +253,163 @@ DoR status: PASSED (both stories). Every story has `job_id` J-07 and an Elevator
 | L2 no-seed wording | Examples and the outcome read "no ?seed= in the address" |
 | L3 named columns | US-1 scenario 1 and the Elevator Pitch name P, W, D, L, GD and Pts instead of "every other cell" |
 | L4 screen title | User-facing prose (Elevator Pitches, journey, Glossary, driving ports) uses "screen title"; the outcome reads "its screen title, the only top-level heading (h1)" |
+
+## Wave: DESIGN
+
+- **Setup**: mode propose; scope application; one solo team, so no Conway constraint. Paradigm: functional core, imperative shell (ADR-0003; recorded in the ADRs and the brief, not in CLAUDE.md). Unattended run; no questions asked.
+- **New ADRs**: `adr-0012-recorded-matchday-results.md` (what is recorded, where the 4-fixture simulation lives, how the match screen reads; supersedes ADR-0011 section 5 and S-006 D8) and `adr-0013-league-standings-and-table-screen.md` (standings, order, GD format, table markup, highlight, 390px layout, navigation). ADR-0011 gets only a status-line note ("Superseded in part by ADR-0012 (section 5)").
+- **Brief**: `docs/product/architecture/brief.md` gains the "Table and recorded results (S-007, ADR-0012, ADR-0013)" subsection, effect-isolation and inventory rows, the C4 L2 descriptions, "For Acceptance Designer" ports 24-28 plus the S-007 observable bullet, and a Changed Assumptions note.
+- **No new C4 container.** The domain gains `standings.ts` and extends `match.ts`; the L2 holds, descriptions updated.
+- **Library check**: no library is involved (native HTML table, ADR-0002 plain DOM, no new dependency). No Context7 lookup applies; none was run. The only external facts are web-platform semantics (`th scope`, `aria-current`, Chromium dropping table roles when `display` is overridden); they are not looked up here but probed by the e2e (ADR-0013 Earned Trust 1).
+- **Outcome collision check**: not run in this unattended design; S-007 registers no outcome (no new typed contract beyond brief ports 24-28), as S-006.
+
+### Wave: DESIGN / [REF] DDD list
+- **New small context**: "Standings" (supporting), one pure module `standings.ts`, a pure function of the club list and the recorded results.
+- **Extended context**: "Match" gains the matchday: `PlayedMatch` and `playMatchday` in `match.ts` (no new file).
+- **Language**: Recorded result (a `PlayedMatch`), Results log (the append-only `results` list, a precursor of the Season), Opening matchday, Standing row, Position, Points, Goal difference, Goals for/against, Managed club (highlighted row), Table.
+- **Value objects**: `PlayedMatch { matchday, fixtureIndex, home, away, result }`, `StandingRow { position, clubId, name, played, won, drawn, lost, goalsFor, goalsAgainst, goalDifference, points }`.
+- **State**: one new optional field, `GameState.results`. It is a log of facts, not an aggregate with behaviour; the invariants are enforced by the producer (`playMatchday`).
+- **Invariants by construction**:
+  - Each fixture's result is `playMatch` on its own stream, so the 4 results are independent of each other and of the managed club (only the managed club's own fixture reads its tactics).
+  - Standings are a function of results alone, so W + D + L = P, Pts = 3W + D, total W = total L, total D even, total GD = 0 hold for any input.
+  - The order is total (unique names), so positions are never shared.
+  - `results`, once set, is the same array until `NewGame`.
+
+### Wave: DESIGN / [REF] Decisions
+| # | Decision | Source |
+|---|---|---|
+| D1 | **Record the results themselves** in `GameState.results?: readonly PlayedMatch[] \| undefined` (absent means nothing recorded), entries `{ matchday, fixtureIndex, home, away, result: MatchResult }`, plain JSON-able data, append-only so matchdays 2..14 and `localStorage` need no reshape.<br>Rejected: a kick-off snapshot re-derived per render (history rewritten by any model or rule change; one snapshot per matchday later); standings rows only (no goal list for the match screen); a required `results: []` (breaks `initialState` and S-003 whole-state `toEqual`, as ADR-0009 1B). | ADR-0012 (1); DISCUSS D1, D2, D9 |
+| D2 | **Supersession**: ADR-0012 supersedes ADR-0011 section 5 (option 5A "Not stored") and S-006 D8 ("Result not stored"), plus the ADR-0011 App line "`GameState` and `initialState` are unchanged" and the brief line "`GameState` gains nothing". Everything else in ADR-0011 stands: the model, constants, draw order, goldens, streams, screen markup. ADR-0011 gets a status-line note, nothing else. | ADR-0012; DISCUSS H1 |
+| D3 | **The 4-fixture simulation is a pure domain function**: `playMatchday({ seed, matchday, sides })` in `match.ts` (8 sides by club index, 4 `PlayedMatch` in fixture order, each exactly `playMatch`). The app decides the XIs (managed `currentXI`, all others `automaticXI(squad, DEFAULT_FORMATION)`) in `playOpeningMatchday(state, clubId)`, the only producer.<br>Rejected: a loop in `state.ts` (matchday rule tied to `GameState`; the season story would copy it); recording only Sam's match and deriving the rest per render (the table would move). | ADR-0012 (2); DISCUSS D1 |
+| D4 | **`PlayMatch`** records on the first tap: `results = state.results ?? playOpeningMatchday(...)`, and shows the match screen; later taps keep the same array (re-show, this version only). **`NewGame`** drops `results` (helper returning the same state when none, like `withoutPicks`). No other action touches it. | ADR-0012; DISCUSS D2, D9 |
+| D5 | **`matchFor` stays the one selector the match screen reads**, with an unchanged `MatchView`: the recorded entry when present, else the S-006 derivation (unreachable through `update`). `main.ts`'s `match` case does not change, and the S-006 `matchFor` cases stay green unedited.<br>Rejected: a second reader with `matchFor` left as dead code; deleting `matchFor` (rewrites about 12 S-006 cases, for a state `update` never produces). | ADR-0012 (3) |
+| D6 | **No new RNG stream**, no new draw: matchday 1 uses streams 200..203. Sam's opponent gets exactly today's result, so the S-006 goldens (seed 31: 1–2; seed 20260: 0–1) and every S-001..S-006 output are unchanged. | ADR-0012; DISCUSS D9 |
+| D7 | **Standings**: pure `standings(clubs, played) => readonly StandingRow[]` in new `src/domain/standings.ts`, computed from the results on each render, never stored. `goalsFor`/`goalsAgainst` are kept internally (tie-break, later columns). `standingsOf(state)` in `state.ts` feeds it. Rejected: a running table in state (second source); computing in the renderer (outside tests and Stryker). | ADR-0013 (1) |
+| D8 | **Order**: points, goal difference, goals for (descending), then name ascending by `<` (code-point order; a space before any letter). No `localeCompare` (grep test): locale and engine dependent. Names are unique, so the order is total. | ADR-0013 (2); DISCUSS D4 |
+| D9 | **GD text** `+N` / `0` / `-N` (ASCII U+002D) by `formatGoalDifference` exported from `standings.ts` (pure, mutated by Stryker, sign table test); the renderer calls it. Rejected: in the renderer (unmutated); in `state.ts` (bloat, mixes concerns). | ADR-0013 (3) |
+| D10 | **Markup**: native `<table aria-labelledby="table-title">` named by the `<h1 id="table-title">`; `<thead>` one row of 8 `<th scope="col">`; `<tbody>` 8 rows of `<td>` Pos, `<th scope="row">` Club, six `<td>`. Roles: 9 rows, 8 columnheaders, 8 rowheaders, 56 cells. Rejected: `<caption>` (visible duplicate of the h1); ARIA `div`s; a card list (not a table). | ADR-0013 (4); DISCUSS D4 |
+| D11 | **Highlight**: `aria-current="true"` on the managed club's `<tr>`, styled by the attribute selector with new token `--highlight` (gold at 18%), a 4px gold inset edge on the first cell, bold text. One hook for meaning and style; no text change. Rejected: class only; a "(you)" text. | ADR-0013 (5); DISCUSS D7 |
+| D12 | **390px**: automatic table layout, `width: 100%`, numeric cells `nowrap` and `width: 1%`, tabular numerals, 0.9rem, the Club cell wraps (`overflow-wrap: anywhere`), no `text-transform`. Binding: no `display` override on any table part (Chromium drops roles). Rejected: fixed layout with `colgroup`; an `overflow-x` wrapper (forbidden); hiding columns. | ADR-0013 (6); DISCUSS D10 |
+| D13 | **Navigation**: `Screen` adds `table{clubId}`; `Action` adds `ViewTable` (known club's home only); `Back` table to home; `sameScreen` groups `table` with the `clubId` kinds; every navigation changes the screen, so focus goes to the `<h1>` and no focus ids are added. The club home gains a fifth `button.primary` "Table" after "Play match". `update` is at 13 of the 15 allowed cases. | ADR-0013 (7); ADR-0008; DISCUSS D3, D8 |
+| D14 | **Names**: "Table" and "League table" are in no `names.ts` array (grep: none). "Table" is a substring of no existing name and contains none of them. "Club" (a columnheader) does not clash with the list "Clubs". The short column names are substrings of other text, so locators use `exact: true`. DISTILL adds the unit check. | ADR-0013; DISCUSS D11 |
+| D15 | **No dependency**; no DOM test environment is added. The table renderer is covered by the e2e (role counts, scroll width, text) and the protected scenarios; its data by unit tests. | ADR-0013 |
+
+### Wave: DESIGN / [REF] Component decomposition
+| Path | Change | Responsibility | Indicative lines |
+|---|---|---|---|
+| `src/domain/standings.ts` | CREATE | `ScoredMatch`, `StandingRow`, `standings`, `formatGoalDifference` (tally, order, GD text) | 55 |
+| `src/domain/match.ts` | EXTEND | `PlayedMatch`, `MatchdayInput`, `playMatchday` | 22 |
+| `src/app/state.ts` | EXTEND | `results` field; `table` screen, `ViewTable`; `PlayMatch` records; `NewGame` drops; `Back` and `sameScreen` cases; `playOpeningMatchday` (replaces `sideOf`); `matchFor` reads the record; `standingsOf` | 50 |
+| `src/ui/screens/table.ts` | CREATE | `renderTable` | 55 |
+| `src/ui/screens/club-home.ts` | EXTEND | Fifth button "Table" | 1 |
+| `src/main.ts` | EXTEND | `table` render case (`standingsOf`, `renderTable`), import. The `match` case is unchanged | 8 |
+| `src/ui/styles.css` | EXTEND | `--highlight`, `.league-table`, `.standings` and its cells, the `aria-current` row | 30 |
+
+**Code total**: about 221 lines, against 215 in DISCUSS. `docs/product/ui/design-system.md` gains the table pattern and the token in DELIVER (about 8 doc lines, not counted).
+
+Test lines, re-estimated from the ADR-0012/0013 check lists (finite checks as tables, fast-check only for the row-rule and 40-action properties):
+
+| Test file (DISTILL) | Contents | Lines |
+|---|---|---|
+| `tests/acceptance/S-007/standings.test.ts` | seed-31 golden (RED-first); each tie-break (Pts, GD, goals for, name) and a name-only full tie; space before letter; empty list gives the all-zero A to Z table; GD sign table; row rules and totals as fast-check properties; permutation and order property; no mutation; `RangeError`; grep: no `localeCompare` | 110 |
+| `tests/acceptance/S-007/matchday.test.ts` | `playMatchday` equals `playMatch` per fixture; deep-equal on repeat; frozen sides; other fixtures independent of one club's XI; JSON round trip; `RangeError` table | 60 |
+| `tests/acceptance/S-007/table-navigation.test.ts` | `ViewTable`/`Back` and no-op table; `PlayMatch` records exactly the 4 entries of `playMatchday` (managed side `currentXI`, others automatic) and keeps the same array on later taps; formation/XI/visits never change `results`; `NewGame` drops it; `matchFor` recorded vs fallback; `standingsOf` before/after; `focusPlan` table cases; 40-action property | 150 |
+| `tests/acceptance/S-007/names-avoid-table-words.test.ts` | D11 check over every `names.ts` array | 20 |
+| `tests/e2e/S-007-table.spec.ts` | Role counts (9 rows, 8 columnheaders, 8 rowheaders, 56 cells), focus on each heading, 44px, exactly one `aria-current` row = managed club, cell `innerText` = `textContent`, seed-31 golden table (cross-engine), no sideways scroll or console errors, the formation-change walk | 110 |
+| Amended S-005/S-006 tests (D12) | button lists gain "Table"; three `update` cases restated with the record | 30 |
+| **Tests total** | | **480** |
+
+**DELIVER total**: about 701 changed lines (221 code + 480 tests), against 640 in DISCUSS and the 1100 cap; 841 with the plan run's 140 protected lines. No cut is needed. If DELIVER runs over, the cut order is: (1) the 40-action property (the unit cases carry the logic); (2) the e2e formation-change walk (units cover it); (3) the seed-`abc` rows of the e2e.
+
+### Wave: DESIGN / [REF] Driving ports
+- **Domain**: `playMatchday` (ADR-0012); `standings` and `formatGoalDifference` (ADR-0013).
+- **App**: `update` with `PlayMatch` (records), `ViewTable`, `Back`, `NewGame`; selectors `matchFor` (reads the record) and `standingsOf`; `focusPlan` (extended).
+- **Browser**: "Table" on the club home; the table screen (`<h1>` "League table", the table "League table", "Back").
+- Detail and properties: brief, "For Acceptance Designer", ports 24-28.
+
+New and changed shapes, for the acceptance designer:
+- `GameState` = `{ league, screen, formation, xi?, results? }`, with `results?: readonly PlayedMatch[] | undefined`.
+- `PlayedMatch` = `{ matchday, fixtureIndex, home, away, result }` (`home`, `away` club indices; `result` a `MatchResult`).
+- `Screen` adds `{ kind: "table"; clubId: string }`. `Action` adds `{ type: "ViewTable" }`.
+- `StandingRow` = `{ position, clubId, name, played, won, drawn, lost, goalsFor, goalsAgainst, goalDifference, points }`.
+
+### Wave: DESIGN / [REF] Driven ports and adapters
+None: no storage, clock or network. The record lives in memory for the page's life. Environment assumptions are named and probed (ADR-0012/0013 Earned Trust):
+1. **Cross-engine determinism of all 4 fixtures.** The browser's seed-31 table after matchday 1 equals the table the Node test pins (derived from the ADR-0011 fixture values). Fault: an approximated function in `match.ts` (the grep test also covers it).
+2. **Native table roles in the browser.** The e2e counts the roles (9 rows, 8 columnheaders, 8 rowheaders, 56 cells). Faults: a `display` override on a table part, or a missing `scope`.
+3. **390px fit.** The e2e asserts document and table `scrollWidth <= clientWidth` with the long club names of both pinned seeds. Faults: a fixed width, `overflow-wrap` removed.
+4. **Text.** Cell `innerText` equals `textContent`; GD cells read `+4`, `0`, `-1` with U+002D. Faults: `text-transform`, a Unicode minus.
+5. **Highlight.** Exactly one `aria-current` row, its row header the managed club.
+6. **Sort order.** No `localeCompare` (grep test); a unit case where a space sorts before a letter.
+7. **Future persistence** (not this story) is the first real adapter and gets its own `probe()` and shape validator; the JSON round-trip test keeps `results` honest until then.
+
+No external integrations, so no contract tests.
+
+**Enforcement**:
+- oxlint boundaries are unchanged: `standings.ts` imports only domain; `state.ts` imports no ui.
+- `max-params` 3 (`playMatchday` and `standings` take one and two parameters); `complexity` 15 (`update` 13).
+- The PR guard and oxlint globals; the `.focus(` grep covers `renderTable`; a new grep forbids `localeCompare` in `standings.ts`.
+- Stryker's existing globs cover `standings.ts`, `match.ts` and `state.ts` with no config change.
+
+### Wave: DESIGN / [REF] Technology choices
+- No new technology or dependency (ADR-0001, 0002 and 0003 apply; all OSS). The table is native HTML and CSS; no table library.
+- No DOM test environment is added (a jsdom would be a new dependency); the renderer is covered by the e2e.
+- No newer CSS is relied on (no `:has()`, no container queries): attribute selectors and `font-variant-numeric` only.
+
+### Wave: DESIGN / [REF] Reuse Analysis
+| Existing Component | File | Overlap | Decision | Justification / contract shape |
+|---|---|---|---|---|
+| `playMatch`, `MatchSide`, `MatchResult`, `matchStream` | `src/domain/match.ts` | The matchday's fixtures are `playMatch` calls | REUSE unchanged | Pure return-only; `playMatchday` calls it per fixture, so every result is bit-identical to S-006 (ADR-0011 goldens) |
+| (none for the matchday) | `src/domain/match.ts` | A matchday of 4 fixtures | EXTEND (`PlayedMatch`, `playMatchday`) | No matchday function exists; `schedule.ts` cannot import `match.ts` (cycle), `match.ts` already imports `schedule.ts`. Pure return-only; universe = the returned array; deep-equal, frozen inputs, equals `playMatch` per fixture, JSON round trip |
+| `fixturesOf`, `fixtureOf`, `FIXTURES_PER_MATCHDAY`, `MATCHDAYS` | `src/domain/schedule.ts` | Which clubs meet, and the fixture index | REUSE unchanged | Frozen data; ADR-0010 goldens |
+| `squadOf`, `currentXI`, `automaticXI`, `DEFAULT_FORMATION` | `state.ts`, `selection.ts`, `formation.ts` | The 8 sides | REUSE unchanged | `currentXI` stays the only effective-XI derivation, `squadOf` the only squad lookup |
+| `rng.ts`, `generateSquad`, `generateLeague`, `CLUBS_PER_LEAGUE` | `src/domain/` | Seeded draws, squads, club list | REUSE unchanged | No new stream; no generator change |
+| `matchFor`, `MatchView`, `OPENING_MATCHDAY`, `sideOf` | `src/app/state.ts` | Deriving and reading the match | EXTEND (`matchFor` reads the record, else the derivation over `playOpeningMatchday`; `sideOf` replaced by the 8-sides builder) | Pure return-only. Same signature and `MatchView`, so `main.ts` and the S-006 cases are unchanged. Universe of the returned state: `{ league, screen, formation, xi?, results? }` |
+| `update`, `back`, `sameScreen`, `withoutPicks`, `newGame`, `playMatchAction` | `src/app/state.ts` | Navigation, resets | EXTEND (`ViewTable`, `table` cases, recording, `withoutResults`) | Pure return-only; only `screen` and, on the first tap, `results` change; whole-state `toEqual`, `toBe` for no-ops, deep-freeze |
+| `focusPlan` | `src/app/state.ts` | Focus on the new screen | EXTEND (`table` in the `clubId` group via `sameScreen`) | Pure plan value; no focus ids needed |
+| (none) | `src/domain/standings.ts` | League table rules | CREATE NEW | No standings, points or table code exists in `src/` or `salvage/` (`salvage/` has an RNG, tactics and a formation resolver only). Contract: pure return-only; universe = the returned rows; properties, goldens, sign table |
+| `renderMatch`, `renderStartingXI` markup | `src/ui/screens/` | Section, h1, Back, list named by heading | REFERENCE (same pattern, not shared code) | A table needs different elements; a shared helper would couple screens for about 3 lines |
+| (none) | `src/ui/screens/table.ts` | The table screen | CREATE NEW | No table screen exists. Contract: bounded-change; universe = `root.replaceChildren(section.league-table)` with exactly h1, table and Back; never moves focus (grep test); e2e role counts |
+| `renderClubHome` | `src/ui/screens/club-home.ts` | The club-actions stack | EXTEND (fifth button) | Bounded-change; the existing club-home e2e iterates every button for 44px |
+| `el()` | `src/ui/dom.ts` | Builds every cell and its text node | REUSE unchanged | Bounded-change, detached nodes only; string children become text (ADR-0002); `aria-current`, `scope` and `aria-labelledby` pass as attributes |
+| `.back-button`, tokens, `h1` rules | `src/ui/styles.css` | Back button, colours, headings | EXTEND (`--highlight`, table rules; reuse `.back-button` and the other tokens) | `.section-label` is not used (uppercase); no `text-transform` on table text |
+| `render`, `findClub` | `src/main.ts` | Render switch | EXTEND (`table` case under the `never` guard) | Unbounded shell; universe unchanged |
+| S-001..S-006 acceptance, e2e and protected tests | `tests/` | Regression | REUSE unchanged, except the D12 amendments | Never-played states have no `results` key, so whole-state assertions hold; the `matchFor` cases stay green via the fallback |
+
+### Wave: DESIGN / [REF] Changed Assumptions
+- **S-006 D8, quoted**: "**Result not stored**. A pure `matchFor(state, clubId)` in `state.ts` derives it on render; `main.ts` calls it and maps it to view props." Superseded: the matchday-1 results are recorded in `GameState.results` at the first "Play match" (ADR-0012). `matchFor` and `main.ts`'s `match` case stay, but `matchFor` now reads the record.
+- **ADR-0011 section 5, quoted**: "**A. Not stored: a pure app selector `matchFor(state, clubId)` in `state.ts` derives it on render, and `main.ts` calls it (chosen)**", and its rejection of 5C: "Stores derivable data. A new field breaks the whole-state `toEqual` assertions, and an optional field is a second source of truth. D8 says nothing is recorded." Superseded in part by ADR-0012. The reasoning held for one match derived from live tactics; the table needs facts that tactics changes cannot move. The `toEqual` objection is met by the absent-key pattern of ADR-0009 (never-played states keep their exact keys), and the "second source" objection by making the record the only source after the tap.
+- **Brief S-006 line "`GameState` gains nothing: the result is never stored (D8)"**: struck through in the brief and pointed at ADR-0012.
+- **DISCUSS D2 wording** ("the S-006 on-demand derivation is used only to produce the recording"): refined, not contradicted. `matchFor` also derives as a total fallback when nothing is recorded; `update` records before it ever shows the match screen, so the fallback is unreachable in play.
+- **DISCUSS line budget**: DELIVER is about 701 lines (DISCUSS 640), because the matchday function and the persistence-ready shape add a test file. Under the 1100 cap.
+- **DISCUSS D12 amendments**: unchanged in size, because `matchFor` keeps its S-006 behaviour on never-played states. The amended `update` cases are the three named in D12.
+- No change to the roadmap outcome text.
+
+### Wave: DESIGN / [REF] Open questions
+- **None blocking.**
+- **Re-show on a second "Play match"** holds in this version only (DISCUSS D2). The season story replaces it with "play the next matchday" by appending to `results` and keeping a matchday in state; `OPENING_MATCHDAY` then goes away. Nothing in the data shape changes.
+- **Column widths** are an estimate (about 180px of numeric columns, about 170px for the Club cell, at 0.9rem). DELIVER tunes the padding against the e2e `scrollWidth` check with the longest names of seeds 31 and `abc`; the rule that matters is "no `display` override, the Club cell wraps".
+- **`aria-current` support** varies across screen readers; the visual cue (edge, wash, weight) does not depend on it.
+- **Persistence** (a later story) must add a probe and a shape validator for `results`, and a save version, because `playerIndex` depends on the frozen squad order.
+- **Outcome trace**:
+  - "Table" 44px; h1 "League table" focused: D13.
+  - Table name, 8 headers, 8 rows, row-header and cell structure: D10.
+  - Pos 1..8, GD format, row rules: D7, D8, D9.
+  - Order, tie-breaks, A to Z: D8.
+  - All-zero A to Z before kick-off: D7 (empty list).
+  - First "Play match" records the matchday for the whole league: D1, D3, D4.
+  - Sam's row agrees with the score line, mirror for the opponent: D3, D5, D6.
+  - What is played stays played; kept until reload or "New game": D1, D4.
+  - Same seed same table; `?seed=abc` equals no seed: D6.
+  - Highlight: D11. Back with focus on the club heading: D13.
+  - No sideways scroll, no console errors: D12 and the e2e.
+- **Handoff for DISTILL**:
+  - Properties and checks: brief ports 24-28 and the ADR-0012/0013 Consequences. Test files and lines are in the table under Component decomposition.
+  - **Expected goldens**, written RED-first: the seed-31 matchday-1 table of DISCUSS US-2 example 1 (derived from the ADR-0011 fixture values; DELIVER must match it and never re-pins from its own output), and the all-zero A to Z table of DISCUSS US-1 example 1. Sam's fixture (seed 31, untouched tactics) stays "Netherwold Borough 1–2 Marlbrook Athletic".
+  - Locators: role `table` named "League table", `columnheader`, `rowheader`, `cell`, `row`; `exact: true` for "Table", "Back", the heading and every column header ("P", "W", "D", "L", "GD", "Pts", "Pos" are substrings of other texts).
+  - The pending-then-activate pattern of S-006 applies to the amended S-005/S-006 cases (D12), in the same commit as the production change.
+  - `update` no-ops for `ViewTable` on every other screen; `results` untouched by every action but `PlayMatch` (first tap) and `NewGame`.
+  - Unit check D11 for "Table" and "League table"; grep tests for `localeCompare` in `standings.ts`.
+
+### Wave: DESIGN / [REF] Peer review
+pending

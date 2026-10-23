@@ -1,6 +1,6 @@
 # ADR-0011: Match model, its RNG stream, and the derived match screen (S-006)
 
-- Status: Accepted (accepted after nw-solution-architect-reviewer cycle 1, approved_with_notes)
+- Status: Accepted (accepted after nw-solution-architect-reviewer cycle 1, approved_with_notes). Superseded in part by ADR-0012 (section 5: the result is now recorded in session state)
 - Date: 2026-10-20
 - Deciders: nWave solution-architect (S-006 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core), ADR-0005 (d) (derive on render), ADR-0006 (derived overall, stream table), ADR-0008 (focus), ADR-0009 (`currentXI`, `automaticXI`, optional `xi`, inline-flow text rule), ADR-0010 (schedule). Extends the stream table of ADR-0006 with 200..255. Supersedes nothing.
