@@ -151,7 +151,7 @@ S-001 has no external adapters. The only environment dependency is `location.sea
     4. `<ul role="list" aria-labelledby="goals-label">`: items read exactly `23' Name (Club)` (inline spans). The list is rendered and visible (non-zero box) even when empty.
     5. A `.back-button` "Back".
   - Everything renders in one synchronous render, so the result is present when the `<h1>` is focused (D13).
-- **Contract shapes and probes**: see the effect-isolation table and ADR-0011 Earned Trust: the cross-engine golden in the e2e, inline-flow `innerText` checks, and the empty list probed through a seed pinned by a domain test. No external integrations, no contract tests, and no new C4 container (the domain gains `schedule.ts` and `match.ts`; the L2 holds, descriptions updated).
+- **Contract shapes and probes**: see the effect-isolation table and ADR-0011 Earned Trust: the Chromium-vs-Node golden in the e2e, inline-flow `innerText` checks, and the empty list probed through a seed pinned by a domain test. No external integrations, no contract tests, and no new C4 container (the domain gains `schedule.ts` and `match.ts`; the L2 holds, descriptions updated).
 
 ### Table and recorded results (S-007, ADR-0012, ADR-0013)
 - **Recording** (ADR-0012, supersedes ADR-0011 section 5 and S-006 D8):
@@ -345,7 +345,7 @@ Cross-cutting:
 - No console errors. Generated text goes through `textContent`, and renderers never call `.focus()`.
 - "Play match", "Goals" and "Matchday" appear in no `names.ts` array (case-insensitive substrings, the D11 unit check).
 - The empty-list case is probed at a seed pinned by a domain test as having a matchday-1 0–0 (DESIGN found seed 8, fixture 3, clubs 3 v 4).
-- The e2e compares the browser's seed-31 match screen with the expected golden of port 20, the same value the Node test asserts (cross-engine determinism).
+- The e2e compares the browser's seed-31 match screen with the expected golden of port 20, the same value the Node test asserts (Chromium vs Node determinism; WebKit not probed).
 
 ### Driving ports (S-007)
 24. **Domain: matchday** (pure, `src/domain/match.ts`, ADR-0012; inputs never mutated). `PlayedMatch = { matchday, fixtureIndex, home, away, result }`; `playMatchday({ seed, matchday, sides }) => readonly PlayedMatch[]`, with `sides` the 8 `{ squad, xi }` by club index.

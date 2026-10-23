@@ -96,6 +96,8 @@ Scenario: Before kick-off every club is level on zero, in A to Z order
   And its 8 body rows read Pos 1 to 8, top to bottom
   And their row headers read "Fennimore Town", "Juniper Hollow United", "Marlbrook Athletic", "Netherwold Borough", "Oakhampton Rise Borough", "Rushmoor Heath Albion", "Tarnbeck Borough", "Valebridge Albion", in that order
   And in every body row the cells P, W, D, L, GD and Pts each read "0"
+  And in every body row W + D + L equals P
+  And in every body row Pts equals 3 × W + D
 
 Scenario Outline: The table holds exactly the league's clubs
   Given Sam opens a fresh page at "<seed>", taps "New game" and reads the 8 names of the "Clubs" list
@@ -283,6 +285,8 @@ Cycle 2 (final): rejected_pending_revisions (H-1, H-2, M-1, M-3, L-A..L-D, plus 
 | L-D performance | Outcome KPIs: performance not separately measured (3 more quick-sims on the first tap, an 8-row tally per render) |
 | Cycle-1 L1, L5-L8 | Recorded in the cycle-1 table above |
 
+Cycle 3 (final verification): **approved_with_notes**, no critical, high or medium. H-1, H-2, M-1, M-2, M-3 and L-A..L-C resolved; L-D partially. Its two lows landed by the orchestrator: J-07's functional text drops the unquantified "in seconds" (now "one tap from the club home"); US-1 scenario 1 gains the two row-rule steps (W + D + L = P, Pts = 3 × W + D) that the protected scenarios check before matchday 1.
+
 ## Wave: DESIGN
 
 - **Setup**: mode propose; scope application; one solo team, so no Conway constraint. Paradigm: functional core, imperative shell (ADR-0003; recorded in the ADRs and the brief, not in CLAUDE.md). Unattended run; no questions asked.
@@ -322,7 +326,7 @@ Cycle 2 (final): rejected_pending_revisions (H-1, H-2, M-1, M-3, L-A..L-D, plus 
 | D13 | **Navigation**: `Screen` adds `table{clubId}`; `Action` adds `ViewTable` (known club's home only); `Back` table to home; `sameScreen` groups `table` with the `clubId` kinds; every navigation changes the screen, so focus goes to the `<h1>` and no focus ids are added. The club home gains a fifth `button.primary` "Table" after "Play match". `update` is at 13 of the 15 allowed cases. | ADR-0013 (7); ADR-0008; DISCUSS D3, D8 |
 | D14 | **Names**: "Table" and "League table" are in no `names.ts` array (grep: none). "Table" is a substring of no existing name and contains none of them. "Club" (a columnheader) does not clash with the list "Clubs". The short column names are substrings of other text, so locators use `exact: true`. DISTILL adds the unit check. | ADR-0013; DISCUSS D11 |
 | D15 | **No dependency**; no DOM test environment is added. The table renderer is covered by the e2e (role counts, scroll width, text) and the protected scenarios; its data by unit tests. | ADR-0013 |
-| D16 | **`renderTable` takes the full `dispatch`** (the ADR-0002/0003 renderer convention) as an accepted exception, with the contract "emits only `{ type: "Back" }`": an e2e clicks every element of the screen and asserts that nothing navigates but Back, the screen has exactly one `button` and no other control, and a grep test allows one `dispatch(` call and one `addEventListener` in `table.ts`.<br>Rejected: a narrower `onBack` callback for this one renderer (a second renderer signature). | ADR-0013 (UI); reviewer H1 |
+| D16 | **`renderTable` takes the full `dispatch`** (the ADR-0002/0003 renderer convention) as an accepted exception, with the contract "emits only `{ type: "Back" }`", made a compile-time check by typing the parameter `(action: Extract<Action, { type: "Back" }>) => void` (reviewer cycle 2, N2): an e2e clicks every element of the screen and asserts that nothing navigates but Back, the screen has exactly one `button` and no other control, and a grep test allows one `dispatch(` call and one `addEventListener` in `table.ts`.<br>Rejected: a narrower `onBack` callback for this one renderer (a second renderer signature). | ADR-0013 (UI); reviewer H1 |
 | D17 | **Closed universes**: `section.club-home` = swatch, h1, `div.club-actions` of exactly 5 `button.primary` in the order Squad, Tactics, Starting XI, Play match, Table (delta: one button). `main.ts` is unbounded-preservation: only the `table` render case is new; the other render cases, the loop and the focus calls are unchanged. | ADR-0013; reviewer M1, M2 |
 | D18 | **The other clubs' side policy** ("every club but the managed one fields `automaticXI(squad, DEFAULT_FORMATION)`") is an app-level policy owned by `playOpeningMatchday` alone; the season story revisits it. The re-show on a second "Play match" is not pinned in `tests/protected/S-007`. | ADR-0012; reviewer L5, L9; DISCUSS D2, D14 |
 
@@ -425,7 +429,7 @@ No external integrations, so no contract tests.
 ### Wave: DESIGN / [REF] Open questions
 - **None blocking.**
 - **Re-show on a second "Play match"** holds in this version only (DISCUSS D2). The season story replaces it with "play the next matchday" by appending to `results` and keeping a matchday in state; `OPENING_MATCHDAY` then goes away. Nothing in the data shape changes.
-- **Column widths** are an estimate (about 180px of numeric columns, about 170px for the Club cell, at 0.9rem). DELIVER tunes the padding against the e2e `scrollWidth` check with the longest names of seeds 31 and `abc`; the rule that matters is "no `display` override, the Club cell wraps".
+- **Column widths** are an estimate (body 1rem and headers 0.85rem per ADR-0013 option 6, falling back to 0.9rem and 0.8rem if the 390px probe fails). DELIVER tunes the padding against the e2e `scrollWidth` check with the longest names of seeds 31 and `abc`; the rule that matters is "no `display` override, the Club cell wraps".
 - **`aria-current` support** varies across screen readers; the visual cue (edge, wash, weight) does not depend on it.
 - **Persistence** (a later story) must add a probe and a shape validator for `results`, and a save version, because `playerIndex` depends on the frozen squad order.
 - **Outcome trace**:
@@ -452,7 +456,7 @@ No external integrations, so no contract tests.
   - The re-show on a second "Play match" is e2e and unit only; `tests/protected/S-007` must not pin it.
 
 ### Wave: DESIGN / [REF] Peer review
-`nw-solution-architect-reviewer`, cycle 1: **rejected_pending_revisions**. Revision applied as below; cycle 2 is pending.
+`nw-solution-architect-reviewer`, cycle 1: **rejected_pending_revisions**. Revision applied as below. Cycle 2 (final): **approved_with_notes**, no critical or high. Its notes landed by the orchestrator: N2 `renderTable`'s `dispatch` parameter is typed `(action: Extract<Action, { type: "Back" }>) => void`, so "emits only Back" is a compile-time check and H1 is resolved without a second renderer signature (ADR-0013, D16); N1 the column-width open question now cites 1rem/0.85rem; N3 the remaining "cross-engine" wording in the brief's S-006 text now reads Chromium vs Node (ADR-0011 option 1D keeps "cross-engine", where it names the `Math.exp` risk correctly); N4 recorded for DISTILL: the club-home e2e asserts the five-button list, and the section's other children (swatch, h1) are covered by the existing S-001/S-006 checks, so the universe claim is limited to that list.
 
 | Finding | How it landed |
 |---|---|

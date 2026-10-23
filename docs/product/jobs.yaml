@@ -93,7 +93,7 @@ jobs:
       When I have seen my team's result, I want to see where my club stands in the
       league, so that I know whether my season is on track and what the next match means.
     dimensions:
-      functional: Open the league table in one tap from the club home, before or after a match, and read every club's position, games, wins, draws, losses, goal difference and points on a phone, in seconds.
+      functional: Open the league table in one tap from the club home, before or after a match, and read every club's position, games, wins, draws, losses, goal difference and points on a phone, one tap from the club home.
       emotional: Feel that each result counts for something, and feel the pull of the climb (or the worry of the drop).
       social: Be able to tell other football fans "we're third after one game, level on points with the top".
     forces:
