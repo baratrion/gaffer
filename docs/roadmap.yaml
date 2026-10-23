@@ -167,40 +167,45 @@ stories:
       home's heading is still the club's name and its "Squad", "Tactics", "Starting XI" and "Play match"
       buttons stay) and sees the league table screen: its screen title, the only top-level heading (h1),
       is "League table", focused on arrival. A table (role table) named "League table" has exactly one
-      header row, whose column headers read exactly, in this order, "Pos", "Club", "P", "W", "D", "L",
-      "GD" and "Pts", and exactly 8 body rows, one per club of the "Clubs" list, each club exactly once.
-      Each body row has, in this order, Pos (a cell), Club (the row header, role rowheader) and then P, W,
-      D, L, GD and Pts (cells): 7 cells and 1 row header. Pos is the row's position, 1 to 8 down the
-      table, with no shared positions; Club is the club's name; P (played), W (won), D (drawn), L (lost)
-      and Pts (points) are whole numbers; GD (goal difference) reads "+N" when positive, "0" when zero and
-      "-N" with an ASCII hyphen-minus when negative, for example "+4", "0" and "-1". On every row W + D +
-      L = P and Pts = 3 × W + D. Rows are ordered by Pts from high to low, then GD from high to low, then
-      goals scored from high to low, then club name from A to Z, where A to Z is code-point order (a space
-      sorts before any letter; club names are letters and spaces only). Goals scored is not shown, so that
-      tie-break is checked only by unit and acceptance tests; on the screen, Pts never increases down the
-      table and, between rows with equal Pts, GD never increases. The player's club's row is highlighted
-      (visual only; not black-box tested). In a new game (from "New game" on the title screen), before the
-      player has played a match, every row reads P 0, W 0, D 0, L 0, GD 0 and Pts 0, and the rows are in A
-      to Z order of club name. The first "Play match" of a new game plays matchday 1 for the whole league:
-      the player's fixture exactly as before, and the league's 3 other matchday-1 fixtures are simulated,
-      and the 4 results are recorded at that moment; from then on the match screen and the table read only
-      those recorded results. After "Play match", "Back" and "Table", every row has P 1, the total of W
-      equals the total of L, the total of D is even and the GDs add up to 0; the player's club's row
-      agrees with the score line of its match screen (a win reads W 1 and Pts 3, a draw D 1 and Pts 1, a
-      loss L 1 and Pts 0, and GD is the club's goals minus the other club's goals) and the other club of
-      that score line has the mirror row (W and L swapped, the same D, GD negated). Recorded results are
-      kept: changing the formation in Tactics or the Starting XI afterwards does not change the table, and
-      visiting "Squad", "Tactics" or "Starting XI" and coming back leaves it unchanged until the page is
-      reloaded or "New game" is tapped. In this version a second "Play match" re-shows the same recorded
-      matchday-1 match (the same score line and "Goals" list), whatever formation or Starting XI was
-      chosen in between; later versions may move on to the next matchday instead. The table comes from the
-      seed: two fresh visits with the same "?seed=" and the same club, without changing the formation or
-      the Starting XI, show the identical table after matchday 1, and "?seed=abc" shows the same table as
-      no "?seed=" in the address. A button named exactly "Back" (44px or taller) returns to the club home
-      with focus on its heading, the club's name, and the formation in Tactics and the Starting XI are
-      unchanged. The first match of a new game still reads "Matchday 1" as before. These hold in every
-      later version of the game: the "Table" button on the club home; the screen title "League table"; the
-      table named "League table" whose first 8 columns stay in this order with these formats and row
-      rules, and the order of its rows (later versions may only add columns after "Pts"; in this version
-      there are exactly 8); the all-zero, A to Z table of a new game before its first match; and "Back" to
-      the club home. No horizontal scroll at 390px and no console errors.
+      header row and exactly 8 body rows, one per club of the "Clubs" list, each club exactly once. In
+      this version the table has exactly 8 columns, whose column headers read exactly, in this order,
+      "Pos", "Club", "P", "W", "D", "L", "GD" and "Pts", and each body row has, in this order, Pos (a
+      cell), Club (the row header, role rowheader) and then P, W, D, L, GD and Pts (cells): in this
+      version 7 cells and 1 row header. Pos is the row's position, 1 to 8 down the table, with no shared
+      positions; Club is the club's name; P (played), W (won), D (drawn), L (lost) and Pts (points) are
+      whole numbers; GD (goal difference) reads "+N" when positive, "0" when zero and "-N" with an ASCII
+      hyphen-minus when negative, for example "+4", "0" and "-1". On every row, before and after the first
+      match, W + D + L = P and Pts = 3 × W + D. Pts never increases down the table and, between rows with
+      equal Pts, GD never increases. In this version the full order is Pts from high to low, then GD from
+      high to low, then goals scored from high to low, then club name from A to Z in code-point order (a
+      space sorts before any letter; club names are letters and spaces only); goals scored is not shown,
+      so the goals-scored and club-name tie-breaks are checked only by unit and acceptance tests. The
+      player's club's row is highlighted (visual only; not black-box tested). In a new game (after loading
+      the page and tapping "New game" on the title screen), before the player has played a match, every
+      row reads P 0, W 0, D 0, L 0, GD 0 and Pts 0, and the rows are in A to Z order of club name. The
+      first "Play match" of a new game plays matchday 1 for the whole league: the player's fixture exactly
+      as before, and the league's 3 other matchday-1 fixtures are simulated, and the 4 results are
+      recorded at that moment; from then on the match screen and the table read only those recorded
+      results. After "Play match", "Back" and "Table", every row has P 1, the total of W equals the total
+      of L, the total of D is even and the GDs add up to 0; the player's club's row agrees with the score
+      line of its match screen (a win reads W 1 and Pts 3, a draw D 1 and Pts 1, a loss L 1 and Pts 0, and
+      GD is the club's goals minus the other club's goals) and the other club of that score line has the
+      mirror row (W and L swapped, the same D, GD negated). Recorded results are kept until the page is
+      reloaded: changing the formation in Tactics or the Starting XI afterwards does not change the table,
+      and visiting "Squad", "Tactics" or "Starting XI" and coming back leaves it unchanged. In this
+      version a second "Play match" re-shows the same recorded matchday-1 match (the same score line and
+      "Goals" list), whatever formation or Starting XI was chosen in between; later versions may move on
+      to the next matchday instead. The table comes from the seed: two fresh visits with the same "?seed="
+      and the same club, without changing the formation or the Starting XI, show the identical table after
+      matchday 1, and "?seed=abc" shows the same table as no "?seed=" in the address. A button named
+      exactly "Back" (44px or taller) returns to the club home with focus on its heading, the club's name,
+      and the formation in Tactics and the Starting XI are unchanged. The first match of a new game still
+      reads "Matchday 1" as before. These hold in every later version of the game: the "Table" button on
+      the club home; the screen title "League table"; the table named "League table" with one body row per
+      club, whose first 8 column headers read "Pos", "Club", "P", "W", "D", "L", "GD" and "Pts" in this
+      order, with these cell formats and Club as the row header (later versions may add columns only after
+      "Pts"); the row rules W + D + L = P and Pts = 3 × W + D on every row; Pts never increasing down the
+      table and GD never increasing between rows with equal Pts; the all-zero table, in A to Z order, of a
+      new game before its first match; and "Back" to the club home. The goals-scored and club-name
+      tie-breaks and the re-show on a second "Play match" are rules of this version only. No horizontal
+      scroll at 390px and no console errors.

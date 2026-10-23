@@ -44,7 +44,10 @@ One focused screen title per screen; the table is complete on arrival.
 
 Fennimore Town and Valebridge Albion are level on Pts, GD and goals scored (2 each), so club name A→Z
 (code-point order, a space before any letter) decides: Fennimore Town 4th, Valebridge Albion 5th. Goals
-scored is not shown; that tie-break is checked by unit and acceptance tests only.
+scored is not shown; the goals-scored and club-name tie-breaks are rules of this version, checked by unit
+and acceptance tests only. What stays in every later version: the row rules (W + D + L = P,
+Pts = 3 × W + D), Pts never increasing down the table, GD never increasing between rows with equal Pts,
+the all-zero A→Z table of a new game, and the first 8 columns (later versions add columns only after Pts).
 
 ## Shared artifacts (single source each)
 - **Seed** and **league**: `league.seed`, `league.clubs` (S-001); every row header is a "Clubs" name.
@@ -64,8 +67,11 @@ scored is not shown; that tie-break is checked by unit and acceptance tests only
 - `?seed=abc`: default seed 20260; the same table as no "?seed=" in the address (fixture 0 there:
   Harrowgate Lane United 0–1 Oakhampton Rise Borough).
 - "Table" or "Back" off the right screen, or an unknown club: no-op (unit tests on `update`).
-- Lifetime: the results last until the page is reloaded or "New game" is tapped. Reload: title screen
-  (persistence is OUT); "New game" starts from the all-zero table.
+- Lifetime: the results last until the page is reloaded. Reload: title screen (persistence is OUT); a new
+  game (after loading the page and tapping "New game") starts from the all-zero table. "New game" is
+  only on the title screen, so "the `NewGame` action clears the results" is a unit-level invariant.
+- Second "Play match": re-shows the recorded match in this version only (e2e and unit tests; not
+  pinned in `tests/protected/S-007/`).
 
 ## Scenarios (sketch; the AC in feature-delta.md are authoritative)
 ```gherkin
@@ -80,8 +86,10 @@ Scenario: After matchday 1 the table agrees with the result Sam saw
   Given Sam at "?seed=31" managing "Netherwold Borough" has tapped "Play match" and read "Netherwold Borough 1–2 Marlbrook Athletic"
   When Sam taps "Back" and "Table"
   Then every row has P 1
-  And Netherwold Borough's row reads L 1, GD "-1", Pts 0
-  And Marlbrook Athletic's row reads W 1, GD "+1", Pts 3
+  And Netherwold Borough's row reads L 1
+  And Netherwold Borough's row reads GD "-1"
+  And Netherwold Borough's row reads Pts 0
+  And Marlbrook Athletic's row is its mirror: W 1, GD "+1", Pts 3
 
 Scenario: What is played stays played
   Given Sam has played matchday 1 at "?seed=31" and read the table
