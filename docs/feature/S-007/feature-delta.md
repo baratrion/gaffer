@@ -583,3 +583,32 @@ Owner-only items inherited from S-001..S-006 (smoke `sleep 20`, no security scan
 2. Nightly mutation runtime: `state.ts` gains more mutants and test paths (40-action property). Watch the first nightly after the S-007 merge against the 45-minute `nightly.yml` timeout; if it nears it, DELIVER trims test cost (not bounds), or the owner raises the timeout.
 3. Smoke on the live URL runs the S-007 e2e spec too; its seed-31 golden table relies on `?seed=` being honoured on Pages (same as S-001..S-006).
 4. The squash revert of S-007 may be blocked by the append-only protected guards (new `tests/protected/S-007/`); the `workflow_dispatch` route is the owner action.
+
+## Plan run: protected scenarios
+
+`tests/protected/S-007/league-table.spec.ts` holds 4 black-box scenarios (Pixel 7, 390px; roles, accessible names and visible text only). They check only rules that hold for any seed and in every later version: the durable clause of the outcome, plus the after-matchday-1 consistency rules. They pin no generated table, so the seed-31 table above stays a unit/e2e golden for DISTILL. Only the first 8 columns are read, because later versions may add columns after "Pts". Every table read checks:
+- the focused, only h1 "League table";
+- one table named "League table" with exactly one header row whose first 8 column headers are "Pos", "Club", "P", "W", "D", "L", "GD", "Pts";
+- 8 body rows, each with one row header (the club, each club of "Clubs" exactly once) and at least 7 cells (Pos, then P, W, D, L, GD, Pts);
+- Pos 1 to 8;
+- whole numbers, with GD matching `^(\+[1-9]\d*|0|-[1-9]\d*)$`;
+- on every row, W + D + L = P and Pts = 3 × W + D;
+- Pts never increasing down the table, and GD never increasing between rows with equal Pts;
+- "Table" at 44px or taller;
+- no sideways scroll.
+
+1. **New game before any match** (`?seed=31`, 1st club; "Squad", "Tactics", "Starting XI", "Play match" still there). Every row reads 0 in P, W, D, L, GD and Pts, and the rows are in A to Z (code-point) order. "Back" (44px) returns to the club home with its heading focused, and Tactics still has "4-4-2" checked.
+2. **After the first "Play match"** (`?seed=31` 1st club, `?seed=abc` 6th, `?seed=7` 4th; `test.slow()`).
+   - Every row has P 1.
+   - Total W equals total L, total D is even, and the GDs add up to 0.
+   - The player's row agrees with the score line (W, D, L, GD and Pts), and the opponent named in the score line has the mirror row.
+3. **The result is kept** (`?seed=7`, 3rd club). The test plays, reads the table, chooses 4-3-3, puts a bench forward into the last FW slot, then visits Squad. The table is identical; Tactics still has 4-3-3 and the Starting XI is unchanged. The table is identical again after that.
+4. **Determinism.** `?seed=abc` twice and no seed (8th club, after its first match) give identical tables.
+
+Not pinned, by design:
+- the re-show on a second "Play match" (D2 and D18, a rule of this version only);
+- the goals-scored and club-name tie-breaks after matches (this version only; unit and acceptance tests);
+- the highlight of the player's row (visual only);
+- the "New game clears results" reset (unreachable in the UI; a unit-level invariant).
+
+All 4 fail on the current app (no "Table" button). The plan run checked that they can be met: against a throwaway prototype (not committed), all 8 S-006 and S-007 protected scenarios passed. That prototype recorded matchday 1 on the first "Play match" and had a native `<table aria-labelledby>` with `th scope="col"`, `th scope="row"` and `td`. It confirmed that Chromium exposes the columnheader, rowheader and cell roles as ADR-0013 expects. No faulty variants were run in this plan run.
