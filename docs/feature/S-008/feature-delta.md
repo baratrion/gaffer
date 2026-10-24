@@ -17,8 +17,8 @@ Line budget (changed lines, code plus tests; file names are indicative, DESIGN n
 | `tests/e2e/S-008-season.spec.ts` (trimmed to what protected does not cover; includes the 390px check of the table after 14 matchdays) | tests | 145 |
 | Amended S-006/S-007 tests (D11: 4 acceptance cases and 2 properties, 2 e2e read helpers, 4 e2e second-tap blocks, 3 header comments) | tests | 90 |
 | **DELIVER total** (code 45, tests 455) | code and tests | **500** |
-| `tests/protected/S-008/season.spec.ts` (written in the plan run, outside DELIVER) | tests | 190 |
-| **Grand total** (with protected) | code and tests | **690** |
+| `tests/protected/S-008/season.spec.ts` (written in the plan run, outside DELIVER; 371 lines as written) | tests | 371 |
+| **Grand total** (with protected) | code and tests | **871** |
 
 ### Wave: DISCUSS / [REF] Persona
 Sam, 34, a lapsed Championship Manager fan. Plays on the bus, one-handed, on a mid-range Android phone at 390px wide, with 5 minutes to spare (persona from `docs/feature/S-001/feature-delta.md`; player from brief.md). Has played matchday 1 and seen his club 6th on "-1". Now Sam wants the next match: a chance to climb, and to find out whether the change he just made to his eleven works.
@@ -217,7 +217,7 @@ Guardrails: S-001..S-007 protected scenarios stay green; league, squads, automat
 - The seed-31 season goldens (the 14 score lines above and Netherwold Borough's row after matchdays 2, 3 and 14) are pinned as regression locks.
 - No ambient randomness or wall-clock time in `src/domain/`; no new RNG stream.
 - Recorded by DESIGN: the change to the ADR-0012 re-show rule (D1, D7), as an amendment note or a new ADR.
-- The DELIVER change stays under 1100 changed lines including tests (500 budgeted in DISCUSS; 690 with the plan run's protected scenarios).
+- The DELIVER change stays under 1100 changed lines including tests (500 budgeted in DISCUSS; 871 with the plan run's 371 protected lines, which are not part of the DELIVER diff).
 
 ### Wave: DISCUSS / [REF] Out-of-scope
 - **The end-of-season screen (final position, top scorer, "play again"; scope.md IN): the intended successor story.** It closes the D7 known gap; until then anything after matchday 14 is only the D7 re-show.
@@ -257,7 +257,7 @@ From the club home screen (its heading is still the club's name and its "Squad",
 | 3 | 3+ domain examples, real data | PASS | US-1 4, US-2 3, all with real names and model-computed scores: Netherwold Borough's full seed-31 season (1–2 Marlbrook Athletic, 2–1 at Rushmoor Heath Albion, ... 2–1 at Tarnbeck Borough) and its rows after matchdays 2, 3 and 14 (P 14 W 7 D 2 L 5 "+2" 23); the S-006 golden pick "Kestrel Northcott 6" for "MF Calder Redfern 15"; `?seed=abc` Oakhampton Rise Borough; `?seed=7` Larkmere Albion (3rd of Brindlecombe Rovers, Juniper Hollow United, Larkmere Albion, ...). No placeholder club or score remains |
 | 4 | UAT Given/When/Then, 3-7 | PASS | 7 for S-008, an outline counts as one (US-1 4, one outline; US-2 3, one outline); Givens are states, actions are in When; one assertion per Then/And step; the after-14 rule in notes (not protected, D7) |
 | 5 | AC derived from UAT | PASS | D1, D3, D4, D8, D10 by US-1 scenarios 1-2; D2 and D5 by US-1 scenario 3 and US-2 scenarios 2-3; D6 by US-2 scenarios 1-2; D9 by US-1 scenario 4; D3 opponent scorers for matchdays 2-14, D7, D11, D14 by unit tests, e2e and review |
-| 6 | Right-sized | PASS | 1 slice, about 1 day; DELIVER about 500 changed lines including tests (690 with protected), under the 1100 cap; 7 scenarios; one outcome |
+| 6 | Right-sized | PASS | 1 slice, about 1 day; DELIVER about 500 changed lines including tests (871 with the plan run's protected lines, outside the DELIVER diff), under the 1100 cap; 7 scenarios; one outcome |
 | 7 | Technical notes | PASS | Per story: `playMatchday` and `results` already cover 14 matchdays; next matchday may be derived from the record; match screen reads the latest match; after-14 rule in the app; table column widths for two digits; no new stream |
 | 8 | Dependencies tracked | PASS | S-001..S-007 delivered; ADR-0010..0013 accepted; DESIGN records the ADR-0012 re-show change; D11 amendments named by file, test and line after a full grep; D12 deferred candidates with the end-of-season successor |
 | 9 | Outcome KPI measurable | PASS | K1 1 tap per matchday, 28 for the season, 0 skips; K2 100% consistent rows over 200 seeds x 8 clubs x 14; K3 0 rewritten results over 40-tap runs; K4 100% identical seasons; by e2e and property tests |
@@ -341,7 +341,7 @@ Cycle 2 (`nw-product-owner-reviewer`): **approved**, DoR 9/9, no critical or hig
 | Amended S-006/S-007 tests (D11) | As DISCUSS D11 except the `OPENING_MATCHDAY is 1` case (S-006 `match-navigation.test.ts` line 203), which stays because the constant stays: 3 acceptance cases and 2 properties, 2 e2e read helpers, 4 e2e second-tap blocks, 3 header comments | 86 |
 | **Tests total** | | **463** |
 
-**DELIVER total**: about 505 changed lines (42 code + 463 tests), against 500 in DISCUSS; about 695 with the plan run's 190 protected lines. Far under the factory's hard limit of about 1200 per PR (target at or under 1100): headroom is about 500 lines (1200 - 695), about 400 against the 1100 target even counting the protected lines. Basis of the 220-line acceptance estimate (the DISCUSS figure, re-derived): `nextMatchday` table, boundary and independence property 25; append and after-14 and no-ops 35; `playMatchdayFor` 25; `matchFor` latest and fallback 20; goldens 35; schedule per club 20; fast-check season properties 50; 40-action property and determinism 10. If DELIVER runs over, the cut order is: (1) the `?seed=abc` rows of the e2e walk; (2) the double-click e2e (units cover the logic); (3) the 40-action property (the unit cases carry it).
+**DELIVER total**: about 505 changed lines (42 code + 463 tests), against 500 in DISCUSS; about 876 with the plan run's 371 protected lines (written in the plan PR, not the DELIVER diff). Far under the factory's hard limit of about 1200 per PR (target at or under 1100): headroom is about 500 lines (1200 - 695), about 400 against the 1100 target even counting the protected lines. Basis of the 220-line acceptance estimate (the DISCUSS figure, re-derived): `nextMatchday` table, boundary and independence property 25; append and after-14 and no-ops 35; `playMatchdayFor` 25; `matchFor` latest and fallback 20; goldens 35; schedule per club 20; fast-check season properties 50; 40-action property and determinism 10. If DELIVER runs over, the cut order is: (1) the `?seed=abc` rows of the e2e walk; (2) the double-click e2e (units cover the logic); (3) the 40-action property (the unit cases carry it).
 
 ### Wave: DESIGN / [REF] Driving ports
 - **App** (pure): `update` with `PlayMatch` (appends), `nextMatchday`, `playMatchdayFor`, `playOpeningMatchday`, `matchFor` (latest match), `standingsOf`, `focusPlan` (unchanged).
@@ -482,7 +482,7 @@ Read from `.github/workflows/*.yml` (read-only):
 - `deploy` (push to main, dispatch): `build` (`ci:build`, upload `dist`), `deploy` (deploy-pages), `smoke` (10-minute timeout; `sleep 20`, then `ci:e2e` with `BASE_URL` = the live URL; so the new `tests/e2e/S-008-season.spec.ts` runs on Pages).
 - `nightly` (03:00 UTC, dispatch; 45-minute timeout): `ci:mutation`; a failure opens a `mutation-alarm` + `needs-human` issue.
 - `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
-- S-008 needs no pipeline change: it adds unit, property and e2e specs run by the existing scripts and no dependency. The DELIVER diff (about 505 lines planned, about 695 with the protected scenarios) stays under the 1200-line PR guard; `docs/` is outside the count.
+- S-008 needs no pipeline change: it adds unit, property and e2e specs run by the existing scripts and no dependency. The DELIVER diff (about 505 lines planned, the 371 protected lines land in the plan PR, not the DELIVER diff) stays under the 1200-line PR guard; `docs/` is outside the count.
 - **CI time (28+ taps per test)**: `playwright.config.ts` has a 30 s per-test timeout and `retries: 1` on CI. The 14-matchday walk is 28 taps plus reads of 14 score lines and "Goals" lists; taps are client-side with no network, so it should take a few seconds, but it is the longest e2e test. Mark each full-season test `test.slow()` (timeout x3 = 90 s, as the protected S-006/S-007 walks do; the locked protected runner has a 20 s timeout, 2 s `expect`, 4 workers and no retries, so slow there too). Keep the cost down: read each match screen once through a single `evaluate` or a few role queries, never `waitForTimeout`, reuse one page for the walk, and run the `?seed=abc` walk as a separate test so a failure points at one seed. Worst case with one retry is about 2 x 90 s per walk test; the e2e job total stays far inside the 30-minute CI and 10-minute smoke timeouts. Review check in DELIVER: if the S-008 spec alone exceeds about 60 s locally, trim reads, not coverage.
 - Local gate: `pnpm run check` mirrors the commit stage. No git hooks (locked paths; CI is the gate).
 - Security: no secrets, no runtime deps, no network. Club and player names enter the DOM only via `el()`/`textContent` (ADR-0002); a review check. SAST/SCA/SBOM not added (workflows locked; inherited open question).
@@ -536,7 +536,7 @@ Mutants the nightly run must kill (all in `state.ts`):
 Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy (including the 14-matchday golden walk and the 390px table check). Alerting: a red `deploy` run; a red nightly opens `mutation-alarm`. No dashboards.
 
 ### Wave: DEVOPS / [REF] Branching strategy
-Trunk-based. Short-lived `claude/S-008-*` branches, PR to main, squash merge. CI green and protected scenarios not regressing. Deploy fires on merge. No release branches. The DELIVER diff (about 505 lines planned, about 695 with the protected scenarios) stays under the 1200-line PR guard (target 1100). If DELIVER nears the cap, the DESIGN cut order applies: (1) the `?seed=abc` rows of the e2e walk, (2) the double-click e2e, (3) the 40-action property.
+Trunk-based. Short-lived `claude/S-008-*` branches, PR to main, squash merge. CI green and protected scenarios not regressing. Deploy fires on merge. No release branches. The DELIVER diff (about 505 lines planned, the 371 protected lines land in the plan PR) stays under the 1200-line PR guard (target 1100). If DELIVER nears the cap, the DESIGN cut order applies: (1) the `?seed=abc` rows of the e2e walk, (2) the double-click e2e, (3) the 40-action property.
 
 ### Wave: DEVOPS / [REF] Coexistence matrix
 | Component | S-008 impact | Action |
@@ -544,7 +544,7 @@ Trunk-based. Short-lived `claude/S-008-*` branches, PR to main, squash merge. CI
 | `ci.yml`, `deploy.yml`, `nightly.yml` | none; run existing `ci:*` scripts | reuse |
 | `ci:*` scripts, `playwright.config.ts` | none; Pixel 7, 390px, `BASE_URL` already fit; the walk tests use `test.slow()` (per-test, no config change) | reuse |
 | `stryker.config.mjs` | the diff is in `src/app/state.ts`, already in `mutate`; no change needed | none |
-| `scripts/guards/pr-guards.mjs` | determinism grep unchanged (no domain change); diff cap 1200 vs about 505 planned (695 with protected) | none |
+| `scripts/guards/pr-guards.mjs` | determinism grep unchanged (no domain change); diff cap 1200 vs about 505 planned (the 371 protected lines land in the plan PR) | none |
 | `tests/protected/S-001..S-007/` | no protected scenario taps "Play match" twice in one page (D11, checked); club home keeps its five buttons | must stay green |
 | `tests/protected/S-008/` | locked scenario for this story, written in this plan run after DEVOPS; must not pin the after-14 re-show, the goals-scored and club-name tie-breaks, or two taps expecting a re-show; follows D3 and D13; the 14-matchday walk uses `test.slow()` | must pass on main |
 | `tests/acceptance/S-006/match-navigation.test.ts`, `tests/acceptance/S-007/table-navigation.test.ts` | D11 amendments (second tap plays matchday 2; record grows 4 at a time; 40-action and K3 properties restated; header comments). The `OPENING_MATCHDAY is 1` case stays (the constant stays) | amend in the same commit as the production change; replace, never weaken |
