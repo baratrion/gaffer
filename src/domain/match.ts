@@ -1,5 +1,6 @@
 import { createRng, deriveSeed, nextFloat, type Rng } from "./rng";
-import { FIXTURES_PER_MATCHDAY, MATCHDAYS } from "./schedule";
+import { CLUBS_PER_LEAGUE } from "./league";
+import { FIXTURES_PER_MATCHDAY, MATCHDAYS, fixturesOf } from "./schedule";
 import type { StartingXI } from "./selection";
 import type { Player, Position } from "./squad";
 
@@ -113,4 +114,31 @@ export const playMatch = (input: MatchInput): MatchResult => {
   goals.sort((a, b) => a.minute - b.minute);
   const homeGoals = goals.filter((goal) => goal.side === "home").length;
   return { homeGoals, awayGoals: goals.length - homeGoals, goals };
+};
+
+export interface PlayedMatch {
+  readonly matchday: number;
+  readonly fixtureIndex: number;
+  readonly home: number;
+  readonly away: number;
+  readonly result: MatchResult;
+}
+
+export interface MatchdayInput {
+  readonly seed: number;
+  readonly matchday: number;
+  readonly sides: readonly MatchSide[];
+}
+
+/** Plays the four fixtures of a matchday, each exactly playMatch on its own stream (ADR-0012). */
+export const playMatchday = (input: MatchdayInput): readonly PlayedMatch[] => {
+  const { seed, matchday, sides } = input;
+  if (sides.length !== CLUBS_PER_LEAGUE) throw new RangeError(`sides must be ${CLUBS_PER_LEAGUE}`);
+  return fixturesOf(matchday).map(({ home, away }, fixtureIndex) => ({
+    matchday,
+    fixtureIndex,
+    home,
+    away,
+    result: playMatch({ seed, matchday, fixtureIndex, home: sides[home]!, away: sides[away]! }),
+  }));
 };
