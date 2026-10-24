@@ -760,3 +760,31 @@ DESIGN: ADR-0012, ADR-0013, ADR-0010, ADR-0011, ADR-0008, ADR-0009 and brief por
 
 ### Wave: DISTILL / [REF] Reviewer outcome
 The Final Wave Review Gate (four Haiku reviewers) was not dispatched in this unattended hand-off; it is left to the orchestrator. Self-review against the checklist: every driving port 24-28 has a scenario; every DEVOPS monitoring row is traced; no adapter exists; no committed test fails or is skipped; no existing test was edited; held-out specs verified green against a reference and RED for missing functionality without it.
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+The first "Play match" tap now records all four matchday-1 results (Sam's side = his current XI, every other side its automatic 4-4-2) in optional `GameState.results`; later taps keep the same array and `NewGame` drops it. A new "Table" button (fifth on the club home) opens a table screen: native `<table>` named by its heading, 8 rows ordered by Pts, GD, goals for, then name, Sam's row `aria-current`, one "Back" button. The match screen and the table read the same record (`matchFor`, `standingsOf`), so tactics, XI and visit taps never change either. Pure `standings`/`formatGoalDifference` (ADR-0013) and `playMatchday` (ADR-0012); no new RNG stream.
+
+### Wave: DELIVER / [REF] Files modified
+- New: `src/domain/standings.ts`, `src/ui/screens/table.ts`.
+- Changed: `src/domain/match.ts` (`playMatchday`, `PlayedMatch`), `src/app/state.ts` (results, `ViewTable`, `playOpeningMatchday`, `standingsOf`, `matchFor` reads the record, `sameClub` refactor), `src/main.ts` (table case), `src/ui/screens/club-home.ts` (Table button), `src/ui/styles.css`, `docs/product/ui/design-system.md`.
+- Tests moved from `distill/pending/` (D12 amendments, nothing weakened): `tests/acceptance/S-007/{standings,matchday,table-navigation}.test.ts`, `tests/e2e/S-007-table.spec.ts`. Superseded assertions replaced by stricter equivalents: three cases in `tests/acceptance/S-006/match-navigation.test.ts` (U-2) and the club-home button list in `tests/e2e/S-005-starting-xi.spec.ts` and `S-006-match.spec.ts` (now five names in order).
+- Commits: 6310cef (01-01), 28d301d (02-01), 421391b (03-01), 9c60535 (04-01), 2d9f951 (refactor pass).
+
+### Wave: DELIVER / [REF] Scenarios green
+Roadmap steps 01-01, 02-01, 03-01, 04-01 all complete (RED, GREEN, COMMIT logged for each in `deliver/execution-log.json`). Verified at finalize: `ci:test` 790 passed, `ci:e2e` 114 passed (phone viewport, includes `S-007-table.spec.ts` and `S-007-club-home-regression.spec.ts`). `tests/protected/S-007/` runs in CI against the built site; the S-001..S-006 suites are unchanged.
+
+### Wave: DELIVER / [REF] DoD check
+- Unit, property and acceptance tests for standings, recording and navigation: met. Seed-31 golden table pinned: met.
+- e2e journey with focus on each heading, no sideways scroll, no console errors: met.
+- No ambient randomness or wall-clock time in `src/domain/`, no new RNG stream: met.
+- ADR-0012 and ADR-0013 accepted; design-system gains the table pattern and highlighted-row token: met.
+- Protected scenarios: S-007 is verified by CI on main (not run locally).
+- Change-size budget (under 1100 changed lines including tests): not met strictly. The branch diff against main is about 1800 lines, of which 1616 are test lines (the DISTILL-authored specs); production code is about 280 lines.
+
+### Wave: DELIVER / [REF] Quality gates
+`ci:lint`, `ci:typecheck`, `ci:test`, `ci:build`, `ci:e2e` all exit 0 at finalize. Mutation testing is nightly-delta; `/nw-deliver` Phase 5 skipped. Early execution-log COMMIT timestamps for steps are seconds apart from GREEN (as in S-005 and S-006), so RED evidence is thin.
+
+### Wave: DELIVER / [REF] Reviewer disposition
+The implementation reviewer approved the production code. Its test-budget and test-deletion findings B1, B3 and H1 are declined: CI forbids deleting or weakening tests, so trimming the DISTILL specs to fit the line budget is not available. The budget overrun above is recorded as accepted.
