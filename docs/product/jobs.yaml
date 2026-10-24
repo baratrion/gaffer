@@ -105,3 +105,21 @@ jobs:
       One tap from the club home to a compact table built from the matchday's recorded results, his row
       highlighted and kept for the session, closes the five-minute loop (pick team, play match, see table)
       and sets up the later matchdays, the other results and the end-of-season position.
+  - id: J-08
+    name: play-out-my-season
+    statement: >-
+      When I have seen where we stand, I want to play the next match of the season,
+      so that I can see whether my choices take us up the table.
+    dimensions:
+      functional: Play the next unplayed matchday in one tap from the club home, against the club the fixed schedule names, with the team I have set at that moment, and see every result of the season so far counted in the table, up to matchday 14.
+      emotional: Feel the season move forward under my hand, each match a fresh chance, and feel that a change to my team is answered by the next result, never by rewriting an old one.
+      social: Be able to tell other football fans "five games in, we've climbed from sixth to third since I moved to 4-3-3".
+    forces:
+      push: After one match the game stands still; a second "Play match" shows the same game again, so a table with one round and a team change have no next consequence.
+      pull: The classic "next fixture, play, check the table" rhythm of the management games Sam grew up with, one match per tap, a whole season in a few bus rides.
+      anxiety: Losing count of where the season is; a change to the team quietly rewriting a result already seen; facing the same club twice in a row or never facing one at all.
+      habit: Treating each match as a one-off and judging the season by the last score instead of the table.
+    opportunity: >-
+      One tap per matchday from the club home, each match played with the team set at that moment and every
+      result kept in the table, turns the five-minute loop into a season and sets up the end-of-season screen,
+      the other results and save and continue.
