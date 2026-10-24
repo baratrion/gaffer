@@ -87,3 +87,21 @@ jobs:
     opportunity: >-
       One tap from the club home to a final score and a goal list drawn from Sam's own eleven, seeded and
       repeatable, gives the loop its "play match" step and sets up commentary, stats, the season and the table.
+  - id: J-07
+    name: see-where-we-stand
+    statement: >-
+      When I have seen my team's result, I want to see where my club stands in the
+      league, so that I know whether my season is on track and what the next match means.
+    dimensions:
+      functional: Open the league table in one tap from the club home, before or after a match, and read every club's position, games, wins, draws, losses, goal difference and points on a phone, one tap from the club home.
+      emotional: Feel that each result counts for something, and feel the pull of the climb (or the worry of the drop).
+      social: Be able to tell other football fans "we're third after one game, level on points with the top".
+    forces:
+      push: A result with no table is a one-off; Sam cannot tell whether a 1-2 defeat matters or how far off the top he is.
+      pull: The classic league table of the management games Sam grew up with, read at a glance, his own club picked out.
+      anxiety: A table that does not match the score he just saw, or that shifts when he changes his team afterwards; too many columns to fit a phone.
+      habit: Working out the standings in his head from his own result and ignoring the other matches.
+    opportunity: >-
+      One tap from the club home to a compact table built from the matchday's recorded results, his row
+      highlighted and kept for the session, closes the five-minute loop (pick team, play match, see table)
+      and sets up the later matchdays, the other results and the end-of-season position.

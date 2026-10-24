@@ -1,6 +1,6 @@
 # ADR-0011: Match model, its RNG stream, and the derived match screen (S-006)
 
-- Status: Accepted (accepted after nw-solution-architect-reviewer cycle 1, approved_with_notes)
+- Status: Accepted (accepted after nw-solution-architect-reviewer cycle 1, approved_with_notes). Superseded in part by ADR-0012 (S-007), covering: section 5 (the result is now recorded in session state); the App line "`GameState` and `initialState` are unchanged" (`GameState` gains the optional `results`; `initialState` is unchanged); the Consequence "Nothing is stored"; and the statement that `matchFor` is the one place that derives a match (`playOpeningMatchday` now also derives, and `matchFor` reads the record). The model, constants, draw order, goldens, streams and screen markup stand
 - Date: 2026-10-20
 - Deciders: nWave solution-architect (S-006 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core), ADR-0005 (d) (derive on render), ADR-0006 (derived overall, stream table), ADR-0008 (focus), ADR-0009 (`currentXI`, `automaticXI`, optional `xi`, inline-flow text rule), ADR-0010 (schedule). Extends the stream table of ADR-0006 with 200..255. Supersedes nothing.
@@ -90,8 +90,8 @@ Tooling:
 **Functions**
 - `teamStrength(side) => number` is the sum of `squad[xi[i]].overall` over the 11 slots (an integer, 11..220). It is exported so that tests use the same measure as D7(b).
 - `playMatch(input: MatchInput) => MatchResult` takes one parameter, so `max-params` is safe. A `matchday` that is not an integer 1..14, or a `fixtureIndex` that is not an integer 0..3, throws `RangeError`, so no call can alias another stream. The steps:
-  1. Compute `Sh = teamStrength(home)` and `Sa = teamStrength(away)`. Cube by multiplication (`S * S * S`), never with `**` or `Math.pow`. Compute `shareHome = Sh^3 / (Sh^3 + Sa^3)` and `shareAway = Sa^3 / (Sh^3 + Sa^3)` each directly, not as `1 - share`.
-  2. Compute `p(side) = MAX_CONVERSION * share(side)`.
+  1. Compute `Sh = teamStrength(home)` and `Sa = teamStrength(away)`. Cube by multiplication (`S * S * S`), never with `**` or `Math.pow`; call the cubes `homeCube` and `awayCube`.
+  2. Compute each conversion directly, with the multiplication before the division, exactly as the code does: `p(home) = (MAX_CONVERSION * homeCube) / (homeCube + awayCube)` and `p(away) = (MAX_CONVERSION * awayCube) / (homeCube + awayCube)`, never as `1 - p`. (Clarifying edit, documentation only: this ADR previously described it as `MAX_CONVERSION * share`, with `share = S^3 / (S_own^3 + S_opp^3)`. The two are equal on the reals but may differ in the last bit, so the expression above is the frozen one; the goldens are unchanged.)
   3. Create `rng = createRng(deriveSeed(seed, MATCH_STREAM_BASE + (matchday - 1) * FIXTURES_PER_MATCHDAY + fixtureIndex))`.
   4. For each chance `c` = 0..8, and within it for the home side then the away side, always draw exactly three floats in this order: `uMinute`, `uConversion`, `uScorer`.
      - `minute = 10c + 1 + floor(uMinute * 10)`. Window `c` covers minutes `10c+1..10c+10`, so minutes run 1..90.
