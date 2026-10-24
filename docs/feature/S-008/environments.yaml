@@ -1,0 +1,91 @@
+# S-008 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Inherits S-007 (and S-001..S-006); no platform change.
+base_path: /gaffer/
+client:
+  browser: chromium
+  device: Pixel 7        # Playwright devices["Pixel 7"]
+  viewport_width_px: 390
+platform_notes:
+  - "Every S-008 navigation (Play match, Back, Table) is a screen change, so focus goes to the new h1 (ADR-0008); no platform-specific focus path. Match h1 reads Matchday N for N = 1..14."
+  - "Chromium vs Node determinism (ADR-0014 Earned Trust 1): matchdays 2..14 use streams 204..255, run in a browser for the first time. The e2e walks 14 taps at seed 31 and compares every score line with the goldens the Node test pins. Probed in Chromium only (local-preview and production); WebKit and iOS Safari are not probed."
+  - "390px fit with two-digit values (ADR-0014 Earned Trust 3): document and table scrollWidth <= clientWidth after 14 matchdays at seed 31 (Netherwold Borough P 14 W 7 D 2 L 5 +2 23) and seed abc, longest club names. Chromium only."
+  - "Native table display (ADR-0014 Earned Trust 4, corrects ADR-0013 Earned Trust 1): the e2e reads getComputedStyle(el).display of table, thead, tbody, tr, th, td (table, table-header-group, table-row-group, table-row, table-cell, table-cell)."
+  - "Run time: the 14-matchday walks are 28+ taps per test; mark them test.slow() (playwright.config.ts timeout 30s x3; the locked protected runner 20s x3, no retries, 4 workers). No waitForTimeout; few reads per tap."
+target_environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+deployment_strategy: recreate
+container_orchestration: none
+observability: browser console + Playwright smoke on deployed URL
+mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts plus src/app/state.ts; the whole S-008 production diff is in state.ts (nextMatchday, playMatchdayFor, playMatchAction append, matchFor latest); no stryker.config.mjs change needed
+branching: trunk-based, short-lived claude/* branches, squash merge
+deployment_assumptions:
+  artifact: static (dist/index.html under /gaffer/)
+  strategy: recreate
+  persistence: none         # GameState.results (0..56 entries) lives in memory for the page's life; a reload shows the title screen
+  data_migration: none      # no storage, no save version; the next matchday is derived from results, no new state field
+  deploy_idempotent: true   # redeploying a ref yields the same artifact
+  result_stability: "every result for every seed is frozen by ADR-0011 (constants, draw order, streams 200..255); the season is a pure function of the seed and Sam's formation and XI at each tap; a later change needs an ADR amendment"
+kpi_instrument:
+  - kpi: K1 1 tap per matchday ("Play match"), back home in 1 tap ("Back"); the season in 28 taps; 0 matchdays skipped or repeated over matchdays 1..14
+    spec: tests/e2e/S-008-season.spec.ts (click counter over the 14-matchday walk, h1 Matchday 1..14 in order, 44px) and tests/protected/S-008/ (title walks)
+    runs_on: [local-preview, production, protected-scenarios]
+  - kpi: K2 100% of rows after N matchdays have P N and the row rules; Sam's row equals the sum of his N score lines; 0 mismatches over seeds 1..200 x 8 clubs x N = 1..14
+    spec: tests/acceptance/S-008/season.test.ts (fast-check, FC_SEED; seed-31 row goldens after 2, 3, 14) and tests/e2e/S-008-season.spec.ts (seed-31 and abc tables) and tests/protected/S-008/
+    runs_on: [ci:test, local-preview, production, protected-scenarios]
+  - kpi: K3 0 changes to recorded results over any run of up to 40 formation, pick, navigation and "Play match" taps; 100% of Sam's goals by an outfield player of his XI at that tap
+    spec: tests/acceptance/S-008/season.test.ts (40-action property, per-matchday delta, prefix kept) and tests/e2e/S-008-season.spec.ts (team change between taps, table unchanged) and tests/protected/S-008/
+    runs_on: [ci:test, local-preview, production, protected-scenarios]
+  - kpi: K4 100% identical 14-matchday records for the same seed and choices over seeds 1..200
+    spec: tests/acceptance/S-008/season.test.ts (determinism, record identical whichever club is managed) and tests/protected/S-008/ (?seed=abc equals no ?seed=, 3 matchdays)
+    runs_on: [ci:test, protected-scenarios]
+  - kpi: cross-engine determinism over streams 204..255 (seed-31 14 score lines in Chromium equal the Node-pinned goldens)
+    spec: tests/e2e/S-008-season.spec.ts
+    runs_on: [local-preview, production]
+  - kpi: 390px fit, two-digit table after 14 matchdays (seed 31 and abc), computed display of table parts, after-14 re-show (not protected), double-click records exactly one matchday
+    spec: tests/e2e/S-008-season.spec.ts
+    runs_on: [local-preview, production]
+coexistence_matrix:
+  - component: tests/protected/S-001/ .. tests/protected/S-007/
+    impact: none; no protected scenario taps "Play match" twice in one page (D11, checked); club home keeps its five buttons
+    action: must stay green
+  - component: tests/protected/S-008/
+    impact: this story's locked scenario (written in this plan run, after DEVOPS); must not pin the after-14 re-show, the goals-scored and club-name tie-breaks, or two taps expecting a re-show
+    action: must pass on main
+  - component: tests/acceptance/S-006/match-navigation.test.ts, tests/acceptance/S-007/table-navigation.test.ts
+    impact: D11 amendments (second tap plays matchday 2; record grows 4 at a time; 40-action and K3 properties restated); the OPENING_MATCHDAY is 1 case stays
+    action: amend in the same commit as the production change; replace, never weaken
+  - component: tests/e2e/S-006-match.spec.ts, tests/e2e/S-007-table.spec.ts
+    impact: D11 read helpers take the expected matchday; second-tap blocks assert Matchday 2; header comments
+    action: amend in the same commit as the production change
+  - component: tests/acceptance/S-001..S-005, other S-001..S-007 e2e and regression specs, shell.spec.ts
+    impact: none; every other "Play match" tap follows a fresh page.goto; focus on h1 holds (ADR-0008)
+    action: reuse unchanged, regression-watch
+  - component: tests/e2e/S-008-season.spec.ts, tests/acceptance/S-008/
+    impact: new specs
+    action: add (DISTILL)
+  - component: src/app/state.ts
+    impact: extended (nextMatchday, playMatchdayFor, playMatchAction, matchFor), about 290 of 400 lines
+    action: S-001..S-007 tests guard
+  - component: src/domain/**, src/ui/**, src/main.ts, src/ui/styles.css
+    impact: none
+    action: reuse unchanged
+  - component: .github/workflows/*, ci:* scripts, playwright.config.ts, scripts/guards
+    impact: none
+    action: reuse
+  - component: stryker.config.mjs
+    impact: none; state.ts already in the mutate list
+    action: none
+  - component: docs/product/kpi-contracts.yaml, docs/product/outcomes/registry.yaml
+    impact: kpi-contracts.yaml does not exist (S-001..S-007 did not create it); registry.yaml stays outcomes [] (S-008 registers no outcome)
+    action: none
+rollback: revert the S-008 squash commit on main (deploy fires on merge), or workflow_dispatch of deploy.yml on a known-good ref (pre-S-008 commit, the S-007 deploy); fallback fix-forward
+rollback_owner: owner
