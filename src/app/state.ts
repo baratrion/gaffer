@@ -1,9 +1,9 @@
 import { DEFAULT_FORMATION, isFormationId, type FormationId } from "../domain/formation";
 import type { Club, League } from "../domain/league";
-import { playMatch, type MatchResult, type MatchSide } from "../domain/match";
-import { fixtureOf } from "../domain/schedule";
+import { playMatchday, type MatchResult, type MatchSide, type PlayedMatch } from "../domain/match";
 import { automaticXI, isSlotIndex, pickForSlot, type StartingXI } from "../domain/selection";
 import { generateSquad, PLAYERS_PER_SQUAD, type Player } from "../domain/squad";
+import { standings, type StandingRow } from "../domain/standings";
 
 export type Screen =
   | { readonly kind: "title" }
@@ -14,13 +14,16 @@ export type Screen =
   | { readonly kind: "tactics"; readonly clubId: string }
   | { readonly kind: "startingXI"; readonly clubId: string }
   | { readonly kind: "choosePlayer"; readonly clubId: string; readonly slot: number }
-  | { readonly kind: "match"; readonly clubId: string };
+  | { readonly kind: "match"; readonly clubId: string }
+  | { readonly kind: "table"; readonly clubId: string };
 
 export interface GameState {
   readonly league: League;
   readonly screen: Screen;
   readonly formation: FormationId;
   readonly xi?: StartingXI | undefined;
+  /** The recorded matchday-1 results; absent until the first Play match (ADR-0012). */
+  readonly results?: readonly PlayedMatch[] | undefined;
 }
 
 export type Action =
@@ -34,6 +37,7 @@ export type Action =
   | { readonly type: "ChooseSlot"; readonly slot: number }
   | { readonly type: "PickPlayer"; readonly playerIndex: number }
   | { readonly type: "PlayMatch" }
+  | { readonly type: "ViewTable" }
   | { readonly type: "Back" };
 
 type ActionOf<T extends Action["type"]> = Extract<Action, { readonly type: T }>;
@@ -64,6 +68,9 @@ export const initialState = (league: League): GameState => ({
 
 export type FocusPlan = { readonly kind: "heading" } | { readonly kind: "element"; readonly id: string };
 
+const sameClub = (previous: Screen & { readonly clubId: string }, next: Screen): boolean =>
+  next.kind === previous.kind && "clubId" in next && next.clubId === previous.clubId;
+
 const sameScreen = (previous: Screen, next: Screen): boolean => {
   switch (previous.kind) {
     case "title":
@@ -74,11 +81,12 @@ const sameScreen = (previous: Screen, next: Screen): boolean => {
     case "tactics":
     case "squad":
     case "startingXI":
-      return next.kind === previous.kind && next.clubId === previous.clubId;
+    case "table":
+      return sameClub(previous, next);
     case "choosePlayer":
-      return next.kind === "choosePlayer" && next.clubId === previous.clubId && next.slot === previous.slot;
+      return sameClub(previous, next) && next.kind === "choosePlayer" && next.slot === previous.slot;
     case "player":
-      return next.kind === "player" && next.clubId === previous.clubId && next.playerIndex === previous.playerIndex;
+      return sameClub(previous, next) && next.kind === "player" && next.playerIndex === previous.playerIndex;
   }
 };
 
@@ -90,7 +98,9 @@ export const focusPlan = (previous: Screen | undefined, next: Screen, focusId: s
 const toScreen = (state: GameState, screen: Screen): GameState => ({ ...state, screen });
 
 const newGame = (state: GameState): GameState =>
-  state.screen.kind === "title" ? { ...withoutPicks(toScreen(state, { kind: "pickClub" })), formation: DEFAULT_FORMATION } : state;
+  state.screen.kind === "title"
+    ? { ...withoutPicks(toScreen(state, { kind: "pickClub" })), formation: DEFAULT_FORMATION, results: undefined }
+    : state;
 
 const chooseClub = (state: GameState, { clubId }: ActionOf<"ChooseClub">): GameState =>
   state.screen.kind === "pickClub" && isKnownClub(state.league, clubId)
@@ -142,22 +152,23 @@ const pickPlayer = (state: GameState, { playerIndex }: ActionOf<"PickPlayer">): 
   return next === base ? backToXI : { ...backToXI, xi: next };
 };
 
-const playMatchAction = (state: GameState): GameState =>
+const playMatchAction = (state: GameState): GameState => {
+  const { screen } = state;
+  if (screen.kind !== "clubHome" || !isKnownClub(state.league, screen.clubId)) return state;
+  return { ...toScreen(state, { kind: "match", clubId: screen.clubId }), results: state.results ?? playOpeningMatchday(state, screen.clubId) };
+};
+
+const viewTable = (state: GameState): GameState =>
   state.screen.kind === "clubHome" && isKnownClub(state.league, state.screen.clubId)
-    ? toScreen(state, { kind: "match", clubId: state.screen.clubId })
+    ? toScreen(state, { kind: "table", clubId: state.screen.clubId })
     : state;
+
+const HOME_RETURNING_KINDS: ReadonlySet<Screen["kind"]> = new Set(["squad", "match", "tactics", "startingXI", "table"]);
 
 const back = (state: GameState): GameState => {
   const { screen, league } = state;
   if (!("clubId" in screen) || !isKnownClub(league, screen.clubId)) return state;
-  if (
-    screen.kind === "squad" ||
-    screen.kind === "match" ||
-    screen.kind === "tactics" ||
-    screen.kind === "startingXI"
-  ) {
-    return toScreen(state, { kind: "clubHome", clubId: screen.clubId });
-  }
+  if (HOME_RETURNING_KINDS.has(screen.kind)) return toScreen(state, { kind: "clubHome", clubId: screen.clubId });
   if (screen.kind === "player" && isSquadIndex(screen.playerIndex)) {
     return toScreen(state, { kind: "squad", clubId: screen.clubId });
   }
@@ -182,21 +193,36 @@ export interface MatchView {
   readonly result: MatchResult;
 }
 
-const sideOf = (state: GameState, clubIndex: number, managedId: string): MatchSide & MatchSideView => {
-  const club = state.league.clubs[clubIndex]!;
-  const squad = squadOf(state.league, club.id)!;
-  return { club, squad, xi: club.id === managedId ? currentXI(state, squad) : automaticXI(squad, DEFAULT_FORMATION) };
+const sideFor = (state: GameState, clubId: string, managedId: string): MatchSide => {
+  const squad = squadOf(state.league, clubId)!;
+  return { squad, xi: clubId === managedId ? currentXI(state, squad) : automaticXI(squad, DEFAULT_FORMATION) };
 };
 
-/** The managed club's opening match, derived on demand; undefined for a club not in the league. */
+/** Plays matchday 1 for the whole league: the managed side with its current eleven, every other side an automatic 4-4-2. */
+export const playOpeningMatchday = (state: GameState, clubId: string): readonly PlayedMatch[] | undefined =>
+  isKnownClub(state.league, clubId)
+    ? playMatchday({
+        seed: state.league.seed,
+        matchday: OPENING_MATCHDAY,
+        sides: state.league.clubs.map((club) => sideFor(state, club.id, clubId)),
+      })
+    : undefined;
+
+export const standingsOf = (state: GameState): readonly StandingRow[] => standings(state.league.clubs, state.results ?? []);
+
+const sideViewOf = (state: GameState, clubIndex: number): MatchSideView => {
+  const club = state.league.clubs[clubIndex]!;
+  return { club, squad: squadOf(state.league, club.id)! };
+};
+
+/** The managed club's matchday-1 match, read from the record (derived when nothing is recorded yet); undefined for a club not in the league. */
 export const matchFor = (state: GameState, clubId: string): MatchView | undefined => {
   const clubIndex = state.league.clubs.findIndex((club) => club.id === clubId);
-  if (clubIndex < 0) return undefined;
-  const { index, fixture } = fixtureOf(OPENING_MATCHDAY, clubIndex);
-  const home = sideOf(state, fixture.home, clubId);
-  const away = sideOf(state, fixture.away, clubId);
-  const result = playMatch({ seed: state.league.seed, matchday: OPENING_MATCHDAY, fixtureIndex: index, home, away });
-  return { matchday: OPENING_MATCHDAY, home, away, result };
+  const results = clubIndex < 0 ? undefined : (state.results ?? playOpeningMatchday(state, clubId));
+  const entry = results?.find(({ home, away }) => home === clubIndex || away === clubIndex);
+  return entry === undefined
+    ? undefined
+    : { matchday: entry.matchday, home: sideViewOf(state, entry.home), away: sideViewOf(state, entry.away), result: entry.result };
 };
 
 export const update = (state: GameState, action: Action): GameState => {
@@ -221,6 +247,8 @@ export const update = (state: GameState, action: Action): GameState => {
       return pickPlayer(state, action);
     case "PlayMatch":
       return playMatchAction(state);
+    case "ViewTable":
+      return viewTable(state);
     case "Back":
       return back(state);
   }

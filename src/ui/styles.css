@@ -3,6 +3,7 @@
   --pitch-light: #1b5e45;
   --chalk: #f4f1e8;
   --accent: #f2c14e;
+  --highlight: rgba(242, 193, 78, 0.18);
   --text: #f4f1e8;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--text);
@@ -293,3 +294,36 @@ h1:focus { outline: none; }
 }
 
 .goal-minute { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.league-table h1 { font-size: 1.75rem; margin-bottom: 16px; overflow-wrap: anywhere; }
+
+.standings {
+  width: 100%;
+  margin: 0 0 16px;
+  border-collapse: collapse;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.standings th,
+.standings td {
+  padding: 8px 4px;
+  text-align: right;
+  border-bottom: 1px solid rgba(244, 241, 232, 0.25);
+}
+
+.standings thead th { font-size: 0.85rem; color: var(--accent); }
+.standings th:nth-child(2) { text-align: left; font-weight: 400; overflow-wrap: anywhere; }
+.standings thead th:nth-child(2) { font-weight: 700; }
+.standings th:not(:nth-child(2)),
+.standings td { white-space: nowrap; width: 1%; }
+.standings tbody tr[aria-current="true"] { background: var(--highlight); font-weight: 700; }
+.standings tbody tr[aria-current="true"] > :first-child { box-shadow: inset 4px 0 0 var(--accent); }
+.standings tbody tr[aria-current="true"] th { font-weight: 700; }
+
+.standings thead th { border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+.standings tbody td:first-child { color: rgba(244, 241, 232, 0.65); }
+.standings tbody td:last-child { font-weight: 700; color: var(--accent); padding-left: 8px; }
+.standings tbody tr[aria-current="true"] td:first-child { color: var(--chalk); }
+.standings tbody tr:last-child th,
+.standings tbody tr:last-child td { border-bottom: 2px solid rgba(244, 241, 232, 0.4); }

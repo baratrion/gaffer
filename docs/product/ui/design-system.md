@@ -7,6 +7,7 @@ Tokens live in `src/ui/styles.css` (`:root`).
 | `--pitch` / `--pitch-light` | #0f3d2e / #1b5e45 | Page background gradient |
 | `--chalk` / `--text` | #f4f1e8 | Text, borders at 25% alpha, tinted surfaces at 8% alpha |
 | `--accent` | #f2c14e (gold) | Positions, primary actions, focus rings, key figures |
+| `--highlight` | rgba(242, 193, 78, 0.18) | Gold at 18%: the highlighted row of the managed club in the table |
 
 Type: system sans, 1.75rem screen headings (`h1`), 1.1rem body lines, tabular numerals for every number.
 
@@ -27,3 +28,9 @@ Patterns:
 - **Goals**: gold 1rem label, then a list of rows with a 4px gold left edge on a faint chalk wash, minute in bold gold with tabular numerals. An empty list keeps a minimum height so 0–0 does not collapse the layout.
 - **Back**: the shared outlined gold `.back-button` (48px high), placed after the list.
 - **Club home**: "Play match" is the fourth primary action button, same pitch-gold fill as Squad, Tactics and Starting XI.
+
+## League table (S-007)
+- **Standings table** (`table.standings`): native table markup, no `display` override on any part and no `text-transform`, so the browser keeps its table roles. Automatic layout, 100% wide; numeric cells are `nowrap` at `width: 1%` with tabular numerals, the Club cell takes the rest and wraps (`overflow-wrap: anywhere`). 1rem body, 0.85rem gold headers; fits 390px with no sideways scroll.
+- **Highlighted row** (`tr[aria-current="true"]`): the managed club's row, `--highlight` background, a 4px gold inset edge on its first cell and bold text. The state is exposed as `aria-current`, not colour alone.
+- **Club home**: "Table" is the fifth primary action button, after "Play match".
+- **Table refinements (visual pass)**: the header row has a 2px gold rule; Pos is muted chalk (full chalk on the managed row); Pts is bold gold, the one number the eye should land on; the last row closes with a heavier rule. Still no `display` override or `text-transform`.

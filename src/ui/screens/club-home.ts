@@ -20,10 +20,15 @@ export const renderClubHome = (root: HTMLElement, club: Club, dispatch: (action:
         style: `--swatch-a: ${COLOUR_HEX[first]}; --swatch-b: ${COLOUR_HEX[second]}`,
       }),
       el("h1", { tabindex: "-1" }, club.name),
-      el("div", { class: "club-actions" }, actionButton("Squad", { type: "ViewSquad" }),
+      el(
+        "div",
+        { class: "club-actions" },
+        actionButton("Squad", { type: "ViewSquad" }),
         actionButton("Tactics", { type: "ViewTactics" }),
         actionButton("Starting XI", { type: "ViewStartingXI" }),
-        actionButton("Play match", { type: "PlayMatch" }),),
+        actionButton("Play match", { type: "PlayMatch" }),
+        actionButton("Table", { type: "ViewTable" }),
+      ),
     ),
   );
 };
