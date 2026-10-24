@@ -23,7 +23,9 @@ export const renderClubHome = (root: HTMLElement, club: Club, dispatch: (action:
       el("div", { class: "club-actions" }, actionButton("Squad", { type: "ViewSquad" }),
         actionButton("Tactics", { type: "ViewTactics" }),
         actionButton("Starting XI", { type: "ViewStartingXI" }),
-        actionButton("Play match", { type: "PlayMatch" }),),
+        actionButton("Play match", { type: "PlayMatch" }),
+        actionButton("Table", { type: "ViewTable" }),
+      ),
     ),
   );
 };
