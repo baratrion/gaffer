@@ -14,7 +14,7 @@ import {
 } from "../../../src/app/state";
 import { FORMATIONS, lineUp, type FormationId } from "../../../src/domain/formation";
 import { generateLeague } from "../../../src/domain/league";
-import { playMatch } from "../../../src/domain/match";
+import { playMatch, playMatchday, type MatchSide, type PlayedMatch } from "../../../src/domain/match";
 import { fixtureOf } from "../../../src/domain/schedule";
 import { automaticXI, playersForPosition } from "../../../src/domain/selection";
 import { generateSquad, PLAYERS_PER_SQUAD, type Player, type Position } from "../../../src/domain/squad";
@@ -47,6 +47,14 @@ const xiFrom = (squad: readonly Player[], formation: FormationId, keys: readonly
   ) as Record<Position, number[]>;
   return lineUp(formation).map((position) => ordered[position][taken[position]++]!);
 };
+/** The matchday-1 record Play match makes (S-007 D1), worked out independently of the app: Sam's side is his current eleven, every other side its automatic 4-4-2. */
+const expectedRecord = (state: GameState, managedId: string): readonly PlayedMatch[] => {
+  const sides: MatchSide[] = state.league.clubs.map((club) => {
+    const squad = squadOf(state.league, club.id)!;
+    return { squad, xi: club.id === managedId ? currentXI(state, squad) : automaticXI(squad, "4-4-2") };
+  });
+  return playMatchday({ seed: state.league.seed, matchday: 1, sides });
+};
 const NORTHCOTT_FOR_DUNMORE = [0, 7, 3, 6, 2, 9, 12, 8, 13, 17, 14] as const; // slot 8 (Dorian Dunmore, squad row 10) -> Kestrel Northcott (row 13)
 
 const OFF_HOME: readonly [string, GameState][] = [
@@ -64,7 +72,7 @@ describe("@US-1 S-006 Sam sends his team out from the club home and comes back t
   describe("Given a club home", () => {
     it("when Sam taps Play match, then the match screen of that club is shown and nothing else in the game changes @walking_skeleton @driving_port @contract-shape:bounded-change", () => {
       const state = deepFreeze(onHome());
-      expect(update(state, play)).toEqual({ ...state, screen: { kind: "match", clubId } });
+      expect(update(state, play)).toEqual({ ...state, screen: { kind: "match", clubId }, results: expectedRecord(state, clubId) });
     });
 
     it("when Sam taps Play match from any club home, with any formation and any picks, then only the screen changes and the formation and picks are kept @property @contract-shape:bounded-change", () => {
@@ -85,14 +93,15 @@ describe("@US-1 S-006 Sam sends his team out from the club home and comes back t
 
     it("when Sam taps Play match and then Back, then the club home is shown again and the whole state is what it was, picks included @walking_skeleton @driving_port @contract-shape:bounded-change", () => {
       for (const state of [onHome(), onHome(clubId, "4-3-3"), onHome(clubId, "4-4-2", NORTHCOTT_FOR_DUNMORE), onHome(rivalId, "4-2-3-1")]) {
-        expect(walk(deepFreeze(state), [play, back])).toEqual(state);
+        expect(walk(deepFreeze(state), [play, back])).toEqual({ ...state, results: expectedRecord(state, state.screen.kind === "clubHome" ? state.screen.clubId : clubId) });
       }
     });
 
-    it("when Sam taps Play match, Back and Play match again, then the same match screen is shown (nothing is recorded, so the match is replayed) @boundary @contract-shape:bounded-change", () => {
+    it("when Sam taps Play match, Back and Play match again, then the same match screen is shown (the recorded matchday is kept, not replayed) @boundary @contract-shape:bounded-change", () => {
       const first = update(onHome(), play);
       const again = walk(first, [back, play]);
       expect(again).toEqual(first);
+      expect(again.results).toBe(first.results);
       expect(matchFor(again, clubId)).toEqual(matchFor(first, clubId));
     });
 

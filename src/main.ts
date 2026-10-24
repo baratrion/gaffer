@@ -1,6 +1,6 @@
 import "./ui/styles.css";
 import { parseSeed } from "./app/seed";
-import { currentXI, focusPlan, initialState, matchFor, type MatchView, squadOf, update, type Action, type FocusPlan, type GameState } from "./app/state";
+import { currentXI, focusPlan, initialState, matchFor, type MatchView, squadOf, standingsOf, update, type Action, type FocusPlan, type GameState } from "./app/state";
 import { formationLines, lineUp } from "./domain/formation";
 import { generateLeague, type League } from "./domain/league";
 import { playersForPosition } from "./domain/selection";
@@ -12,6 +12,7 @@ import { renderPickClub } from "./ui/screens/pick-club";
 import { renderPlayer } from "./ui/screens/player";
 import { renderSquad } from "./ui/screens/squad";
 import { renderStartingXI } from "./ui/screens/starting-xi";
+import { renderTable } from "./ui/screens/table";
 import { renderTactics } from "./ui/screens/tactics";
 import { renderTitle } from "./ui/screens/title";
 
@@ -94,6 +95,9 @@ const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void =
       renderMatch(root, matchScreenView(match), dispatch);
       break;
     }
+    case "table":
+      renderTable(root, { rows: standingsOf(state), managedClubId: screen.clubId }, dispatch);
+      break;
     default: {
       const unhandled: never = screen;
       throw new Error(`Unhandled screen: ${JSON.stringify(unhandled)}`);
