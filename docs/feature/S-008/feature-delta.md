@@ -292,3 +292,150 @@ Cycle 2 (`nw-product-owner-reviewer`): **approved**, DoR 9/9, no critical or hig
 | N-2 the 14 seed-31 score lines are not pinned in the repository | Accepted: DISTILL reproduces them by running `playMatchday` (seed 31, untouched 4-4-2 sides) and pins them as goldens before any example uses them; if one differs, the examples change with it |
 | N-3 opponent-scorer rule could be read as black-box for matchdays 2-14 | No change: D3 states it is black-box for matchday 1 only; the plan run's protected scenarios follow D3 |
 | N-4 rapid double tap is argued, not tested in the DOM | Accepted for DISTILL: an e2e double-click on "Play match" expects the match screen of exactly one new matchday |
+
+## Wave: DESIGN
+
+- **Setup**: mode propose; scope application; one solo developer plus the unattended factory, so no Conway constraint. Paradigm: functional core, imperative shell (ADR-0003; recorded in the ADRs and the brief, not in CLAUDE.md). Unattended run; no questions asked.
+- **New ADR**: `docs/product/architecture/adr-0014-season-progression-from-the-record.md` (next matchday derived from the record; the match screen shows the latest match; the generalised side builder; the 390px budget; the supersession of ADR-0012's re-show and its dependents; the correction of ADR-0013 Earned Trust 1). ADR-0012 and ADR-0013 get a one-line "Superseded in part by ADR-0014" note in their status lines, nothing else.
+- **Brief**: `docs/product/architecture/brief.md` gains the "Season progression (S-008, ADR-0014)" subsection, updated effect-isolation, inventory and L2 text, struck-through now-false S-007 lines, and "For Acceptance Designer" ports 29-31 plus the S-008 observable bullet.
+- **No new C4 container** and no new file: the diff is in `src/app/state.ts` (and tests). The domain, the UI renderers, `main.ts` and `styles.css` do not change.
+- **Library check**: no library involved (no new dependency; web-platform facts only: `getComputedStyle().display` of table parts, Playwright `getByRole` semantics). No Context7 lookup applies; none was run.
+- **Outcome collision check**: S-008 registers no outcome (no new typed contract beyond brief ports 29-31), as S-006/S-007. The `nwave-ai outcomes check-delta` result is recorded under Open questions.
+
+### Wave: DESIGN / [REF] DDD list
+- **No new context.** "Match" (schedule, model, matchday) and "Standings" are unchanged; the app-layer "season record" (the append-only `results` list of ADR-0012) now grows to 14 matchdays. No new aggregate: `results` stays a log of facts, not an aggregate with behaviour.
+- **Language** (extends the DISCUSS glossary): Matchdays played (the last recorded entry's `matchday`, 0 when none), Next matchday (`nextMatchday`), Season over (`nextMatchday` is `undefined`), Latest match (the managed club's last recorded entry), Side builder (`playMatchdayFor`).
+- **Value objects**: unchanged (`PlayedMatch`, `StandingRow`, `MatchView`).
+- **Invariants by construction / by test**:
+  - The record is append-only, in matchday order, 4 entries per matchday, at most 56; earlier entries are never replaced (the new list shares the old objects).
+  - Next matchday, match screen and table are all functions of `results`, so they cannot disagree.
+  - Each fixture is its own stream, so appending matchday N + 1 cannot change matchday N; with untouched tactics every side is an automatic 4-4-2, so the record is the same whichever club is managed.
+  - Standings invariants (W = L in total, D even, GD 0, Pts = 3W + D) hold for any prefix of the season.
+
+### Wave: DESIGN / [REF] Decisions
+| # | Decision | Source |
+|---|---|---|
+| DD1 | **Next matchday is derived from the record**: `nextMatchday(state)` = the last recorded entry's `matchday` (0 when nothing is recorded) + 1, `undefined` when that exceeds `MATCHDAYS`. No new `GameState` field.<br>Rejected: a stored counter (a second fact that can disagree with `results`; reset in `NewGame`; two fields to validate in a save); `results.length / 4` (encodes the shape as arithmetic). | ADR-0014 (1); DISCUSS D1 |
+| DD2 | **The match screen shows the managed club's latest recorded match**: `matchFor` returns the last entry that involves the club (via `filter` then `at(-1)`; the lib is ES2022, no `findLast`). `Screen`, `focusPlan`, `MatchView`, `renderMatch` and `main.ts` unchanged. The after-14 re-show then needs no rule in the screen.<br>Rejected: `{ kind: "match", clubId, matchday }` (breaks ~15 unedited S-006/S-007 literals that D11 does not let us edit, grows `sameScreen`, allows a screen for an unrecorded matchday); a `lastMatch` pointer (second source). | ADR-0014 (2); DISCUSS D3, D7 |
+| DD3 | **`PlayMatch` appends**: from a known club's home, `results` = old list + the 4 entries of `playMatchdayFor(state, clubId, nextMatchday)` (a new array; earlier entries the very same objects, D5). After matchday 14: `screen` becomes the match and `results` is the very same array (D7). No new action; `update` stays at 13 cases. | ADR-0014; DISCUSS D1, D5, D7 |
+| DD4 | **One side builder**: `playMatchdayFor(state, clubId, matchday)` (3 parameters) owns the policy (Sam's `currentXI`, every other side `automaticXI(squad, DEFAULT_FORMATION)`); `playOpeningMatchday(state, clubId)` stays as its application to `OPENING_MATCHDAY`, and `OPENING_MATCHDAY` stays (first tap and `matchFor` fallback).<br>Rejected: retiring both (edits unedited S-006/S-007 tests that import them; no gain); a second producer `playNextMatchday` (the policy twice). | ADR-0014 (3); ADR-0012 reviewer L9; DISCUSS D2 |
+| DD5 | **No domain change and no new stream**: `playMatchday` and `playMatch` serve matchdays 1..14 on streams 200..255; 204..255 are used in play for the first time, so the seed-31 season goldens are the independent check. | ADR-0011; ADR-0014; DISCUSS D2, D9 |
+| DD6 | **Table: no code or CSS change.** Budget at 390px (358px content): numeric columns about 201px (Pos 30, P/W/D/L 26 each, GD 35, Pts 32), Club cell about 157px, `overflow-wrap: anywhere`, so the table cannot overflow; the e2e proves it after 14 matchdays at `?seed=31` and `?seed=abc`. Ladder if it fails: headers 0.8rem and body 0.9rem, then cell padding 3px; never a `display` override or a fixed width.<br>Rejected: pre-emptive tightening (no evidence); `table-layout: fixed` with `colgroup` (ADR-0013 6B). | ADR-0014 (4); ADR-0013 (6); DISCUSS D6, D10 |
+| DD7 | **ADR-0012 is superseded in part** (nine quoted points, ADR-0014 "What this supersedes") by a new ADR, with one-line status notes on ADR-0012 and ADR-0013; nothing else in either is edited. | ADR-0014 (5); DISCUSS DoD |
+| DD8 | **ADR-0013 Earned Trust 1 corrected**: Playwright role counts cannot detect a `display` override; the S-008 e2e reads `getComputedStyle(el).display` of table, thead, tbody, tr, th, td (`table`, `table-header-group`, `table-row-group`, `table-row`, `table-cell`, `table-cell`). Closes the S-007 open question F-1. | ADR-0014; `docs/feature/S-007/open-questions.md` |
+| DD9 | **Known gap D7 stays in the app, not the data**: `nextMatchday` returning `undefined` is the hook for the end-of-season story, which replaces one branch of `PlayMatch`. It is not pinned in `tests/protected/S-008/`; e2e and unit tests check it. `state.ts` grows to about 290 of 400 lines; that story should split the season selectors into `src/app/season.ts`. | ADR-0014; DISCUSS D7, D12 |
+| DD10 | **Unchanged on purpose**: club home (five buttons), `renderMatch`, `renderTable`, `styles.css`, `main.ts`, `focusPlan`, `back`, `NewGame`, `standingsOf`, the schedule, the names (no new accessible name, D14). | DISCUSS D8, D14 |
+
+### Wave: DESIGN / [REF] Component decomposition
+| Path | Change | Responsibility | Indicative lines |
+|---|---|---|---|
+| `src/app/state.ts` | EXTEND | `nextMatchday` (new, exported); `playMatchdayFor` (generalises the 8-sides builder); `playOpeningMatchday` becomes its one-line application; `playMatchAction` appends or keeps; `matchFor` reads the latest entry; import `MATCHDAYS`; field comment | 42 |
+| `src/main.ts`, `src/ui/**`, `src/domain/**`, `src/ui/styles.css` | UNCHANGED | `main.ts` already maps `MatchView.matchday` to the h1 (the DISCUSS 5-line `main.ts` item is not needed) | 0 |
+
+**Code total**: about 42 lines, against 45 in DISCUSS.
+
+| Test file (DISTILL) | Contents | Lines |
+|---|---|---|
+| `tests/acceptance/S-008/season.test.ts` | `nextMatchday` table (0..56 entries) and boundary 13 to 14 to none; `PlayMatch` appends exactly the 4 entries of `playMatchdayFor` (earlier entries `toBe`), after 14 the same array; no-ops (other screens, unknown club); `NewGame` clears; `playMatchdayFor` equals `playMatchday` with Sam's `currentXI` and the others' automatic 4-4-2, `RangeError` table, unknown club, `playOpeningMatchday` equals matchday 1; `matchFor` latest and after-14, fallback cases untouched; goldens (seed-31 14 score lines, rows after 2, 3, 14; `?seed=abc` Oakhampton Rise Borough); schedule seen from every club (7 opponents once, mirror N + 7); fast-check over seeds, clubs, formations, picks, N = 1..14: row rules, totals, managed row = sum of its score lines, per-matchday delta, opponent scorers non-GK of their squad, managed scorers in `currentXI` never the GK slot; 40-action property (record grows only by `PlayMatch` from a home, 4 at a time, at most 56); record identical whichever club is managed; determinism | 220 |
+| `tests/e2e/S-008-season.spec.ts` | Focus on each heading ("Matchday 1" to "Matchday 14" over 28 taps, `test.slow()`); 44px; the 14 goldens read in Chromium vs the Node-pinned values; a team change between taps; after-14 re-show and table P 14; double-click on "Play match" gives exactly one new matchday; no sideways scroll (document and table `scrollWidth`) on the 14-matchday table at `?seed=31` and `?seed=abc`; computed `display` of table, thead, tbody, tr, th, td (DD8); no console errors | 157 |
+| Amended S-006/S-007 tests (D11) | As DISCUSS D11 except the `OPENING_MATCHDAY is 1` case (S-006 `match-navigation.test.ts` line 203), which stays because the constant stays: 3 acceptance cases and 2 properties, 2 e2e read helpers, 4 e2e second-tap blocks, 3 header comments | 86 |
+| **Tests total** | | **463** |
+
+**DELIVER total**: about 505 changed lines (42 code + 463 tests), against 500 in DISCUSS; about 695 with the plan run's 190 protected lines. Far under the factory's hard limit of about 1200 per PR (target at or under 1100). If DELIVER runs over, the cut order is: (1) the `?seed=abc` rows of the e2e walk; (2) the double-click e2e (units cover the logic); (3) the 40-action property (the unit cases carry it).
+
+### Wave: DESIGN / [REF] Driving ports
+- **App** (pure): `update` with `PlayMatch` (appends), `nextMatchday`, `playMatchdayFor`, `playOpeningMatchday`, `matchFor` (latest match), `standingsOf`, `focusPlan` (unchanged).
+- **Domain** (unchanged): `playMatchday` for matchdays 1..14, `fixturesOf`, `fixtureOf`, `standings`, `formatGoalDifference`.
+- **Browser**: club home "Play match" (k-th tap, matchday k) to the match screen (h1 "Matchday k", score line, "Goals", "Back"); "Table" (every row P = matchdays played).
+- Detail, signatures and properties: brief, "For Acceptance Designer", ports 29-31.
+
+Exact signatures for the acceptance designer:
+- `nextMatchday(state: GameState): number | undefined`
+- `playMatchdayFor(state: GameState, clubId: string, matchday: number): readonly PlayedMatch[] | undefined`
+- `playOpeningMatchday(state: GameState, clubId: string): readonly PlayedMatch[] | undefined` (kept)
+- `matchFor(state: GameState, clubId: string): MatchView | undefined` (kept; latest match)
+- `standingsOf(state: GameState): readonly StandingRow[]` (kept)
+- `update(state: GameState, action: Action): GameState` (kept; `PlayMatch` semantics change)
+- `GameState`, `Screen`, `Action`, `PlayedMatch`, `MatchView`, `StandingRow`: unchanged shapes.
+
+### Wave: DESIGN / [REF] Driven ports and adapters
+None new: no storage, clock or network. The record still lives in memory for the page's life. Environment assumptions are named and probed (ADR-0014 Earned Trust):
+1. **Chromium vs Node determinism over the whole season** (streams 204..255 first run in a browser): the 14-tap walk at `?seed=31` equals the Node-pinned goldens. WebKit and iOS Safari are not probed. Fault: an approximated function in `match.ts` (the grep test also covers it).
+2. **The record is neither lost nor doubled**: append property; double-click e2e. Fault: a second tap landing on the same club home (impossible: the match screen has no "Play match", and `dispatch` is synchronous).
+3. **390px fit with two-digit values**: document and table `scrollWidth` after 14 matchdays at `?seed=31` and `?seed=abc`. Faults: `overflow-wrap` removed, a fixed width, `nowrap` removed from a header.
+4. **Native table display survives the CSS** (the corrected ADR-0013 probe): computed `display` of each table part. Fault: any `display` override.
+5. **Future persistence** (not this story) is the first real adapter and gets its own `probe()` and shape validator; `results` is unchanged JSON-able data, and the matchday needs no save field.
+
+No external integrations, so no contract tests.
+
+**Enforcement**:
+- Style: modular monolith, functional core and imperative shell. Tool: oxlint with the existing `.oxlintrc.json` boundaries (domain imports no app or ui; app imports no ui); `max-params` 3 (`playMatchdayFor` has exactly 3); `complexity` 15 (`update` 13; the changed functions under 8); `max-lines` 400 (`state.ts` about 290).
+- Stryker's existing globs cover `state.ts` and `src/domain/**`; no config change. Mutants to kill: the cap `<=`, `+ 1`, `?? 0`, `at(-1)` versus `at(0)`, append versus prepend.
+- Existing grep tests stay (no `.focus(` under `src/ui/`; no `localeCompare` in `standings.ts`; no `Math.pow`/`exp`/`log`/`**` in `match.ts`; one `dispatch(` in `table.ts`). The PR guard still rejects `Math.random`, `Date.now` and `new Date(` in `src/domain/`.
+
+### Wave: DESIGN / [REF] Technology choices
+- Unchanged (ADR-0001, 0002, 0003 apply; all OSS: TypeScript, Vite, Vitest, fast-check, Playwright, oxlint, Stryker, MIT or Apache-2.0). No new dependency. `Array.prototype.at` is ES2022 (the configured lib).
+- No DOM test environment is added; the screens are covered by the e2e.
+
+### Wave: DESIGN / [REF] Reuse Analysis
+| Existing Component | File | Overlap | Decision | Justification / contract shape |
+|---|---|---|---|---|
+| `playMatchday`, `playMatch`, `matchStream`, `PlayedMatch` | `src/domain/match.ts` | The 4 fixtures of any matchday 1..14 | REUSE unchanged | Pure return-only; streams 200..255 already reserved; no domain change |
+| `fixturesOf`, `fixtureOf`, `MATCHDAYS`, `FIXTURES_PER_MATCHDAY` | `src/domain/schedule.ts` | Opponents and the cap | REUSE unchanged | Frozen data (ADR-0010); `MATCHDAYS` is the cap in `nextMatchday` |
+| `standings`, `formatGoalDifference`, `standingsOf` | `src/domain/standings.ts`, `state.ts` | The table over the whole record | REUSE unchanged | Pure return-only; already a function of any list of results |
+| `playOpeningMatchday`, `OPENING_MATCHDAY`, `sideFor` | `src/app/state.ts` | The 8-sides builder for matchday 1 | EXTEND (generalise to `playMatchdayFor`; keep the two names as the application to matchday 1) | Pure return-only; universe = the returned array; deep-equal to `playMatchday` with the policy sides, frozen state unchanged, `RangeError` table. Single owner of the side policy |
+| (none for the season cursor) | `src/app/state.ts` | Which matchday is next | CREATE NEW `nextMatchday` (a function, not state) | No selector for it exists; deriving from `results` adds no field. Pure return-only; universe = a number or `undefined`; table over 0..56 entries, boundary tests |
+| `playMatchAction` | `src/app/state.ts` | Recording on a tap | EXTEND (append instead of set-once) | Bounded-change: universe `{ league, screen, formation, xi?, results? }`; `screen` becomes the match; `results` = old + 4 entries (earlier `toBe`) or the very same array after 14; `toEqual`, `toBe` for no-ops, deep-freeze, 40-action property |
+| `matchFor`, `MatchView`, `sideViewOf` | `src/app/state.ts` | Which recorded match the screen reads | EXTEND (latest entry of the club) | Pure return-only; the S-006 cases and the fallback-equivalence property stay unedited |
+| `update`, `back`, `focusPlan`, `sameScreen`, `newGame` | `src/app/state.ts` | Navigation and reset | REUSE unchanged | `Screen` and `Action` do not change; `update` stays at 13 cases |
+| `renderMatch`, `renderTable`, `renderClubHome`, `el()` | `src/ui/` | Screens | REUSE unchanged | Bounded-change universes as in ADR-0011/0013; `renderMatch` already prints `Matchday ${matchday}` |
+| `main.ts` | `src/main.ts` | Render switch | REUSE unchanged | Unbounded-preservation shell; no new render case |
+| `.standings` rules | `src/ui/styles.css` | Two-digit values at 390px | REUSE unchanged (verified by budget, proved by e2e) | No `display` override; the Club cell wraps |
+| S-001..S-007 acceptance, e2e and protected tests | `tests/` | Regression | REUSE unchanged, except the D11 amendments | Protected tests tap "Play match" once per page (D11), so none needs an edit |
+| (none) | `tests/acceptance/S-008/`, `tests/e2e/S-008-season.spec.ts` | Season tests | CREATE NEW | No S-008 test exists; the D11 amendments cover the superseded ones |
+
+### Wave: DESIGN / [REF] Changed Assumptions
+- **ADR-0012** (`docs/product/architecture/adr-0012-recorded-matchday-results.md`), Context D2, quoted: "A second "Play match" re-shows the recorded matchday-1 match (this version only)." Superseded by ADR-0014: a second tap plays matchday 2; the re-show survives only after matchday 14 (DISCUSS D7).
+- **ADR-0012**, Decision, App, quoted: "So the first tap records, and any later tap leaves `results` as it is (the re-show, D2)." Superseded: each tap appends the next matchday.
+- **ADR-0012**, quoted: "Once present it is the full set of recorded matches: 4 entries (matchday 1) in this story." Superseded: 4 entries per matchday played, 4 to 56.
+- **ADR-0012**, quoted: "It is the only producer of recorded results." Superseded: `playMatchdayFor` is the producer; `playOpeningMatchday` is its application to matchday 1.
+- **ADR-0012**, quoted: "`OPENING_MATCHDAY = 1` stays. The season story replaces its uses by a matchday held in state." Not done as foreseen: the matchday is derived from the record, not held in state, and `OPENING_MATCHDAY` stays (first tap and `matchFor` fallback).
+- **ADR-0012**, quoted: "Its single owner is `playOpeningMatchday` (the side builder in `state.ts`, using the `DEFAULT_FORMATION` constant); no other code restates it." The owner is now `playMatchdayFor`; the policy is unchanged.
+- **ADR-0013** (`docs/product/architecture/adr-0013-league-standings-and-table-screen.md`), Earned Trust 1, quoted: "Faults: `display: block` on a `tr`, or `scope` missing, drops roles and turns the counts red." Wrong for `display` (S-007 open questions F-1); corrected in ADR-0014 (computed `display` probe).
+- **S-007 feature-delta** (`docs/feature/S-007/feature-delta.md`), DESIGN Open questions, quoted: "The season story replaces it with "play the next matchday" by appending to `results` and keeping a matchday in state; `OPENING_MATCHDAY` then goes away." Refined: appending yes; no matchday in state; the constant stays.
+- **S-007 feature-delta** D18, quoted: "is an app-level policy owned by `playOpeningMatchday` alone; the season story revisits it." The policy is kept (AI formations are OUT, DISCUSS D12); its owner is `playMatchdayFor`.
+- **This file, DISCUSS line budget**, quoted: "`src/main.ts` (heading reads the recorded matchday, if not already)". It already does (`matchScreenView` maps `matchday`; `renderMatch` prints it), so `main.ts` is not touched.
+- **This file, DISCUSS D11**, quoted: "line 203 (`OPENING_MATCHDAY` is 1): only if DESIGN retires the constant". DESIGN keeps the constant, so that case needs no amendment (4 lines fewer).
+- **This file, DISCUSS Technical notes**, quoted: "the next matchday may be derived from the record (DESIGN's call: no new state field is required by the AC)". Confirmed: derived.
+- **Brief**: the S-007 lines that said `playOpeningMatchday` is the only producer, that later taps re-show, that `results` is the same array once set, and the S-007 observable bullet on a second "Play match" are struck through with a pointer to ADR-0014.
+- No change to the roadmap outcome text.
+
+### Wave: DESIGN / [REF] Open questions
+- **None blocking.**
+- **`nwave-ai outcomes check-delta docs/feature/S-008/feature-delta.md`** (CLI present at `~/.local/bin/nwave-ai`): "0 outcomes checked, 0 collisions found across 0 outcomes", exit 0. Consistent with S-008 registering no outcome.
+- **Goldens** (seed-31 season, rows after matchdays 2, 3, 14, `?seed=abc` season): computed by the DISCUSS orchestrator from the model; DISTILL reproduces them by running `playMatchday` with untouched 4-4-2 sides and pins them RED-first; if one differs, the examples change with it. DELIVER never re-pins from its own output.
+- **390px** is argued by arithmetic (DD6) and proved only by the e2e; the fallback ladder is in ADR-0014. `aria-current` bold digits add about 9px to the numeric columns; included in the budget margin.
+- **Rapid double tap**: argued (the match screen has no "Play match"; `dispatch` is synchronous), tested by the e2e double-click (DISCUSS N-4).
+- **`nextMatchday` assumes the append-only, matchday-ordered shape** of `results`; a hand-built partial list would give a wrong next matchday. Not reachable through `update`; the 40-action property and the table test guard the shape.
+- **End of season**: the successor story reads `nextMatchday(state) === undefined`, replaces one branch of `PlayMatch`, and should split `state.ts` (about 290 of 400 lines) into `src/app/season.ts`. Its screen, "play again" and top scorer need their own ADR.
+- **Persistence** (a later story) still needs a probe, a shape validator and a save version; the matchday needs no field.
+- **Outcome trace**:
+  - "Play match" plays the next matchday, h1 "Matchday N" focused: DD1, DD2, DD3.
+  - Score line and "Goals" formats for every N, "Back": DD2, DD10 (renderers unchanged).
+  - Sam's XI at the tap, others automatic 4-4-2, no new stream: DD4, DD5.
+  - Schedule seen from the club: DD5 (ADR-0010 frozen, tests per club).
+  - Recorded results never change: DD3 (earlier entries the same objects).
+  - Table reads the whole record, per-matchday delta, two-digit fit: DD6, DD10.
+  - Same seed same season: DD5.
+  - After matchday 14: DD3, DD9.
+- **Handoff for DISTILL**:
+  - Properties and checks: brief ports 29-31 and the ADR-0014 Consequences; test files and lines in Component decomposition.
+  - Goldens: the 14 score lines and Netherwold Borough's rows after matchdays 2, 3 and 14 (DISCUSS "User stories"), `?seed=abc` Oakhampton Rise Borough matchday 1 (0–1 away at Harrowgate Lane United) and matchday 2 (home to the 2nd club of its list).
+  - D11 amendments: replace, never weaken; the `OPENING_MATCHDAY is 1` case stays. The pending-then-activate pattern of S-006/S-007 applies, in the same commit as the production change.
+  - Locators: `exact: true` for "Play match", "Back", "Table", the heading and the table "League table".
+  - e2e: the 28-tap walk (`test.slow()`), the double-click, the after-14 re-show (not protected), no sideways scroll, computed `display` of the table parts.
+  - The protected scenarios must not pin the after-14 re-show or the goals-scored and club-name tie-breaks.
+- **Contract-test annotation**: no external integrations; none recommended.
+
+### Wave: DESIGN / [REF] Peer review
+Pending: `nw-solution-architect-reviewer` (to be run by the orchestrator; max 2 iterations).

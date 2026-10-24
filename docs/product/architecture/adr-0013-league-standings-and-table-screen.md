@@ -1,6 +1,6 @@
 # ADR-0013: League standings and the table screen (S-007)
 
-- Status: Accepted
+- Status: Accepted. Superseded in part by ADR-0014 (S-008): the Earned Trust 1 fault wording only (Playwright role counts cannot detect a `display` override on a table part; the probe is the computed `display` of each table part); everything else stands
 - Date: 2026-10-23
 - Deciders: nWave solution-architect (S-007 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0002 (plain DOM, `el()`, `textContent`), ADR-0003 (functional core), ADR-0008 (focus plan, `sameScreen`), ADR-0009 (inline-flow text rule, list named by the heading), ADR-0011 (inline text, no `text-transform` on exact names), ADR-0012 (the recorded results this reads). Supersedes nothing.

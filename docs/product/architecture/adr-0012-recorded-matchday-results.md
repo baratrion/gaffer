@@ -1,6 +1,6 @@
 # ADR-0012: Recorded matchday results in session state (S-007)
 
-- Status: Accepted
+- Status: Accepted. Superseded in part by ADR-0014 (S-008): the re-show of matchday 1 on a second "Play match", "4 entries (matchday 1) in this story", `playOpeningMatchday` as the only producer and policy owner, "`OPENING_MATCHDAY` ... replaced by a matchday held in state", `matchFor` reading the matchday-1 entry, and the `results`-once-set contract and Earned Trust 2 wording; everything else stands
 - Date: 2026-10-23
 - Deciders: nWave solution-architect (S-007 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core; future `toSave`/`fromSave`), ADR-0005 (d) (derive on render), ADR-0009 (optional state field pattern, `exactOptionalPropertyTypes`), ADR-0010 (schedule), ADR-0011 (match model and streams), ADR-0013 (standings and table screen, which reads what this ADR records).
