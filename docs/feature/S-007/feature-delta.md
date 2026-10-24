@@ -612,3 +612,151 @@ Not pinned, by design:
 - the "New game clears results" reset (unreachable in the UI; a unit-level invariant).
 
 All 4 fail on the current app (no "Table" button). The plan run checked that they can be met: against a throwaway prototype (not committed), all 8 S-006 and S-007 protected scenarios passed. That prototype recorded matchday 1 on the first "Play match" and had a native `<table aria-labelledby>` with `th scope="col"`, `th scope="row"` and `td`. It confirmed that Chromium exposes the columnheader, rowheader and cell roles as ADR-0013 expects. No faulty variants were run in this plan run.
+
+## Wave: DISTILL
+
+Unattended. Language: TypeScript; runners: vitest + fast-check (`FC_SEED` honoured through `tests/setup/fast-check-seed.ts`) and Playwright (Pixel 7, 390px); package manager pnpm. No Gherkin runner exists, so scenarios are `describe/it` blocks whose titles read Given/When/Then in domain language, with `@tags` and `@contract-shape:<pure-function|bounded-change|unbounded-preservation>` in every title and a `CONTRACT_SHAPE` + outcome-anchor header, as in S-003..S-006 (`standings`, `formatGoalDifference`, `playMatchday`, `matchFor`, `standingsOf` and `focusPlan` are `pure-function`; `update` navigation, recording and the e2e specs are `bounded-change`; `main.ts` is `unbounded-preservation` per DESIGN D17 and is covered by the unchanged S-001..S-006 e2e suites plus the journey test E14, with no separate tag). Wave-decision reconciliation: DISCUSS, DESIGN and DEVOPS read, 0 contradictions (D12 and the DEVOPS coexistence matrix already name the S-005/S-006 amendments that U-1 and U-2 confirm with exact lines). The test sources were not derived from `tests/protected/` (not opened). Open for the orchestrator: `distill/upstream-issues.md` U-1 (two existing e2e assertions list exactly four club-home buttons) and U-2 (two existing S-006 `update` cases, and one stale title, supersede by the record), both planned in D12.
+
+### Wave: DISTILL / [REF] Hand-off model: green tree, new-behaviour specs held out until DELIVER (Mandate 7 adapted)
+CI forbids committing failing, skipped or `.todo` tests, and test counts may only go up. As in S-004 to S-006:
+- **Committed and running now (green regression guards, 4 files, 21 cases):**
+  - `tests/acceptance/S-007/existing-navigation-unchanged.test.ts` (7): Squad, a player, Tactics, a formation, Starting XI, a slot, Play match and Back still work for any club and formation; Netherwold Borough's first match is still Matchday 1, 1–2 at seed 31. States are built without naming `table`, `ViewTable` or `results`, and only screen, formation, picks and league are compared, so it compiles and passes before and after DELIVER.
+  - `tests/acceptance/S-007/table-inputs-pinned.test.ts` (3): pins the inputs of the golden table: the four seed-31 matchday-1 score lines (1–2, 2–2, 5–1, 1–3), the `?seed=abc` first fixture (0–1) and the seed-31 club order. A generator, schedule or match-model change turns this file red, not the table specs.
+  - `tests/acceptance/S-007/names-avoid-table-words.test.ts` (10): DISCUSS D11/D14. No entry of `TOWNS`, `CLUB_SUFFIXES`, `COLOUR_PALETTE`, `FIRST_NAMES`, `SURNAMES` (nor any "First Last" or "Town Suffix" text built from them) contains "Table" or "League table" (case-insensitive substrings); "Table" and "League table" and the twelve existing locator words contain each other in neither direction; the eight column headers are eight distinct names and equal no generated text; "Club" is a part of "Clubs" (why header locators are exact). Passes today, so committed, not held out.
+  - `tests/e2e/S-007-club-home-regression.spec.ts` (1): heading is the club name and focused, four or five club-home buttons all 44px or taller, Squad, Starting XI, Tactics and Play match still open and Back returns with the heading focused, a 4-3-3 choice survives, no sideways scroll, no console error; it never names "Table".
+  - The renderers-never-move-focus guard is reused: `tests/unit/ui/renderers-never-move-focus.test.ts` scans every file under `src/ui`, so it covers `table.ts`.
+  - Net: `ci:test` 685 to 705 tests (+20, 34 files), `ci:e2e` 97 to 98 (+1). `ci:lint`, `ci:typecheck`, `ci:test`, `ci:e2e` green on the committed tree.
+- **Held out, complete and verified:** four executable specs stored as `docs/feature/S-007/distill/pending/{acceptance,e2e}/*.pending` (outside every glob: `vitest include`, `tsc include`, `oxlint .`, Playwright `testDir`). Nothing skipped, weakened or marked todo; they are simply not in the tree yet. 85 vitest cases (standings 31, matchday 8, table-navigation 46) and 16 e2e cases, 1341 lines.
+- **Verification done in DISTILL** (`distill/verification-note.md`): a throwaway reference implementation in a scratch git worktree (since removed), written from ADR-0012/0013 only, made all 85 held-out vitest cases and all 16 held-out e2e cases pass (with the four existing assertions of U-1/U-2 amended there: `ci:test` 790 of 790, `ci:e2e` 114 of 114, `ci:typecheck` and `ci:lint` clean), with 26 seeded domain/app faults and 13 UI faults caught (the one survivor class is the documented `display` override, U-3). In the real repo the same files are lint-clean and fail only for missing modules and symbols (RED for missing functionality).
+- **No scaffold stubs in `src/`:** a throwing stub would turn the committed run red. The scaffold equivalent is the `.pending` files plus the exact-symbol list below.
+- **DELIVER mechanics:** `git mv` each file to its destination, dropping `.pending`, in the same commit as the code that makes it green. Never edit an assertion to fit the implementation; if one is wrong, record it in `distill/upstream-issues.md`. The seed-31 golden table is an expected value derived from the ADR-0011 results: a mismatch means the code is fixed, never the golden.
+
+### Wave: DISTILL / [REF] Scenario list with tags
+Tier A only (production code: real `generateSquad`, `automaticXI`, `fixturesOf`, `playMatch`, `playMatchday`, `update`, `matchFor`, `standingsOf`, `focusPlan`, the built app). Tier B skipped: the journey is a few chained steps and the pure rules and `update` are already explored by fast-check properties over seeds, all 8 clubs, all 3 formations and 40-action runs.
+
+Committed now: R1-R7 `existing-navigation-unchanged` (`@regression @property|@driving_port|@error`, 4 PBT), I1-I3 `table-inputs-pinned` (`@regression @boundary`), W1-W10 `names-avoid-table-words` (`@regression @error|@boundary`), C1 `S-007-club-home-regression.spec.ts` (`@regression`).
+
+Held out (`distill/pending/`):
+
+| # | Scenario (title in the file) | File | Tags | Kind |
+|---|---|---|---|---|
+| S1 | Seed-31 league and its four results: Tarnbeck Borough first on +4, Netherwold Borough sixth on -1 (whole `StandingRow`s incl. goals for/against) | `standings.test.ts` | `@walking_skeleton @driving_port` | golden |
+| S2 | Level pair Fennimore Town / Valebridge Albion: the name decides | same | `@boundary` | example |
+| S3 | No match played: all zero, A to Z (seed 31) | same | `@driving_port @boundary` | example |
+| S4 | Any seed, no match: code-point name order, each club once | same | `@property @boundary` | PBT |
+| S5 | Points beat GD; GD beats goals scored; goals scored beat the name (High has the later name and loses every lower rule) | same | `@boundary` | example (3) |
+| S6 | Name-only full tie, in both list orders; space before letter (Oak Hill / Oakham); prefix (Oak / Oak Hill) | same | `@boundary` | example (3) |
+| S7 | Win 3, draw 1, loss 0; a club that played twice | same | `@boundary` | example (2) |
+| S8 | Equals an independent tally and sort of the same results, any league | same | `@property @driving_port` | PBT |
+| S9 | Row rules W+D+L=P, Pts=3W+D, GD=GF-GA; totals W=L, D even, GD 0, every match counted twice | same | `@property` | PBT (2) |
+| S10 | 8 rows, a permutation, Pos 1..8, total order (Pts, GD, GF, name) | same | `@property @boundary` | PBT |
+| S11 | Results in any order give the same table; frozen inputs unchanged, repeatable | same | `@property @boundary` | PBT (2) |
+| S12 | Club index -1, 8, 1.5, NaN, 100 as home or away: `RangeError` | same | `@error @boundary` | example |
+| S13 | GD text table (+4, +1, +12, 0, -0, -1, -4, -12); ASCII U+002D; any whole GD matches `^(\+[1-9]\d*\|0\|-[1-9]\d*)$` and reads back | same | `@boundary @property @error` | example (8) + 1 + PBT |
+| S14 | Source has no `localeCompare`/`toLocale`/`Intl`, no `Math.random`/`Date`/`performance.now` | same | `@error @determinism` | grep (2) |
+| D1 | Seed 31, all automatic 4-4-2: 1–2, 2–2, 5–1, 1–3 and the three scorers of Sam's match | `matchday.test.ts` | `@walking_skeleton @driving_port` | golden |
+| D2 | Seed 20260: first fixture Harrowgate Lane United 0–1 Oakhampton Rise Borough | same | `@driving_port` | golden |
+| D3 | Any seed, matchday, formations: 4 entries in fixture order, scheduled clubs, matchday echoed, each result equals `playMatch` | same | `@property @driving_port` | PBT |
+| D4 | One club's eleven changes: the three fixtures without it are unchanged | same | `@property @boundary` | PBT |
+| D5 | Played twice with frozen sides: deep-equal, no input changed; JSON round trip | same | `@property @boundary` | PBT (2) |
+| D6 | Other seed or matchday: other draws | same | `@boundary` | example |
+| D7 | Sides not 8 (0, 7, 9) and matchday 0, 15, 1.5, NaN, -1, 100: `RangeError`; matchdays 1 and 14 work | same | `@error @boundary` | example |
+| N1 | "Table" from a club home: only the screen changes, no `results` key; any club/formation/picks/record: only screen changes | `table-navigation.test.ts` | `@walking_skeleton @driving_port @property` | example + PBT (2) |
+| N2 | "Back" returns to the club home and the whole state is what it was (plain, picks, record) | same | `@walking_skeleton @driving_port` | example |
+| N3 | Unknown club: Table and Back are the very same state; Table on 9 other screens, with and without a record; 11 other actions on the table screen | same | `@error @boundary @driving_port` | example (12) |
+| N4 | First Play match records exactly the 4 `playMatchday` entries (Sam's current XI, others automatic 4-4-2); any seed/club/formation/picks; only Sam's fixture reads his tactics; the same set whoever is managed | same | `@walking_skeleton @driving_port @property` | example + PBT (3) |
+| N5 | The very same array stays after Play again, Back, Table, formation, picks, visits; table and Sam's match unchanged after 4-3-3 + Northcott for Redfern + Squad/Tactics (K3) | same | `@walking_skeleton @driving_port` | example (2) |
+| N6 | Tactics changed before the first tap: only Sam's fixture differs; JSON round trip; a never-played state has no `results` key | same | `@boundary` | example (3) |
+| N7 | `NewGame` from the title drops the record, the picks and the formation (unit-level invariant, D9); Play match off the club home or on an unknown club is a no-op | same | `@error @boundary` | example (2) |
+| N8 | `matchFor`: unknown club `undefined`; Sam's recorded match is entry 0 (1–2); 8 clubs read their own recorded pairing; recorded match survives formation/XI changes; fallback equals the record that playing would make (M5); fallback still the S-006 golden | same | `@walking_skeleton @driving_port @property @error` | example + PBT (6) |
+| N9 | `standingsOf`: all zero A to Z; seed-31 golden; same whoever is managed; `?seed=abc` rows; Sam's row = score line, opponent mirror, totals, row rules (any seed, club); seeds 1..100 x 8 clubs (K2); determinism and `?seed=abc` = no seed | same | `@walking_skeleton @driving_port @property @boundary` | example + PBT (7) |
+| N10 | Any run of up to 40 taps from the title never throws, once recorded the very same array stays, row rules hold; after playing, any 40 tinkering taps never change the table or his match | same | `@property @error @walking_skeleton` | PBT (2) |
+| N11 | `focusPlan`: club home to table and back: heading; any other screen to table: heading; table redrawn: element only for the same club and a non-empty id | same | `@walking_skeleton @driving_port @boundary` | example (3) |
+| N12 | The three S-006 cases D12 supersedes, restated with the record (U-2) | same | `@walking_skeleton @driving_port @boundary` | example (3) |
+| E1 | Table in 1 tap, h1 focused and 8 rows already there, role structure, zero A to Z table, own row marked, Back in 1 tap | `S-007-table.spec.ts` | `@walking_skeleton @kpi` | e2e |
+| E2 | Environment probe: the browser's own accessibility tree holds 1 table, 9 rows, 8 columnheaders, 8 rowheaders, 56 cells, before and after matchday 1 | same | `@environment-probe @boundary` | e2e |
+| E3 | Club home: five buttons in the order Squad, Tactics, Starting XI, Play match, Table, all 44px or taller | same | | e2e |
+| E4 | The table holds exactly the league's clubs, each once, A to Z (`?seed=31`, `?seed=abc`) | same | `@example @boundary` | e2e (2) |
+| E5 | Back: heading focused, Tactics still has 4-3-3 | same | `@boundary` | e2e |
+| E6 | Click everything on the table screen: nothing navigates; one button, no link/input/other control | same | `@error @boundary` | e2e |
+| E7 | After Play match, Back, Table (2 taps): the seed-31 golden cell for cell (Chromium equals Node), row rules, order, Sam's row = score line, mirror, own row marked | same | `@walking_skeleton @kpi` | e2e |
+| E8 | `?seed=abc`: Oakhampton Rise Borough +1 Pts 3, Harrowgate Lane United -1; no seed gives the same table | same | `@example @boundary` | e2e |
+| E9 | Same seed in a second fresh page: same table | same | `@boundary` | e2e |
+| E10 | Managing Marlbrook Athletic: same table, own row marked | same | `@boundary` | e2e |
+| E11 | What is played stays played: 4-3-3 + a real pick + Squad, table unchanged; Play match re-shows the same score line and Goals (this version only) | same | `@walking_skeleton` | e2e |
+| E12 | Squad, Tactics and Starting XI visited without change: table unchanged | same | `@boundary` | e2e |
+| E13 | No sideways scroll (document and table `scrollWidth`) before and after matchday 1, both pinned seeds | same | `@boundary` | e2e (2) |
+| E14 | Whole DoD journey with no console error and no sideways scroll: club home, Table, Back, Play match, Back, Table, 4-3-3, Table, Play match, Back | same | `@walking_skeleton` | e2e |
+
+Counts: 21 committed now (20 vitest: R 7, I 3, W 10; 1 e2e: C1); 85 vitest cases held out (S 31, D 8, N 46) and 16 e2e cases. Error/edge share by title tag (`@error` or `@boundary`): standings 15 of 22 titles, matchday 5 of 8, navigation 21 of 38, e2e 9 of 14, about 60% over the held-out titles. **Waiver (environment):** E1-E14 run on local-preview and on a `BASE_URL` deployment; local-dev is not a supported target (inherited). Viewport is the Pixel 7 profile at 390px from `playwright.config.ts`; "fresh visits" are new pages of the same browser context (nothing is persisted). **Waiver (line budget):** DESIGN budgeted 480 test lines; the held-out and committed tests total about 1600. They are written and verified in DISTILL, not part of DELIVER's authoring; DELIVER's code (about 221 lines per DESIGN) is within budget, and `docs/` is outside the 1200-line PR guard.
+
+### Wave: DISTILL / [REF] WS strategy (Architecture of Reference)
+- Driving ports: in-process pure calls (`standings`, `formatGoalDifference`, `playMatchday`, `initialState`, `update`, `matchFor`, `playOpeningMatchday`, `standingsOf`, `focusPlan`) and the built browser app at `http://localhost:4173/gaffer/`. All real; no DI container exists.
+- Driven ports: none (no storage, clock or network; the record lives in memory for the page's life). Nothing to fake. The seeded `createRng`/`deriveSeed` are the production ones.
+- Walking skeleton: extends the S-001..S-006 skeleton by one branch (club home, Table, Back) and one state change (the first Play match records the matchday). Browser proof: E1, E7, E11, E14. Domain proof: S1 + D1 and N1 + N4 + N5 + N9. Litmus: the title is a user goal (see where my club stands after my first match) and the Then is what Sam reads (the rows, his own row marked, agreeing with his score line).
+- Infrastructure policy: as S-003..S-006, no `docs/architecture/atdd-infrastructure-policy.md`; "everything real, nothing faked". Mandate 8 is met by comparing whole `GameState` values (league + screen + formation + xi + results, a closed universe), whole `StandingRow`s and whole `PlayedMatch` arrays, and deep-freeze no-mutation properties (S11, D5, N1-N6, N10).
+
+### Wave: DISTILL / [REF] Adapter coverage table
+There are no driven adapters (DESIGN, "Driven ports and adapters": none).
+
+| Adapter | @real-io scenario | Covered by |
+|---|---|---|
+| (none) | n/a | n/a; the named environment assumptions are probed on the built app: (1) Chromium vs Node determinism of all 4 fixtures by E7, E8, E9, E10 (the browser table equals the Node golden S1/N9) plus the existing grep on `match.ts`; (2) native table roles by E1, E2, E6; (3) 390px fit with the pinned seeds' names by E13; (4) `innerText` = `textContent` and GD text by E1, E7 (`expectStructure`); (5) exactly one `aria-current` row by E1, E7, E8, E10; (6) sort order engine-independence by S6, S14 |
+
+### Wave: DISTILL / [REF] Scaffolds
+No `__SCAFFOLD__` stubs are written under `src/` (a throwing stub would turn the committed run red). Symbols DELIVER must export, all used by the held-out tests:
+- `src/domain/standings.ts`: `ScoredMatch = { readonly home: number; readonly away: number; readonly result: { readonly homeGoals: number; readonly awayGoals: number } }` (a `PlayedMatch` satisfies it); `StandingRow = { position, clubId, name, played, won, drawn, lost, goalsFor, goalsAgainst, goalDifference, points }` (exactly these 11 keys: S1 compares whole rows with `toEqual`); `standings(clubs: readonly Club[], played: readonly ScoredMatch[]): readonly StandingRow[]` (two parameters; one row per club; order Pts, GD, goals for descending, then name ascending by `<`; `position` 1..8; `RangeError` for a `home` or `away` that is not an index of `clubs`; inputs never mutated; imports only the `Club` type; no `localeCompare`, `toLocale`, `Intl`, `Math.random`, `Date`, `performance.now` in the file, S14 greps the source with comments stripped); `formatGoalDifference(n: number): string` (`+N`, `0` for 0 and -0, `-N` with U+002D).
+- `src/domain/match.ts` (extended): `PlayedMatch = { readonly matchday: number; readonly fixtureIndex: number; readonly home: number; readonly away: number; readonly result: MatchResult }` (plain data, JSON round trip); `MatchdayInput = { seed, matchday, sides: readonly MatchSide[] }`; `playMatchday(input): readonly PlayedMatch[]` (one parameter; the 4 fixtures of `fixturesOf(matchday)` in index order, each `result` exactly `playMatch({ seed, matchday, fixtureIndex: k, home: sides[home], away: sides[away] })`; no new stream; `RangeError` when `sides.length` is not 8 and, through `fixturesOf`, for a matchday not an integer 1..14). `playMatch` and every S-006 constant are unchanged.
+- `src/app/state.ts` (extended): `GameState.results?: readonly PlayedMatch[] | undefined` (absent key in every never-played state and in `initialState`); `Screen` gains `{ kind: "table"; clubId: string }`; `Action` gains `{ type: "ViewTable" }`; `ViewTable` valid only from `clubHome` of a known club (else the very same state object); `Back` from `table` of a known club goes to `clubHome` (unknown club: same object); `PlayMatch` (valid as before) sets `results` to `state.results ?? playOpeningMatchday(state, clubId)` and nothing else but `screen` changes (a later tap keeps the very same array, `toBe`); `NewGame` from the title also drops `results` (as it drops `xi`); no other action touches `results`; `playOpeningMatchday(state, clubId): readonly PlayedMatch[] | undefined` (`undefined` for an unknown club; the managed club's side is `currentXI(state, squad)`, every other side `automaticXI(squad, "4-4-2")`, then `playMatchday({ seed: league.seed, matchday: OPENING_MATCHDAY, sides })`); `matchFor(state, clubId): MatchView | undefined` reads the recorded matchday-1 entry containing the club when `results` is present, else the same producer's entry, and returns only `{ matchday, home: { club, squad }, away: { club, squad }, result }` (no `xi` or other key: U-5; the `result` is the recorded object itself, `toBe`); `standingsOf(state): readonly StandingRow[]` = `standings(state.league.clubs, state.results ?? [])`; `focusPlan`: `table` is in the same-club group of `sameScreen`.
+- UI contract (brief ports 24-28; roles and names only): the club-home button "Table" (exact name, 44px or taller, the fifth after "Squad", "Tactics", "Starting XI" and "Play match", the only five buttons); the table screen has exactly one heading "League table" (focused on arrival, no other heading) and exactly one table named "League table" (`aria-labelledby` the heading): 9 rows, 8 columnheaders reading `Pos, Club, P, W, D, L, GD, Pts` in order, 8 rowheaders (the Club cells), 56 cells (7 per body row, Pos first); every cell's `innerText` equals its `textContent` (no `text-transform`); exactly one body row has `aria-current="true"`, its rowheader the managed club; exactly one button "Back" (44px or taller) and no link, input or other control; clicking any element but "Back" navigates nowhere; all 8 body rows are visible with no waiting when the heading has focus.
+- Learned from the scratch run: `oxlint` caps cyclomatic complexity at 15 and `sameScreen` and `back` cross it with a fifth screen kind (U-4: a `sameClub` helper and a set of home-returning kinds fixed it); `max-params` caps at 3, test-side too (U-5 aside, the specs use records and rest tuples); the `main.ts` `table` case must exist in the same commit as the `table` screen kind (the `never` guard); `matchFor` must not leak `xi` into the view; Playwright's role engine and, here, Chromium's accessibility tree both ignore a CSS `display` override on table parts (U-3).
+
+### Wave: DISTILL / [REF] Test placement
+`tests/acceptance/S-007/` (vitest, same convention as S-001..S-006), `tests/e2e/S-007-club-home-regression.spec.ts` (committed) and `tests/e2e/S-007-table.spec.ts` (held out; DEVOPS coexistence matrix). Held-out sources live in `docs/feature/S-007/distill/pending/{acceptance,e2e}/` as `*.pending`. Existing tests are untouched. Exactly four existing assertions go red in DELIVER (two e2e, two vitest; plus one stale title), all planned by D12 (see Open points).
+
+### Wave: DISTILL / [REF] Driving port coverage
+| Port (brief 24-28) | Scenarios |
+|---|---|
+| 24 matchday (`playMatchday`, `PlayedMatch`) | D1-D7, N4, N6 |
+| 25 standings (`standings`, `formatGoalDifference`) | S1-S14, N9 |
+| 26 `update` (`ViewTable`, `Back`, `PlayMatch` recording, `NewGame`), `matchFor`, `standingsOf` | N1-N12, R1-R7 |
+| 27 `focusPlan` (extended) | N11, E1, E7, E14 (heading focus), the reused `.focus(` guard |
+| 28 UI: "Table", the "League table" screen, "Back" | E1-E14, C1 |
+Ports 1-23 are unchanged and covered by S-001..S-006 tests. Driving adapters (CLI/HTTP/hook): none; the browser app is covered by E1-E14.
+
+### Wave: DISTILL / [REF] DEVOPS monitoring-contract trace
+| Contract row | Scenario |
+|---|---|
+| K1: 1 tap to the table, 8 rows on arrival, 2 taps from the match, 1 tap back | E1 and E7 (pointerdown counter, snapshot taken in the same evaluate as the focus check, no wait) |
+| K2: row rules and Sam's row = score line, opponent mirror, 100% over seeds x 8 clubs | S8-S10, N9 (PBT and seeds 1..100 x 8), E7, E8 |
+| K3: 0 changes over 40 taps after playing | N5, N10 (second property), E11, E12 |
+| Standings rules and tie-breaks (D4, D8) | S2-S7, S10, S14 |
+| GD format (D9) | S13, E1/E7 cell text |
+| Table structure (D10) | E1, E2, E6, E7 (role counts, exact column headers in order, `innerText` = `textContent`) |
+| Highlight (D7, D11) | E1, E7, E8, E10 (exactly one `aria-current` row) |
+| Recording (ADR-0012) | D1-D7, N4-N7 |
+| S-006 goldens unchanged | I1-I3, R5, N8 (fallback golden), D1/D2, the S-006 suites |
+| Navigation and no-ops (D13) | N1-N3, N7, N11 |
+| Names avoid table words (D11) | W1-W10 |
+| 44px tap targets | E1, E3, C1 |
+| No horizontal scroll at 390px | E1, E13, E14, C1 |
+| No console errors | E1, E7, E11, E14, C1 |
+| S-001..S-006 unchanged | R1-R7, C1, the S-001..S-006 suites (see Open points for the amended assertions) |
+| Domain test strength (Stryker) | S1-S13 (goldens, each tie-break, oracle equality), D1-D7 (per-fixture equality, independence, RangeError), N1-N10 (same-object no-ops, record contents, NewGame, same-array, fallback equivalence) |
+
+### Wave: DISTILL / [REF] DELIVER step plan (which files to add, and when)
+1. **Step 01, standings**: implement `src/domain/standings.ts` per ADR-0013 (`standings`, `formatGoalDifference`, `ScoredMatch`, `StandingRow`). First run the committed guards and see them green. `git mv docs/feature/S-007/distill/pending/acceptance/standings.test.ts.pending tests/acceptance/S-007/standings.test.ts`; confirm RED for the missing module before coding, then GREEN. Gates: `ci:lint`, `ci:typecheck`, `ci:test`.
+2. **Step 02, matchday**: add `PlayedMatch`, `MatchdayInput` and `playMatchday` to `src/domain/match.ts` per ADR-0012. In the same commit `git mv` `matchday.test.ts.pending` to `tests/acceptance/S-007/matchday.test.ts`.
+3. **Step 03, state, record, table screen and shell** (one commit, so the tree is never red; the `never` guard in `main.ts` forces the renderer and the `table` render case into this commit): `results`, `table` screen, `ViewTable`, recording in `PlayMatch`, `NewGame` reset, `Back` and `sameScreen` cases, `playOpeningMatchday`, `matchFor` reading the record, `standingsOf` in `src/app/state.ts` (mind U-4); `src/ui/screens/table.ts` (`renderTable`, `dispatch` typed `(action: Extract<Action, { type: "Back" }>) => void`) and the `main.ts` `table` case. In the same commit `git mv` `table-navigation.test.ts.pending` to `tests/acceptance/S-007/table-navigation.test.ts` and replace the three superseded S-006 cases (U-2). The "Table" button is not added yet, so no user can reach the screen and no existing e2e changes.
+4. **Step 04, button, CSS, e2e** (one commit): the fifth club-home button "Table" in `div.club-actions`, the table CSS and `--highlight` token (no `display` on a table part, no `text-transform`, the Club cell wraps; keep 1rem/0.85rem only if the 390px probe passes), `docs/product/ui/design-system.md` table pattern. In the same commit `git mv` `e2e/S-007-table.spec.ts.pending` to `tests/e2e/S-007-table.spec.ts` and apply the two e2e edits of U-1. `ci:e2e`, the three club-home regression specs and `tests/protected/S-001..S-007` must pass.
+5. Delete `docs/feature/S-007/distill/pending/` once all four files are moved; zero `.pending` files is the DISTILL-to-DELIVER completion check.
+
+### Wave: DISTILL / [REF] Pre-requisites
+DESIGN: ADR-0012, ADR-0013, ADR-0010, ADR-0011, ADR-0008, ADR-0009 and brief ports 24-28 (read). DEVOPS: local-preview `http://localhost:4173/gaffer/` via `ci:serve`, Pixel 7 at 390px, `FC_SEED` per CI run (the fast-check properties honour it; the seeds 1..100 x 8 loop is fixed), `BASE_URL` for post-deploy smoke (the e2e uses `?seed=`, roles and names only, so it holds on Pages). The CDP accessibility probe (E2) needs Chromium, which is the only project. No new dependency, no `.github/`, `stryker.config.mjs` or other locked-path change.
+
+### Wave: DISTILL / [REF] Mandate checks (adapted)
+- CM-A: tests import only `standings`, `formatGoalDifference`, `playMatchday`, `playMatch`, `fixturesOf`, `automaticXI`, `generateSquad`, `generateLeague`, `parseSeed`, `initialState`, `update`, `currentXI`, `squadOf`, `matchFor`, `playOpeningMatchday`, `standingsOf`, `focusPlan`; UI tests enter through the built app by role and name (plus in-page snapshots of focus, visible rows and `innerText`, which are the shapes being specified). CM-B: titles use domain terms (table, row, points, goal difference, Back, record, matchday). CM-D: pure rules are tested against independent expected data (the DISCUSS golden written out, an independent per-club tally-and-sort oracle in S8, hand-built tie-break pairs where the higher club loses every lower rule, a recomputed expected record in N4) and the e2e reads expected names from the "Clubs" list. CM-F: PBT only in layer 1-2 files; e2e is example-only with named sad paths (E6 click-everything, E9 repeat, E13 widths). Mandate-12 domain types/DSL and step-reuse-ratio do not apply: there are no Gherkin steps; e2e helpers (`openClubHome`, `openTable`, `readTable`, `playBackTable`) hold no business logic beyond the expected tables written out in the file.
+- Open points for DELIVER: (1) **U-1**: `tests/e2e/S-005-starting-xi.spec.ts:173-177` and `tests/e2e/S-006-match.spec.ts:145-149` list exactly four club-home buttons; D17 makes five, so both lists gain "Table" in step 04 (stricter, planned by D12). (2) **U-2**: two S-006 `match-navigation.test.ts` cases fail on the record and a third carries a stale title; replaced in step 03 by the restated cases already in `table-navigation.test.ts`. (3) **U-3**: no test can detect a `display` override on a table part in this Chromium; the CSS rule is a review item. (4) **U-4**: `sameScreen` and `back` cross oxlint's complexity limit with a fifth kind. (5) Held-out E11 and N5 use the S-006 golden pick (Kestrel Northcott for Calder Redfern in 4-3-3: slot 7, squad row 13).
+
+### Wave: DISTILL / [REF] Reviewer outcome
+The Final Wave Review Gate (four Haiku reviewers) was not dispatched in this unattended hand-off; it is left to the orchestrator. Self-review against the checklist: every driving port 24-28 has a scenario; every DEVOPS monitoring row is traced; no adapter exists; no committed test fails or is skipped; no existing test was edited; held-out specs verified green against a reference and RED for missing functionality without it.
