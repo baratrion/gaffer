@@ -1,0 +1,127 @@
+{
+  "roadmap": {
+    "project_id": "S-007",
+    "created_at": "2026-10-24T05:27:31Z",
+    "total_steps": 4
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "League standings (ADR-0013)",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Add the pure standings module and goal-difference format",
+          "criteria": [
+            "standings(clubs, played) returns one StandingRow per club with exactly the 11 keys position, clubId, name, played, won, drawn, lost, goalsFor, goalsAgainst, goalDifference, points; order is Pts, GD, goals for descending, then name ascending by code point (a space before a letter); positions 1..8",
+            "The seed-31 matchday-1 results give Tarnbeck Borough first on +4 with 3 points and Netherwold Borough sixth on -1 with 0; with no match played every row is zero in A to Z order",
+            "Row rules W+D+L=P, Pts=3W+D, GD=GF-GA and the totals (W=L, D even, GD 0) hold for any input, results in any order give the same table, inputs are never mutated, a home or away that is not a club index throws RangeError",
+            "formatGoalDifference writes +N, 0 (also for -0) and -N with ASCII U+002D; standings.ts has no localeCompare, toLocale, Intl, Math.random, Date or performance.now and imports only the Club type",
+            "Same commit git mv-s docs/feature/S-007/distill/pending/acceptance/standings.test.ts.pending into tests/acceptance/S-007/standings.test.ts, RED first for the missing module; committed S-007 guards, ci:lint, ci:typecheck and ci:test stay green"
+          ],
+          "test_file": "tests/acceptance/S-007/standings.test.ts",
+          "scenario_name": "Given the seed-31 league and its four matchday-1 results (1–2, 2–2, 5–1, 1–3), when the table is worked out, then it reads Tarnbeck Borough first with +4 and 3 points and Netherwold Borough sixth on -1 @walking_skeleton @driving_port @contract-shape:pure-function",
+          "files_to_modify": [
+            "src/domain/standings.ts",
+            "tests/acceptance/S-007/standings.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Matchday simulation (ADR-0012)",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Add PlayedMatch, MatchdayInput and playMatchday to the match model",
+          "criteria": [
+            "playMatchday({ seed, matchday, sides }) returns the 4 PlayedMatch entries of fixturesOf(matchday) in fixture index order, each result exactly playMatch on its own stream, with no new RNG stream and no change to playMatch or any S-006 constant",
+            "Seed 31 with all-automatic 4-4-2 sides gives 1–2, 2–2, 5–1 and 1–3 with Sam's match Netherwold Borough 1–2 Marlbrook Athletic; seed 20260 fixture 0 is Harrowgate Lane United 0–1 Oakhampton Rise Borough",
+            "Changing one club's eleven leaves the three fixtures without it unchanged; playing twice with frozen sides is deep-equal and mutates nothing; entries survive a JSON round trip",
+            "Sides not 8 and a matchday not an integer 1..14 throw RangeError; matchdays 1 and 14 work",
+            "Same commit git mv-s docs/feature/S-007/distill/pending/acceptance/matchday.test.ts.pending into tests/acceptance/S-007/matchday.test.ts, RED first; S-006 match tests and ci:lint, ci:typecheck, ci:test stay green"
+          ],
+          "test_file": "tests/acceptance/S-007/matchday.test.ts",
+          "scenario_name": "Given the seed-31 league fielding its automatic 4-4-2 sides, when matchday 1 is played, then the four score lines are 1–2, 2–2, 5–1 and 1–3 and Sam's is Netherwold Borough 1–2 Marlbrook Athletic @walking_skeleton @driving_port @contract-shape:pure-function",
+          "files_to_modify": [
+            "src/domain/match.ts",
+            "tests/acceptance/S-007/matchday.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Recorded results, table screen and shell",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Record matchday 1 on the first Play match and add the table screen state, renderer and shell case",
+          "criteria": [
+            "GameState gains optional results (absent key in initialState and every never-played state); the first PlayMatch sets results to state.results ?? playOpeningMatchday(state, clubId) (Sam's side currentXI, every other side automatic 4-4-2) and changes only screen otherwise; later taps keep the very same array; NewGame drops results, xi and picks",
+            "ViewTable is valid only from the club home of a known club and Back from the table of a known club returns to the club home with the whole state as it was; every other screen, action or unknown club returns the very same state object",
+            "matchFor reads the recorded matchday-1 entry (the recorded result object itself) and returns only { matchday, home: { club, squad }, away: { club, squad }, result } with no xi (U-5); standingsOf(state) is standings(league.clubs, results ?? []); after playing, formation, pick and visit taps never change the table or Sam's match (K3)",
+            "focusPlan puts the table in the same-club group (heading focus on arrival and on Back); sameScreen and back are refactored with a sameClub helper and a set of home-returning kinds so oxlint complexity stays at or under 15 (U-4)",
+            "src/ui/screens/table.ts renders a native table named by its heading (th scope col and row, Club as rowheader, 7 cells per body row, aria-current on the managed club's row, GD text via formatGoalDifference, textContent only, a single Back button, never moves focus) and src/main.ts gets the table case in the same commit to satisfy the never guard; the Table button is not added yet",
+            "Same commit git mv-s docs/feature/S-007/distill/pending/acceptance/table-navigation.test.ts.pending into tests/acceptance/S-007/table-navigation.test.ts and replaces the three superseded S-006 match-navigation cases with equivalent stricter assertions including the record (U-2); ci:lint, ci:typecheck, ci:test and ci:e2e stay green"
+          ],
+          "test_file": "tests/acceptance/S-007/table-navigation.test.ts",
+          "scenario_name": "Given a new game on Netherwold Borough with untouched tactics, when Sam taps Play match, then the match screen is shown and the four matchday-1 results are recorded, Sam's side being his current eleven and every other side its automatic 4-4-2 @walking_skeleton @driving_port @contract-shape:bounded-change",
+          "files_to_modify": [
+            "src/app/state.ts",
+            "src/ui/screens/table.ts",
+            "src/main.ts",
+            "tests/acceptance/S-006/match-navigation.test.ts",
+            "tests/acceptance/S-007/table-navigation.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "name": "Table button, styling and e2e",
+      "steps": [
+        {
+          "id": "04-01",
+          "name": "Add the Table button, table CSS with highlight token, design-system pattern and e2e (U-1)",
+          "criteria": [
+            "The club home shows exactly five buttons in the order Squad, Tactics, Starting XI, Play match, Table, all 44px or taller; Table opens the League table screen in 1 tap (2 taps from the match via Back), all 8 rows present on arrival with the heading focused, Back returns to the club home heading",
+            "The table fits 390px with no horizontal scroll before and after matchday 1, the Club cell wraps, Sam's row is highlighted through a --highlight token, no display is set on any table part and no text-transform is used (U-3 review item); no console errors across the journey",
+            "After Play match, Back, Table the browser shows the seed-31 golden table cell for cell; the table is unchanged after 4-3-3, a pick and a Squad visit while a second Play match re-shows the same score line and Goals",
+            "Same commit git mv-s docs/feature/S-007/distill/pending/e2e/S-007-table.spec.ts.pending into tests/e2e/S-007-table.spec.ts and appends Table to the exact-button-list assertions in tests/e2e/S-005-starting-xi.spec.ts and tests/e2e/S-006-match.spec.ts with retitled tests (U-1, stricter not weaker)",
+            "docs/product/ui/design-system.md gains the table pattern and highlighted-row token; docs/feature/S-007/distill/pending/ deleted, zero .pending files",
+            "tests/protected/S-001..S-007, the S-007 club-home regression spec, ci:lint, ci:typecheck, ci:test, ci:build and ci:e2e pass"
+          ],
+          "test_file": "tests/e2e/S-007-table.spec.ts",
+          "scenario_name": "@walking_skeleton @kpi Sam taps Table (1 tap) on Netherwold Borough's home, sees League table focused with all 8 rows at zero in A to Z order and his row marked, taps Back (1 tap) to the club home @contract-shape:bounded-change",
+          "files_to_modify": [
+            "src/ui/screens/club-home.ts",
+            "src/ui/styles.css",
+            "docs/product/ui/design-system.md",
+            "tests/e2e/S-005-starting-xi.spec.ts",
+            "tests/e2e/S-006-match.spec.ts",
+            "tests/e2e/S-007-table.spec.ts"
+          ]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/"
+    ],
+    "test_directories": [
+      "tests/"
+    ],
+    "excluded_patterns": [
+      "__init__.py",
+      "__pycache__/**"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-acceptance-designer-reviewer",
+    "approved_at": "2026-10-24T06:00:00Z"
+  }
+}
