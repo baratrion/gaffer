@@ -111,6 +111,9 @@ const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void =
     case "table":
       renderTable(root, { rows: standingsOf(state), managedClubId: screen.clubId }, dispatch);
       break;
+    case "seasonEnd":
+      // The End of season renderer arrives in step 01-03; no control dispatches ViewSeasonEnd until then.
+      throw new Error(`End of season screen is not rendered yet: ${screen.clubId}`);
     default: {
       const unhandled: never = screen;
       throw new Error(`Unhandled screen: ${JSON.stringify(unhandled)}`);

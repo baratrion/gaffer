@@ -2,8 +2,8 @@
 // CONTRACT_SHAPE: bounded-change
 // Outcome anchor: DISCUSS US-2 Elevator Pitch and D6 (ADR-0014 decision 4, Earned Trust 3 and 4): after matchday 14 the season is over. It is
 // derived from the log (14 matchdays recorded), never stored; a Play match then is a no-op that returns the very same state and never
-// reaches fixturesOf(15); "Table" still opens and reads P 14; there is no way to re-open a played match. The "Season over" line and the
-// missing button are this version only (D6), so nothing here is pinned in tests/protected; the browser side is in S-008-season.spec.ts.
+// reaches fixturesOf(15); "Table" still opens and reads P 14; there is no way to re-open a played match. The line S-008 showed there
+// was replaced by the "End of season" button (ADR-0015, S-009); the missing "Play match" button stays; the browser side is in S-008-season.spec.ts.
 // Boundaries 13 and 14 kill an off-by-one in the guard. Universe of the returned state: { league, screen, formation, xi, results }.
 // Destination: tests/acceptance/S-008/season-end.test.ts (DELIVER, same commit as src/app/state.ts).
 import fc from "fast-check";
@@ -119,9 +119,9 @@ describe("@US-2 S-008 the season is over after matchday 14 and Play match then d
     );
   });
 
-  it("Given a season over or not, when the state is read, then it holds no season-over flag of its own (the line is derived from the log) @boundary @contract-shape:pure-function", () => {
+  it("Given a season over or not, when the state is read, then it holds no season-over flag of its own (the End of season button is derived from the log) @boundary @contract-shape:pure-function", () => {
     const allowed = ["league", "screen", "formation", "xi", "results"];
-    for (const state of [onHome(), cycle(onHome(), 7), cycle(onHome(), 14), update(cycle(onHome(), 14), table)]) {
+    for (const state of [onHome(), cycle(onHome(), 7), cycle(onHome(), 14), update(cycle(onHome(), 14), table), update(cycle(onHome(), 14), { type: "ViewSeasonEnd" })]) {
       expect(Object.keys(state).filter((key) => !allowed.includes(key))).toEqual([]);
     }
   });
