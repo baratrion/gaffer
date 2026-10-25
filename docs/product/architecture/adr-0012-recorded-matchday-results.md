@@ -68,8 +68,8 @@ Facts checked in the code:
 - **The re-show is not pinned in `tests/protected/S-007`**: a second "Play match" showing the same recorded match is this version only (DISCUSS D2, D14). It is covered by the e2e and unit tests, so the season story may replace it with "play the next matchday" without amending a protected scenario.
 - **Policy, with one owner (reviewer L9)**: "every club but the managed one fields `automaticXI(squad, DEFAULT_FORMATION)`" is an app-level policy, not a domain rule. Its single owner is `playOpeningMatchday` (the side builder in `state.ts`, using the `DEFAULT_FORMATION` constant); no other code restates it. The season story, which may give AI clubs their own formation or XI, revisits it there.
 - `NewGame` also drops `results` (a `withoutResults` helper that returns the same state when none is stored, like `withoutPicks`, so a never-played state keeps its exact keys). It is future-proofing today, as for `xi`.
-- `matchFor(state, clubId)` per option 3A: unknown club gives `undefined`; else the entry of `state.results ?? playOpeningMatchday(state, clubId)` with `matchday === OPENING_MATCHDAY` that contains the club's index, returned as the unchanged `MatchView` `{ matchday, home: { club, squad }, away: { club, squad }, result }`.
-- `OPENING_MATCHDAY = 1` stays. The season story replaces its uses by a matchday held in state.
+- `matchFor(state, clubId)` per option 3A: unknown club gives `undefined`; else the entry of `state.results ?? playOpeningMatchday(state, clubId)` with `matchday === OPENING_MATCHDAY` that contains the club's index, returned as the unchanged `MatchView` `{ matchday, home: { club, squad }, away: { club, squad }, result }`. (superseded by ADR-0014, S-008: the entry is selected by `matchday === latest recorded`, not `OPENING_MATCHDAY`)
+- `OPENING_MATCHDAY = 1` stays. The season story replaces its uses by a matchday held in state. (refined by ADR-0014, S-008: the matchday is derived from the log, not held; the constant stays as the fallback matchday)
 
 ### Determinism, goldens, streams
 - No new stream, no new draw. The opponent of Sam's fixture is `automaticXI(squad, DEFAULT_FORMATION)` exactly as in S-006, so the S-006 goldens (seed 31: Netherwold Borough 1–2 Marlbrook Athletic; seed 20260: Harrowgate Lane United 0–1 Oakhampton Rise Borough) and every S-001..S-006 output stay identical.
@@ -99,14 +99,14 @@ Facts checked in the code:
 |---|---|---|
 | `playMatchday` | pure, return-only | The returned array: deep-equal on repeat, inputs (deep-frozen sides) unchanged, each entry equal to `playMatch` for that fixture, plain-JSON round trip, `RangeError` table |
 | `playOpeningMatchday`, `matchFor` | pure, return-only | Unit tests on frozen states; `matchFor` after a tactics change still returns the recorded value. **Fallback equivalence property** (M5): over seeds, all 8 clubs, formations and optional picks, `matchFor(state without results, clubId)` deep-equals `matchFor({ ...state, results: playOpeningMatchday(state, clubId) }, clubId)`, so the fallback and the record can never disagree |
-| `update` (`PlayMatch`, `NewGame`) | pure, return-only | Returned state is `{ ...state, screen, results }`: only `screen` and, on the first tap, `results` change; whole-state `toEqual`, `toBe` for no-ops; deep-freeze for no mutation; property: any run of up to 40 actions never changes `results` once set except by `NewGame` |
+| `update` (`PlayMatch`, `NewGame`) | pure, return-only | Returned state is `{ ...state, screen, results }`: only `screen` and, on the first tap, `results` change; whole-state `toEqual`, `toBe` for no-ops; deep-freeze for no mutation; property: any run of up to 40 actions never changes `results` once set except by `NewGame` (superseded by ADR-0014, S-008: every `PlayMatch` appends; earlier entries never change) |
 
 ### Earned Trust (no adapter; environment assumptions named and probed)
 1. **Chromium vs Node determinism of all 4 fixtures** (Chromium must compute what Node computes; WebKit and iOS Safari are not probed): the e2e compares the seed-31 table after matchday 1 with the table pinned by the Node test (the DISCUSS example, derived from the ADR-0011 fixture values). Fault: an approximated function in `match.ts` changes a last bit; the existing grep test catches it structurally.
-2. **Recording is not silently lost or doubled**: the property "first tap sets 4 entries; any later action keeps the same array object (`toBe`)" fails if a spread or a re-record sneaks in.
+2. **Recording is not silently lost or doubled**: the property "first tap sets 4 entries; any later action keeps the same array object (`toBe`)" fails if a spread or a re-record sneaks in. (superseded by ADR-0014, S-008: "any later action" now excludes `PlayMatch`, which appends; earlier entries stay identical)
 3. **Future persistence** will be the first real adapter (`localStorage` lies: quota, private mode, stale versions). It needs its own `probe()` and a shape validator; not in this story. The JSON round-trip test keeps the data honest until then.
 
 ### Enforcement
-- oxlint boundaries unchanged (`match.ts` imports only domain; `state.ts` imports no ui). `max-params` 3, `complexity` 15 (`update` goes to 13 cases, `back` to about 12).
+- oxlint boundaries unchanged (`match.ts` imports only domain; `state.ts` imports no ui). `max-params` 3, `complexity` 15 (`update` goes to 13 cases, `back` to about 12) (corrected in S-008: `update` has 12 cases, complexity 13).
 - Stryker's existing globs cover `match.ts` and `state.ts`; no config change.
 - No new dependency, no external integration, no contract test.
