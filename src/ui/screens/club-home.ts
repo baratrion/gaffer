@@ -30,7 +30,7 @@ export const renderClubHome = (
         actionButton("Squad", { type: "ViewSquad" }),
         actionButton("Tactics", { type: "ViewTactics" }),
         actionButton("Starting XI", { type: "ViewStartingXI" }),
-        seasonOver ? el("p", { class: "season-over" }, "Season over") : actionButton("Play match", { type: "PlayMatch" }),
+        seasonOver ? actionButton("End of season", { type: "ViewSeasonEnd" }) : actionButton("Play match", { type: "PlayMatch" }),
         actionButton("Table", { type: "ViewTable" }),
       ),
     ),
