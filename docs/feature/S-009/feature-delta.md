@@ -692,3 +692,23 @@ DESIGN: ADR-0015, ADR-0014, ADR-0013, ADR-0012, ADR-0011, ADR-0008, ADR-0009 and
 
 ### Wave: DISTILL / [REF] Reviewer outcome
 The Final Wave Review Gate (four Haiku reviewers) was not dispatched in this unattended hand-off; it is left to the orchestrator. Self-review against the checklist: every driving port 32-35 has a scenario; every DEVOPS monitoring row is traced; no adapter exists; no committed test fails or is skipped; no existing test was edited; held-out specs verified green against a reference, killing 43 seeded faults (one equivalent mutant), and RED for missing functionality without it.
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+After matchday 14 the club home offers an "End of season" button instead of "Play match" and the old "Season over" line is gone (ADR-0015). The button opens the End of season screen showing the final position as an ordinal and the club's top scorer, both derived from the results log. "Play again" dispatches `NewGame`; Back returns to the club home. No new RNG stream, no stored summary.
+
+### Wave: DELIVER / [REF] Files modified
+- Changed: `src/app/state.ts` (`ViewSeasonEnd`, season summary selector, reset), `src/domain/season.ts` (top scorer, season summary), `src/domain/standings.ts` (`formatOrdinal`), `src/main.ts`, `src/ui/screens/club-home.ts`, `src/ui/styles.css`.
+- New: `src/ui/screens/season-end.ts`.
+- Held-out specs moved from `distill/pending` into the tree as pure renames. U-1 amendments replaced the "Season over" assertions in `tests/acceptance/S-008/season-end.test.ts`, `tests/e2e/S-008-season.spec.ts` and `tests/e2e/S-008-club-home-regression.spec.ts` (nothing weakened).
+- Commits: bba0735 (01-01), 634aa6a (01-02), 4b167eb (01-03), 3dcd1b6 (acceptance headers).
+
+### Wave: DELIVER / [REF] DoD check
+- End of season button, screen content and Play again: met.
+- No ambient randomness or wall-clock time in `src/domain/`: met.
+- S-001..S-008 suites green; superseded assertions replaced, not weakened: met.
+- Protected scenarios: S-009 verified by CI on main (not run locally).
+
+### Wave: DELIVER / [REF] Quality gates
+Roadmap: 3 steps, all DONE. `des-verify-integrity` passed. `ci:lint`, `ci:typecheck`, `ci:test` (1038 vitest passed) and `ci:e2e` (134 passed) green. Mutation testing is nightly-delta; `/nw-deliver` Phase 5 skipped. Execution-log timestamps are short because the crafter ran quickly; RED evidence is thin. `formatOrdinal` stays in `standings.ts` per ADR-0015 although a reviewer suggested `season.ts`.
