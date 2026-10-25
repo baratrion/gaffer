@@ -34,3 +34,6 @@ Patterns:
 - **Highlighted row** (`tr[aria-current="true"]`): the managed club's row, `--highlight` background, a 4px gold inset edge on its first cell and bold text. The state is exposed as `aria-current`, not colour alone.
 - **Club home**: "Table" is the fifth primary action button, after "Play match".
 - **Table refinements (visual pass)**: the header row has a 2px gold rule; Pos is muted chalk (full chalk on the managed row); Pts is bold gold, the one number the eye should land on; the last row closes with a heavier rule. Still no `display` override or `text-transform`.
+
+## Season over (S-008)
+- **Season over line** (`p.season-over`): in the "Play match" slot of `.club-actions` after matchday 14. Plain text, not a button: block, centred, 48px minimum height, gold text, dashed chalk 25% border, no fill, no `text-transform`, no flex or grid.

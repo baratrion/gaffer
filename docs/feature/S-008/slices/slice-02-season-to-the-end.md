@@ -9,7 +9,7 @@ Sam plays all 14 matchdays and meets every rival twice, named first once and sec
 - Matchdays 1..14 in order, with h1 "Matchday 1" to "Matchday 14".
 - Over 1..7 each other club is met exactly once, and again over 8..14. Over the 14 matchdays Sam's club is named first against each once and named second against each once (schedule, ADR-0010).
 - The final table: every row P 14, row rules, and Sam's row equal to the sum of his 14 score lines; order rules as S-007.
-- After matchday 14 (this version only, not durable, not pinned in `tests/protected/`): the club home has no "Play match" button and shows a plain text line "Season over". The heading (focused on arrival) and "Squad", "Tactics", "Starting XI" and "Table" stay. "Table" opens and reads P 14.
+- After matchday 14 (this version only, not durable, not pinned in `tests/protected/`): the club home has no "Play match" button and shows a plain text line "Season over". The heading (focused on arrival) and "Squad", "Tactics", "Starting XI" and "Table" stay. "Table" opens and reads P 14. This amends the S-007 outcome's "Play match" button staying on the club home, from matchday 14 on only; S-007's durable list is unchanged and no protected scenario reaches matchday 14.
 - "Season over" is derived from the results log (14 matchdays recorded), not stored separately.
 - Names check: "Season over" appears (case-insensitive) in no `names.ts` entry or generated name.
 - No sideways scroll at 390px with the line in place of the button; no console errors.

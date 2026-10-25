@@ -30,7 +30,7 @@ the real generator's (`reference-season.md`).
 | 7 | Club home | "Play match" on matchday 8 | "Marlbrook Athletic 1–2 Netherwold Borough": the matchday-1 rival again, names in the other order | Revenge |
 | 8 | Club home | Plays matchdays 9 to 14 | Matchday 14 "Tarnbeck Borough 2–1 Netherwold Borough" | A last-day defeat |
 | 9 | Match screen | "Back" | Club home, heading "Netherwold Borough" (focused), the line "Season over" where "Play match" was; "Squad", "Tactics", "Starting XI", "Table" stay | Closure |
-| 10 | Club home | "Table" | Every row P 14; 1 Oakhampton Rise Borough Pts 28, 2 Tarnbeck Borough 26, 3 Netherwold Borough (highlighted) W 7, D 2, L 5, GD "+2", Pts 23 | Pride and "one more season?" |
+| 10 | Club home | "Table" | Every row P 14; 1 Oakhampton Rise Borough Pts 28, 2 Tarnbeck Borough 26, 3 Netherwold Borough (highlighted) W 7, D 2, L 5, GD "+2", Pts 23 | Closure: a final place, and "one more season?" |
 
 Emotional arc: the sting of matchday 1, the worry of the bottom after two defeats, then relief and the
 climb, mid-season tension, revenge on matchday 8, and the closure of a final table with a finishing place.
@@ -52,5 +52,6 @@ Each step is one tap or two; the screen title is focused on every arrival.
 - After matchday 14: no "Play match" button; a dispatched "Play match" action is a no-op (unit test).
 - `?seed=abc`: the default seed 20260, the same season as no "?seed="; Oakhampton Rise Borough finishes 2nd
   on 21, behind Valebridge Town on 29.
-- Reload: title screen, season lost (no persistence yet). `NewGame` clears the log (unit-level invariant).
+- Reload the page, then "New game": the season is lost (no save yet) and starts again at matchday 1 with the
+  all-zero table. `NewGame` clears the log (unit-level invariant).
 - Already played matches cannot be re-opened (a results list is a later story).
