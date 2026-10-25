@@ -209,3 +209,59 @@ stories:
       new game before its first match; and "Back" to the club home. The goals-scored and club-name
       tie-breaks and the re-show on a second "Play match" are rules of this version only. No horizontal
       scroll at 390px and no console errors.
+
+  - id: S-008
+    week: 6
+    title: Play the season, matchday by matchday
+    tags: [season, match, league]
+    outcome: >
+      From the club home screen, each tap on the button named exactly "Play match" (44px or taller)
+      plays the next matchday of the season for the whole league and shows the match screen of the
+      player's club's fixture on that matchday. The first tap of a new game plays matchday 1 exactly
+      as before, the second plays matchday 2, and so on up to matchday 14. On each matchday the
+      player's fixture is played with the formation in Tactics and the Starting XI at the moment of
+      the tap, and the league's 3 other fixtures are simulated; the 4 results are recorded at that
+      moment and never change afterwards. The match screen's only top-level heading (h1) reads
+      "Matchday N", where N is the matchday just played (a whole number from 1 to 14), focused on
+      arrival, and the score line and the list named "Goals" are already visible. The score line is
+      exactly one piece of text whose whole text reads the home club's name, one space, the home
+      goals, an en dash (–), the away goals, one space and the away club's name (pattern ^(.+)
+      (\d)–(\d) (.+)$), for example "Rushmoor Heath Albion 2–1 Netherwold Borough"; one of the two
+      clubs is the player's club and the other is a different club of the "Clubs" list. The "Goals"
+      list holds exactly one item per goal, in match order with minutes never decreasing, each
+      reading exactly the minute (1 to 90), a straight apostrophe ('), one space, the scorer's name,
+      one space and the scorer's club name in round brackets, for example "23' Ivo Elderkin
+      (Netherwold Borough)"; the number of items naming each club equals that club's goals in the
+      score line. Every goal for the player's club is scored by one of the 11 players on its
+      Starting XI screen at the time of that match, never the one in the GK slot; every goal for the
+      other club is scored by a player of that club's "Squad" list who is not a goalkeeper (GK). A
+      button named exactly "Back" (44px or taller) returns to the club home with focus on its
+      heading, the club's name. Opponents come from the league's fixed double round-robin schedule,
+      the same for every seed (the club names vary with the seed): over matchdays 1 to 7 the
+      player's club meets each of the other 7 clubs exactly once, over matchdays 8 to 14 again
+      exactly once each, and over the 14 matchdays it is named first in the score line against each
+      other club exactly once and named second exactly once. Changing the formation or the Starting
+      XI between two matches changes nothing already played, and the table stays as it was; the
+      change counts from the next "Play match" on. After the player's N-th match, "Back" and "Table"
+      show the table named "League table" with every row at P N; on every row W + D + L = P and Pts
+      = 3 × W + D; the total of W equals the total of L, the total of D is even and the GDs add up
+      to 0; the player's club's row equals the sum of the score lines of its N matches (W, D and L
+      count its wins, draws and losses, GD is its goals minus the goals against, written as in the
+      table, for example "+2", "0" or "-2", and Pts is 3 per win plus 1 per draw); Pts never
+      increases down the table and, between rows with equal Pts, GD never increases. The season
+      comes from the seed: two fresh visits with the same "?seed=", the same club and the same
+      choices show the same match screens and the same table after every matchday, and "?seed=abc"
+      plays the same season as no "?seed=" in the address. Results are kept until the page is
+      reloaded. In this version, after matchday 14 has been played, the club home shows no "Play
+      match" button and shows a line reading exactly "Season over" instead (its heading and its
+      "Squad", "Tactics", "Starting XI" and "Table" buttons stay), and "Table" still shows every row
+      at P 14; an already played match cannot be re-opened. This version amends the S-007 outcome's
+      "Play match" button staying on the club home, from matchday 14 on only; S-007's durable list
+      is unchanged and no protected scenario reaches matchday 14. These hold in every later version
+      of the game, within each season (a new game, and any later season a later version may start):
+      each "Play match" plays the season's next matchday in order; the match screen of the season's
+      N-th match has the h1 "Matchday N" (1 to 14) with the score line and the "Goals" list in these
+      formats; after the season's N-th match every table row has P N; and over the season's 14
+      matchdays the player's club meets every other club exactly twice, named first once and named
+      second once. The "Season over" line and the missing "Play match" button after matchday 14 are
+      rules of this version only. No horizontal scroll at 390px and no console errors.
