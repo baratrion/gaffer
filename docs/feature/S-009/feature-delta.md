@@ -516,3 +516,14 @@ Owner-only items inherited from S-001..S-008 (smoke `sleep 20`, no security scan
 
 ### Wave: DEVOPS / [REF] Peer review
 pending
+
+## Plan run: protected scenarios
+
+`tests/protected/S-009/season-end.spec.ts` holds 2 black-box scenarios (Pixel 7, 390px; roles, accessible names and visible text, plus the S-006 "innermost element whose whole text matches" scan for one-line texts). They pin the durable clause (DISCUSS D6) for any seed; no generated name or position is pinned, so the reference season ends (`discuss/reference-season-end.md`) stay unit and e2e goldens for DISTILL. Each played season checks, before every matchday 1 to 14, that "Play match" is offered and "End of season" is not; reads each match screen's single score line and "Goals" list, keeping the club's own goals. After matchday 14 the club home has no "Play match", keeps "Squad", "Tactics", "Starting XI" and "Table", and offers "End of season" (44px or taller). Its screen has exactly one h1, "End of season", focused; exactly one line matching `^Final position (1st|...|8th)$` and exactly one matching `^Top scorer (none|(.+) \((\d+) goals?\))$`; no sideways scroll. The top scorer is checked against the tally of the 14 Goals lists (count equal, no one higher, "goal" singular exactly at 1, "none" only for no goals) and, on a tie, against the order of the "Squad" list. The final position is the ordinal of the club's Pos on the "Table" screen, where every row reads P 14. "Back" is 44px or taller and focuses the club home's h1.
+
+1. **The verdict** (`?seed=31`, 1st club, a real tie for top scorer at 5 goals; US-1 scenarios 1 to 4; `test.setTimeout(90_000)`). The offer appears only after matchday 14; the screen's lines agree with the Goals lists, the Squad order and the table; "End of season" opens the same screen again after Back and Table; changing Tactics to 4-3-3 after the season leaves the screen identical.
+2. **Determinism** (8th club; US-1 scenario 5; `test.setTimeout(150_000)`, two seasons). `?seed=abc` and no seed give the same End of season screen, each with the rule checks above.
+
+Not pinned, by design: where "Play again" lands and its reset (version-only, D3; e2e and unit in DISTILL), "Top scorer none" (no season in 2400 scores no goal; unit test on a constructed log), the 8th-place row (e2e), the seed goldens.
+
+Both fail on the current app (no "End of season" button after matchday 14). The plan run checked that they can be met: against a throwaway prototype (not committed; the club home's season-over slot is an "End of season" button opening a screen computed from `standingsOf` and the results log, lowest squad index on a tie), the 2 S-009 and the 4 S-008 protected scenarios passed under the locked runner in 10.0 s. With the tie-break mutated to the highest squad index, scenario 1 failed ("on a tie, the one listed first in the Squad list is named": expected "Garrick Thistlewood", received "Merrick Hartwell").
