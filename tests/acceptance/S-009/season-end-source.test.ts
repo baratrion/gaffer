@@ -1,6 +1,6 @@
 // @US-1 @US-2 (S-009 see how my season ended) held out until DELIVER
 // CONTRACT_SHAPE: bounded-change
-// Outcome anchor: DESIGN "Enforcement" and ADR-0015 Earned Trust 2 and 6: vitest has no DOM, so the rules that cannot be reached by a render are
+// Outcome anchor: DISCUSS Elevator Pitch (US-1 and US-2); DESIGN "Enforcement" and ADR-0015 Earned Trust 2 and 6: vitest has no DOM, so the rules that cannot be reached by a render are
 // held by source checks, as the S-004 "renderers never move focus" test is. (1) season.ts and formatOrdinal use no Intl, toLocale, Date or
 // Math.random and season.ts imports only the Player type from squad.ts; (2) season-end.ts has exactly two dispatch( calls and two
 // addEventListener calls, no focus() call, no innerHTML, and reads "End of season", "Final position", "Top scorer", "Play again" and "Back";

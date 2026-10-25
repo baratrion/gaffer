@@ -1,6 +1,6 @@
 // @US-1 @US-2 (S-009 see how my season ended) held out until DELIVER
 // CONTRACT_SHAPE: bounded-change
-// Outcome anchor: DISCUSS D1, D3, D4, D5, D8 and the test intents (the offer at 14 and not 0..13, Back, Play again equals a fresh NewGame of the
+// Outcome anchor: DISCUSS Elevator Pitch (US-1 and US-2); DISCUSS D1, D3, D4, D5, D8 and the test intents (the offer at 14 and not 0..13, Back, Play again equals a fresh NewGame of the
 // same league, a no-op elsewhere, nothing new stored); ADR-0015 decision 3; brief ports 33 and 34. ViewSeasonEnd is offered from a known club's
 // club home only when nextMatchday is undefined (boundaries 13 and 14), changes only the screen, and is the very same state (toBe) everywhere
 // else; Back from seasonEnd restores the club home (toEqual); NewGame ("Play again") from seasonEnd equals update(initialState(league), NewGame)

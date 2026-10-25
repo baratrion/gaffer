@@ -1,6 +1,6 @@
 // @US-1 (S-009 see how my season ended) held out until DELIVER
 // CONTRACT_SHAPE: pure-function
-// Outcome anchor: DISCUSS D2 and the test intents (ordinal 1st..8th, the top-scorer rule over constructed logs); DESIGN D1, D2; ADR-0015 decisions
+// Outcome anchor: DISCUSS Elevator Pitch (US-1 and US-2); DISCUSS D2 and the test intents (ordinal 1st..8th, the top-scorer rule over constructed logs); DESIGN D1, D2; ADR-0015 decisions
 // 1 and 2; brief port 32. formatOrdinal (1st..8th, the teens, 21-23, 101, 111, RangeError), topScorer (the club's own goals only, home and away,
 // ties to the lowest squad index, none, order of the log irrelevant, RangeError for a counted player outside the squad, inputs never mutated)
 // and formatTopScorer ("(N goals)", "(1 goal)", "none"; every line matches the one pattern). A property holds topScorer to an oracle that counts
