@@ -650,3 +650,23 @@ Verdicts: DISCUSS conditionally approved (0 blockers; 2 high), DESIGN approved (
 - **Walking-skeleton tag (H-1), Mandate 8 state-delta port (H-3), Tier B (H-4), environment Given (H-5), @error share (H-6):** accepted as documented deviations. Whole-object `toBe`/`toEqual` plus fast-check properties stand in for a state-delta port (no such port exists in this TypeScript repo, as in S-003..S-007); Tier B is skipped because the pure rules and `update` are already explored by 80-action properties; the environment waiver is inherited; boundary cases count toward edge share. DELIVER may tighten tags when it moves files (U-1 amendments only change what is prescribed).
 - **Inherited owner items (DEVOPS B1/C1/H1/H2/M3, DISCUSS F-01):** `.github/` and `tests/protected/` are locked; nothing to do in this tick.
 - **Design notes F1 (nightly mutation runtime of the season property), F5 (empty log: latest is 1 via the matchday-1 fallback):** carried into DELIVER as watch items.
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+Every "Play match" tap appends the next matchday's four results (`nextMatchday` derived from the log, ADR-0014); the match screen shows the latest matchday for Sam's club and the table reads the whole record. After matchday 14 the club home shows a plain "Season over" line in place of the button and `PlayMatch` returns the same state. No new RNG stream.
+
+### Wave: DELIVER / [REF] Files modified
+- Changed: `src/app/state.ts` (`nextMatchday`, `matchdayFor`, append and guard, `matchFor` reads the latest), `src/main.ts` (`seasonOver` flag), `src/ui/screens/club-home.ts`, `src/ui/styles.css`.
+- Tests moved from pending (nothing weakened): `tests/acceptance/S-008/{season-progression,season-for-a-club,season-end}.test.ts`, `tests/e2e/S-008-season.spec.ts`. U-1 amendments replaced the re-show assertions in `tests/acceptance/S-006/match-navigation.test.ts`, `tests/acceptance/S-007/table-navigation.test.ts`, `tests/e2e/S-006-match.spec.ts`, `tests/e2e/S-007-table.spec.ts`.
+- Commits: 65b7408 (01-01), 45bcfa1 (01-02), e507356 (review findings).
+
+### Wave: DELIVER / [REF] DoD check
+- Next-matchday play, latest-match screen and "Season over" after matchday 14: met.
+- No ambient randomness or wall-clock time in `src/domain/`, no new RNG stream: met.
+- S-001..S-007 suites green; superseded assertions replaced, not weakened: met.
+- Protected scenarios: S-008 verified by CI on main (not run locally).
+- Line guard (1200 non-docs lines): met.
+
+### Wave: DELIVER / [REF] Quality gates
+Roadmap: 2 steps, all DONE. Review findings folded in. `des-verify-integrity` passed. `ci:lint`, `ci:typecheck`, `ci:test` (897 passed) and `ci:e2e` (124 passed) green. Mutation testing is nightly-delta; `/nw-deliver` Phase 5 skipped. RED evidence for step 01-02 is thin (RED and GREEN share a timestamp).
