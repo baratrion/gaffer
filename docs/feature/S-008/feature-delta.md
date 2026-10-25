@@ -343,3 +343,93 @@ No external integrations, so no contract tests. **Enforcement**: oxlint boundari
 
 ### Wave: DESIGN / [REF] Peer review
 Pending.
+
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered; no platform change. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope, `tests/protected/`, `stryker.config.mjs`) are read-only. Machine-readable: `docs/feature/S-008/environments.yaml`. Inherits S-007 (and S-001..S-006); only deltas are recorded.
+
+Checklist: ✓ existing infra reused | ✓ K1-K3 mapped to instruments | ✓ rollback defined | ✓ mutation strategy (nightly-delta; `state.ts` inside the mutate globs, `club-home.ts` outside, no config change) | ⊘ new IaC/containers | ⊘ server-side observability | ⊘ continuous learning | ⊘ CLAUDE.md edit
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test; unit, property, e2e, `tests/protected/S-001..S-008/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke via `BASE_URL` |
+
+Unchanged: no staging (static, recreate); Chromium, Pixel 7 profile, 390px. Deltas:
+- `GameState.results` now grows to 14 matchdays / 56 entries (ADR-0014) in session memory only. Nothing is persisted: a reload shows the title screen and the season is lost. No storage, save version or migration.
+- Cross-engine determinism probe widens from matchday 1 to 14 seed-31 matchdays (14 score lines, ADR-0014 Earned Trust 1) in Chromium on local-preview and, through `smoke`, on the live site. WebKit and iOS Safari are not probed.
+- e2e runtime: the season test is 28 taps ("Play match", "Back" x 14) plus the reads of 14 h1/score lines and the table; each tap runs 8 squads and 4 quick-sims, so a few seconds locally (estimate, not measured). Live-site latency adds to it: see Open questions 1 for timeouts.
+- "Season over" is plain text (ADR-0014 Earned Trust 5): probed in Chromium only (no "Play match" button, 4 buttons 44px or taller, `innerText` equals `textContent`, no sideways scroll).
+- Every navigation stays a screen change, so focus goes to the new `<h1>` (ADR-0008).
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch; 30 min): PR guards (locked paths, append-only protected, diff cap 1200, `Math.random`/`Date` in `src/domain/`), roadmap lint, `ci:lint`, `ci:typecheck`, `ci:test` (fresh `FC_SEED`), `ci:build`, `ci:e2e`, protected no-regression check vs main (a new `tests/protected/S-008/*.spec.ts` must fail on main).
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` (10 min) runs `ci:e2e` against the live URL, including the new S-008 spec.
+- `nightly` (03:00, 45 min): `ci:mutation`; failure opens a `mutation-alarm` issue. `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- No pipeline change: S-008 adds unit, property and e2e specs run by existing scripts and no dependency. DELIVER diff about 481 lines (631 with protected), under the 1200 guard; `docs/` is outside the count.
+- Local gate: `pnpm run check` mirrors the commit stage; no git hooks (locked). Security: no secrets, runtime deps or network; text enters the DOM via `el()`/`textContent` (ADR-0002). SAST/SCA/SBOM not added (inherited owner-only item).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI to instrument)
+E2E instrument: `tests/e2e/S-008-season.spec.ts` (Pixel 7, 390px) via `ci:e2e` on PR and main and `smoke` on the live URL. Unit/property rows run in `ci:test` with a fresh `FC_SEED`. `tests/protected/S-008/` runs on local-preview in `ci` and must pass on main.
+
+| KPI (DISCUSS) | Instrument | Pass condition |
+|---|---|---|
+| K1: next match in 1 tap; season in 28 taps; "Season over" on the first club home after matchday 14 | e2e: page-side capture-phase click counter (as S-003..S-007) across "Play match", "Back" x 14 (28 clicks); h1 "Matchday N" focused each time; after the 14th "Back" the text "Season over" is visible, no "Play match" button. Protected: next-matchday and N-th h1 by rule | 1 click per match, 28 per season; text present |
+| K2: 100% of seasons over seeds 1..1000 x 8 clubs: every rival twice, named first once, second once; every row P N after match N; row rules; Sam's row = sum of his score lines | property (fast-check, `FC_SEED`) in `season-for-a-club.test.ts` and `season-progression.test.ts`; seed-31 and seed-20260 reference-season goldens (Node); e2e seed-31 14 score lines and P 2 / P 14 tables cell for cell (cross-engine). Protected: every rival twice, P N after N | 100%; 0 mismatches; goldens exact |
+| K3: 0 changes to any recorded matchday over runs of up to 40 actions; matchday k+1 uses Sam's XI at the tap | property on `update` (prefix entries `toBe` identical, length a multiple of 4 up to 56, contiguous) plus `standingsOf`/`matchFor`; e2e: 4-3-3 and "Kestrel Northcott 6" pick after matchday 1 leave the P 1 table unchanged, matchday 2 goals come from the new XI. Protected: picks count forward (candidate) | 0 changes |
+| Guard after 14 (D6) | unit: 15th `PlayMatch` is `toBe` the same state, never throws; boundary cases at 13 and 14 | holds |
+| 44px, no sideways scroll at 390px, 0 console errors | e2e across the 14-matchday journey and the club home with "Season over" | holds |
+| Names, determinism | unit: "Season over" in no `names.ts` string (D9); no `Math.random`/`Date` (PR guard); same seed same season | holds |
+| S-001..S-007 unchanged | existing e2e and acceptance (only the amend list: replace, never weaken) and `tests/protected/S-001..S-007/` | green |
+| Domain test strength | Stryker on `src/domain/**` and `src/app/state.ts` (`nextMatchday`, `matchdayFor`, `playMatchAction`, `matchFor`) | nightly, at or above break 70 |
+
+No analytics (POC). The e2e tap counter and the property tests are the KPIs' sole measurements.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact; idempotent.
+- Rollback (designed first): revert the S-008 squash commit on main; the merge triggers `deploy` and `smoke` validates the restored site. Alternative: `workflow_dispatch` of `deploy.yml` on the pre-S-008 commit (the S-007 deploy). Fallback: fix-forward on a `claude/*` branch. The append-only protected guards may block a plain revert of a squash that added `tests/protected/S-008/`; the dispatch route is then the owner action. Time to restore: one deploy cycle (about 5 minutes).
+- Failure detection: a red `smoke` marks the deploy run red; a cross-engine fault shows as a red seed-31 14-matchday probe while `ci:test` stays green.
+- Data: nothing persisted, no user data at risk. Rolling back returns "Play match" to re-showing matchday 1 (S-007 behaviour) and removes "Season over".
+- Result stability: matchday N uses streams 200 + 4(N-1)..+3 (ADR-0011), no new stream; changing them changes every seed's season and needs an ADR amendment. Blast radius: one static page.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` (read) mutates `src/domain/**/*.ts` except `names.ts`, plus `src/app/state.ts`; thresholds high 85, low 70, break 70.
+- `src/app/state.ts` (`nextMatchday`, `matchdayFor`, `playMatchAction` append and guard, `matchFor` latest): INSIDE the globs. Killed by the `nextMatchday` 1 / k+1 / `undefined` cases, boundaries 13 and 14 (off-by-one on the guard), `toBe` no-op after 14, prefix identity, the 4-entry append equal to `playMatchday` with Sam's `currentXI`, `NewGame` clearing and the 80-action property.
+- `src/ui/screens/club-home.ts` (`seasonOver` branch) and `src/main.ts` (`seasonOver: nextMatchday(state) === undefined`): OUTSIDE the globs (`src/ui/` and `main.ts` never were). Gap: a mutant swapping the button for the line is caught only by the e2e, not by nightly mutation. Open question 2; no config change.
+- `src/domain/**`: unchanged by S-008, already covered.
+- Runtime watch: the K2 property (seeds x 8 clubs x 14 matchdays) re-runs per `state.ts` mutant; see Open questions 3.
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy (including the 14-matchday seed-31 probe). Alerting: a red `deploy` run; a red nightly opens `mutation-alarm`. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-008-*` branches, PR to main, squash merge, deploy on merge, no release branches. CI green and protected scenarios not regressing. DELIVER about 481 lines stays under the 1200 guard; DESIGN's cut order applies if it nears the cap.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-008 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml`, `ci:*` scripts, `playwright.config.ts` | none; Pixel 7, 390px, `BASE_URL` fit | reuse |
+| `stryker.config.mjs`, `scripts/guards/pr-guards.mjs` | `state.ts` already mutated; determinism grep and 1200 cap fit | none |
+| `tests/protected/S-001..S-007/` | none plays twice; S-006/S-007 pin matchday 1 of a new game; "Play match" keeps its name | must stay green |
+| `tests/protected/S-008/` | locked scenarios (plan run); 28 taps per season | must pass on main |
+| Amend list (S-006 `match-navigation`, S-007 `table-navigation`, e2e `S-006-match`, `S-007-table`) | re-show assertions replaced by S-008 equivalents | amend in the same commit as the production change |
+| `tests/e2e/S-001..S-007*.spec.ts`, `shell.spec.ts` | focus on h1 holds; club-home button lists unchanged until "Season over" | reuse, regression-watch |
+| `src/app/state.ts`, `club-home.ts`, `main.ts`, `styles.css` | extended | S-001..S-007 tests guard |
+| `docs/product/ui/design-system.md` | "Season over" entry already added in DESIGN | none |
+| Pages artifact, base path `/gaffer/` | negligible growth | none |
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-007 delivered and deployed; Pages source "GitHub Actions" enabled (✓). Node 22+, pnpm 10.12.4, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0014 accepted (✓; ADR-0014 landed in DESIGN). `tests/protected/S-008/` committed by the plan run (append-only after). `BASE_URL` derived from owner and repo name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001..S-007 (smoke `sleep 20`, no security scanning, no commit-SHA check in smoke, deploy not gated on `ci`, squash revert blocked by append-only guards, no uptime probe, WebKit not probed; see `docs/feature/S-007/feature-delta.md`) are unchanged and none block S-008. New:
+1. Timeouts for a 28-tap season. Agent `playwright.config.ts`: `timeout: 30_000` per test, `retries: 1` in CI. Locked protected runner (`scripts/factory/protected.playwright.config.ts`): `timeout: 20_000`, `expect` and `actionTimeout` 2 s, `retries: 0`, 4 workers. `test.slow()` triples only the test timeout (30 s to 90 s, 20 s to 60 s); per-action 2 s is unchanged and sufficient for one tap. Existing protected specs already use `test.setTimeout(60_000/90_000)` for long journeys. Recommendation (DISTILL/DELIVER, no config change): `test.slow()` is enough for the full-season e2e and a protected full-season scenario; use `test.setTimeout(90_000)` if one scenario plays both seeds, or keep one seed per scenario (DISCUSS note). If the first CI run nears the limit, trim reads per matchday, not the 14 matchdays.
+2. Mutation gap: the `seasonOver` wiring in `club-home.ts` and `main.ts` is outside the Stryker globs; covered only by the e2e ("Season over" present, button absent) and the unit contract on `nextMatchday`. Owner may widen `mutate` to `src/ui/screens/*.ts` later; not needed for S-008.
+3. Nightly runtime: the seeds 1..1000 x 8 clubs x 14 matchdays property is the costliest new test. DELIVER keeps `numRuns` bounded (a sampled seed set per run, fresh `FC_SEED`) so each `state.ts` mutant stays cheap. Watch the first nightly after the merge against the 45-minute timeout; if it nears it, trim test cost, not bounds, or the owner raises the timeout.
+4. Smoke on the live URL runs the 14-matchday spec and relies on `?seed=` on Pages (same as S-001..S-007).
+
+### Wave: DEVOPS / [REF] Peer review
+Not triggered (no novel target, no new CI framework, no observability rewrite, no security change); consolidated review at the end of DISTILL.
