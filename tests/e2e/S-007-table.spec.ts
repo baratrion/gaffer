@@ -375,6 +375,9 @@ test.describe("@US-2 S-007 see the table after matchday 1", () => {
     const again = await readMatch(page, 2);
     expect(again.score, "matchday 2: Rushmoor Heath Albion named first, Netherwold Borough second").toMatch(/^Rushmoor Heath Albion \d–\d Netherwold Borough$/);
     expect(again.score, "and not the matchday-1 score line").not.toBe(SCORE_31);
+    for (const goal of again.goals.filter((text) => text.endsWith("(Netherwold Borough)"))) {
+      expect(goal, "his scorers come from the eleven he picked").not.toContain("Calder Redfern");
+    }
     await back(page).click();
     await expect(heading(page)).toHaveText(club);
     await expect(heading(page)).toBeFocused();

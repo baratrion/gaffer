@@ -102,6 +102,7 @@ describe("@US-1 S-006 Sam sends his team out from the club home and comes back t
       const again = walk(first, [back, play]);
       expect(again.results).toHaveLength(8);
       first.results!.forEach((entry, i) => expect(again.results![i]).toBe(entry));
+      expect(again.screen).toEqual({ kind: "match", clubId });
       expect(matchFor(again, clubId)!.matchday).toBe(2);
       expect(matchFor(again, clubId)).not.toEqual(matchFor(first, clubId));
       expect(again.formation).toBe(first.formation);

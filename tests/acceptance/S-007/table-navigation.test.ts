@@ -489,6 +489,7 @@ describe("@US-2 S-007 the S-006 cases that D12 supersedes, restated with the rec
     const second = walk(first, [back, play]);
     expect(second.results).toHaveLength(8);
     first.results!.forEach((entry, i) => expect(second.results![i]).toBe(entry));
+    expect(second.screen).toEqual({ kind: "match", clubId });
     expect(matchFor(second, clubId)!.matchday).toBe(2);
     expect(matchFor(second, clubId)).not.toEqual(matchFor(first, clubId));
   });

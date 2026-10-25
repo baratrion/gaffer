@@ -1,6 +1,19 @@
 import "./ui/styles.css";
 import { parseSeed } from "./app/seed";
-import { currentXI, focusPlan, initialState, matchFor, nextMatchday, type MatchView, squadOf, standingsOf, update, type Action, type FocusPlan, type GameState } from "./app/state";
+import {
+  currentXI,
+  focusPlan,
+  initialState,
+  matchFor,
+  nextMatchday,
+  type MatchView,
+  squadOf,
+  standingsOf,
+  update,
+  type Action,
+  type FocusPlan,
+  type GameState,
+} from "./app/state";
 import { formationLines, lineUp } from "./domain/formation";
 import { generateLeague, type League } from "./domain/league";
 import { playersForPosition } from "./domain/selection";
