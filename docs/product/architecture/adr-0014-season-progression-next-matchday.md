@@ -1,6 +1,6 @@
 # ADR-0014: Season progression: "Play match" plays the next matchday (S-008)
 
-- Status: Accepted
+- Status: Accepted. Superseded in part by ADR-0015 (S-009): decision 4, the "Season over" line in the Play match slot; the club home now offers an "End of season" button there, which opens the End of season screen.
 - Date: 2026-10-25
 - Deciders: nWave solution-architect (S-008 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core), ADR-0008 (focus plan), ADR-0009 (optional state field, `exactOptionalPropertyTypes`), ADR-0010 (schedule), ADR-0011 (streams 200..255), ADR-0012 (the results log this appends to), ADR-0013 (standings, unchanged).
@@ -10,7 +10,7 @@
 S-008 makes every "Play match" play the next matchday (DISCUSS D1, D6, D7, D10).
 - **D1**: each tap plays the next matchday for the league. Sam's fixture uses his formation and XI at the tap; the other 3 use automatic 4-4-2. The 4 results are appended, and earlier matchdays never change. The first tap of a new game is matchday 1 as before.
 - **D2**: the match screen's h1 reads "Matchday N" (N just played), with the S-006 formats.
-- **D6**: after matchday 14 the club home shows the plain line "Season over" instead of the button; a "Play match" action then is a no-op. This is this version only.
+- **D6**: after matchday 14 the club home shows the plain line "Season over" instead of the button; a "Play match" action then is a no-op. This is this version only. (the line superseded by ADR-0015, S-009; the no-op stands)
 - **D8**: no new RNG stream (matchday N uses streams 200 + 4(N-1) .. +3); same seed, club and picks give the same season.
 - DISCUSS: derived, no second source of truth; "season over" is derived too.
 
@@ -47,9 +47,9 @@ Facts checked in the code:
 ### 4. "Season over"
 | Option | Pros | Cons |
 |---|---|---|
-| **A. `nextMatchday(state) === undefined` computed in `main.ts`, passed to `renderClubHome` as `seasonOver`; the renderer swaps the "Play match" button for `<p class="season-over">Season over</p>` in the same slot of `div.club-actions` (chosen)** | Derived, no second source. The line is not a button or heading. The guard and the flag use one selector | `renderClubHome` props change |
+| **A. `nextMatchday(state) === undefined` computed in `main.ts`, passed to `renderClubHome` as `seasonOver`; the renderer swaps the "Play match" button for `<p class="season-over">Season over</p>` in the same slot of `div.club-actions` (chosen)** (superseded by ADR-0015, S-009: the slot holds an "End of season" button) | Derived, no second source. The line is not a button or heading. The guard and the flag use one selector | `renderClubHome` props change |
 | B. A stored `seasonOver` flag | Trivial read | Second source; can disagree with the log |
-| C. A `Screen` kind "seasonOver" | Room to grow | That is the later end-of-season story (final position, top scorer); out of scope (D6) |
+| C. A `Screen` kind "seasonOver" | Room to grow | That is the later end-of-season story (final position, top scorer); out of scope (D6) (taken by ADR-0015, S-009) |
 | D. A disabled "Play match" button | Fewest changes | Keeps the name "Play match", against D6; a dead tap target |
 
 ## Decision
@@ -64,8 +64,8 @@ Facts checked in the code:
 - The domain is unchanged: `playMatchday`, `fixturesOf`, `standings`, the streams and every golden.
 
 ### UI
-- `renderClubHome(root, { club, seasonOver }, dispatch)`: `div.club-actions` holds Squad, Tactics, Starting XI, then either the "Play match" `button.primary` or `<p class="season-over">Season over</p>`, then Table. The `<p>` is plain text (one text node via `el()`), no role, no heading, no listeners.
-- CSS `.season-over`: block, centred, `min-height: 48px`, gold text, dashed chalk 25% border, no `text-transform`, no flex or grid. Noted in `docs/product/ui/design-system.md`.
+- `renderClubHome(root, { club, seasonOver }, dispatch)`: `div.club-actions` holds Squad, Tactics, Starting XI, then either the "Play match" `button.primary` or `<p class="season-over">Season over</p>`, then Table. The `<p>` is plain text (one text node via `el()`), no role, no heading, no listeners. (the `<p>` branch superseded by ADR-0015, S-009: the branch is a `button.primary` "End of season")
+- CSS `.season-over`: block, centred, `min-height: 48px`, gold text, dashed chalk 25% border, no `text-transform`, no flex or grid. Noted in `docs/product/ui/design-system.md`. (superseded by ADR-0015, S-009: the rule is deleted)
 - `main.ts`: the `clubHome` case passes `seasonOver: nextMatchday(state) === undefined`. The `match` case and `renderMatch` are unchanged.
 - Focus (ADR-0008): renderers never move focus. Every navigation changes the screen (club home, match, table), so the shell focuses the new `<h1>`. The flag only changes on a re-render of the club home, which is a navigation. No focus ids.
 
@@ -90,7 +90,7 @@ No new stream or draw. Matchday 1 is bit-identical to S-007. The same seed, club
 | `nextMatchday` | pure, return-only | 1 on none, k+1 for k recorded, `undefined` at 14; property: equals `results.length / 4 + 1` along any play-only run; frozen state unchanged |
 | `update` (`PlayMatch`) | pure, return-only | Returned state is `{ ...state, screen, results }`: `screen` becomes `match`; `results` grows by exactly the 4 entries of matchday k+1 (equal to `playMatchday` with Sam's `currentXI` and automatic others); earlier entries `toBe` identical; after 14 the very same state (`toBe`); `NewGame` drops `results`; any other action keeps the same array (`toBe`) |
 | `matchFor` | pure, return-only | Entries restricted to `matchday === latest`, then the club's entry (`matchday` = N, never the matchday-1 entry once 2 are recorded); unknown club `undefined`; nothing recorded: the S-006 fallback (cases unedited). Unit boundary cases at matchday 2 (not matchday 1) and 14 |
-| `renderClubHome` | bounded-change | Universe: `section.club-home` = swatch, h1, `div.club-actions` of 5 children in the order Squad, Tactics, Starting XI, [`button.primary` "Play match" or `p.season-over` "Season over"], Table. The flag is the only input that changes it |
+| `renderClubHome` | bounded-change | Universe: `section.club-home` = swatch, h1, `div.club-actions` of 5 children in the order Squad, Tactics, Starting XI, [`button.primary` "Play match" or `p.season-over` "Season over"], Table. The flag is the only input that changes it (superseded by ADR-0015, S-009: the second choice is a `button.primary` "End of season") |
 | `main.ts` | bounded-change | Enumerated universe of the whole file: reads `location.search` once; writes only `root`'s children and focus. The S-008 delta: the `clubHome` case's props (the `seasonOver` flag); every other case, the loop and the focus calls are unchanged. (The earlier "unbounded-preservation" label is dropped.) |
 
 ### Earned Trust (no adapter; environment assumptions named and probed)
@@ -99,8 +99,8 @@ No new stream or draw. Matchday 1 is bit-identical to S-007. The same seed, club
 2a. **K2 measurement (DISCUSS: 100% over seeds 1..1000 x 8 managed clubs).** Two layers. (i) The schedule invariants are one exhaustive, seed-independent check over 8 clubs x 14 matchdays (`fixturesOf`): over matchdays 1..7 and 8..14 the club meets each other club once, and is named first against each exactly once. A committed loop over seeds 1..1000 is only a cheap guard that the mapping from club names to indices does not matter. (ii) Only the season and table layer is sampled: fast-check (`numRuns` 100, fresh `FC_SEED`, whole seasons through `update`) for row rules, totals, `played` = N after every tap, Sam's row equals the sum of his score lines. The full 8000 seasons are not simulated; the claim is the sample plus the exhaustive schedule layer.
 3. **The guard.** Fourteen taps then a 15th `PlayMatch` returns `toBe` the same state and never throws; boundary cases at 13, 14 (kills an off-by-one mutant in Stryker's nightly run on `state.ts`).
 4. **Derived equals counted.** `nextMatchday` equals `results.length / 4 + 1` on every reachable state (reachable states are contiguous); a future persistence story must validate shape, order and contiguity of a loaded log, with its own `probe()`.
-5. **"Season over" is plain text.** The e2e asserts: no button named "Play match", one element reading exactly "Season over" that is no heading and no button, the other four buttons present and 44px or taller, no sideways scroll, `innerText` equals `textContent`. Fault: a disabled button, a `text-transform`, a heading.
-6. **Names.** "Season over" in no `names.ts` string (unit check, as D9).
+5. **"Season over" is plain text.** The e2e asserts: no button named "Play match", one element reading exactly "Season over" that is no heading and no button, the other four buttons present and 44px or taller, no sideways scroll, `innerText` equals `textContent`. Fault: a disabled button, a `text-transform`, a heading. (superseded by ADR-0015, S-009: the slot holds a button; its Earned Trust is ADR-0015 item 4 and 6)
+6. **Names.** "Season over" in no `names.ts` string (unit check, as D9). (kept as a harmless guard; ADR-0015 item 7 adds the new phrases)
 
 ### Enforcement
 - oxlint boundaries unchanged (`state.ts` imports domain only, ui imports app and domain). `max-params` 3 (`renderClubHome` keeps 3 through a props object), `complexity` 15 (`update` stays at 12 cases, complexity 13).
