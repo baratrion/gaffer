@@ -2,8 +2,107 @@
 
 Produced in the S-009 plan run (DISCUSS revision 2) with the current domain code. Each season follows the app's steps: `generateLeague(parseSeed("?seed=N"))` (an empty query gives the default seed 20260), `initialState`, `NewGame`, `ChooseClub`, then 14 x (`PlayMatch`, `Back`), with no tactics touched. Every season recorded 56 results, and the per-player tallies always add up to the club's GF in the table. A goal's scorer is `squad[playerIndex]` of the home club when `side` is "home", else of the away club, as the match screen prints it. "Row" is the player's 1-based row in the club's "Squad" list. Top scorer rule: most goals; on a tie, the lowest row.
 
-Command (scratch script outside the repo, `git status` left clean; about 50 s):
-`cd /home/runner/work/gaffer/gaffer && node node_modules/.pnpm/vite-node@3.2.4_@types+node@22.20.5_yaml@2.9.1/node_modules/vite-node/vite-node.mjs /tmp/seasonend/run.ts`
+Reproduction: the script below (kept here, not in the source tree, so it is neither linted nor built). Copy it to a scratch directory outside the repository, adjust its import paths to the checkout, and run it from the repository root with `vite-node` (bundled with vitest; about 50 s), for example `node node_modules/.pnpm/vite-node@*/node_modules/vite-node/vite-node.mjs /tmp/seasonend/run.ts`. DISTILL pins the same figures as unit goldens in `tests/acceptance/S-009/`, which become the reproduction of record.
+
+<details><summary>run.ts (scratch, as run in this plan)</summary>
+
+```ts
+import { parseSeed } from "/home/runner/work/gaffer/gaffer/src/app/seed";
+import { initialState, update, standingsOf, matchFor, type GameState } from "/home/runner/work/gaffer/gaffer/src/app/state";
+import { generateLeague } from "/home/runner/work/gaffer/gaffer/src/domain/league";
+import { generateSquad } from "/home/runner/work/gaffer/gaffer/src/domain/squad";
+
+const R = "/home/runner/work/gaffer/gaffer";
+function season(seedParam: string, clubIdx: number) {
+  const league = generateLeague(parseSeed(seedParam));
+  const club = league.clubs[clubIdx]!;
+  let s: GameState = initialState(league);
+  s = update(s, { type: "NewGame" });
+  s = update(s, { type: "ChooseClub", clubId: club.id });
+  for (let i = 0; i < 14; i++) {
+    s = update(s, { type: "PlayMatch" });
+    if (s.screen.kind !== "match") throw new Error("not match screen");
+    // sanity: matchFor matches latest
+    matchFor(s, club.id);
+    s = update(s, { type: "Back" });
+  }
+  const results = s.results ?? [];
+  if (results.length !== 56) throw new Error("results " + results.length);
+  const squads = league.clubs.map((_, i) => generateSquad(league.seed, i));
+  const tally = new Map<number, number>();
+  for (const m of results) {
+    for (const g of m.result.goals) {
+      const ci = g.side === "home" ? m.home : m.away;
+      if (ci !== clubIdx) continue;
+      if (!squads[ci]![g.playerIndex]) throw new Error("bad idx");
+      tally.set(g.playerIndex, (tally.get(g.playerIndex) ?? 0) + 1);
+    }
+  }
+  const squad = squads[clubIdx]!;
+  const scorers = [...tally.entries()].map(([pi, n]) => ({ name: squad[pi]!.name, pos: squad[pi]!.position, row: pi + 1, goals: n }))
+    .sort((a, b) => b.goals - a.goals || a.row - b.row);
+  const table = standingsOf(s);
+  const row = table.find((r) => r.clubId === club.id)!;
+  const top = scorers[0];
+  const tiedWith = top ? scorers.filter((x) => x.goals === top.goals && x.row !== top.row) : [];
+  return { league, club, table, row, scorers, top, tiedWith, seed: league.seed };
+}
+const fmtRow = (r: any) => `Pos ${r.position} P${r.played} W${r.won} D${r.drawn} L${r.lost} GF${r.goalsFor} GA${r.goalsAgainst} GD${r.goalDifference} Pts${r.points}`;
+const topLine = (t: any) => t ? `Top scorer ${t.name} (${t.goals} ${t.goals === 1 ? "goal" : "goals"})` : "(no scorer)";
+
+console.log("=== A ===");
+for (const [sp, name] of [["?seed=31", "Netherwold Borough"], ["", "Oakhampton Rise Borough"], ["?seed=13", "Ashworth Vale Rovers"]] as const) {
+  const lg = generateLeague(parseSeed(sp));
+  const idx = lg.clubs.findIndex((c) => c.name === name);
+  if (idx < 0) { console.log(`seed ${lg.seed}: club ${name} NOT FOUND; clubs: ${lg.clubs.map(c=>c.name).join(", ")}`); continue; }
+  const r = season(sp, idx);
+  console.log(`seed ${r.seed} "${name}" (club #${idx + 1}): ${fmtRow(r.row)}`);
+  for (const x of r.scorers) console.log(`  ${x.name} ${x.pos} row ${x.row}: ${x.goals}`);
+  console.log(`  ${topLine(r.top)}; tie: ${r.tiedWith.length ? "YES with " + r.tiedWith.map(x => `${x.name} (row ${x.row})`).join(", ") : "no"}`);
+}
+
+console.log("=== B / C ===");
+let shared = 0, zero = 0, minGoals = Infinity, minAt = "", oneTop = 0, maxTop = 0, maxAt = "", total = 0;
+const eighth: any[] = [];
+for (let seed = 1; seed <= 300; seed++) {
+  for (let c = 0; c < 8; c++) {
+    const r = season(`?seed=${seed}`, c);
+    total++;
+    const gf = r.scorers.reduce((a, x) => a + x.goals, 0);
+    if (gf !== r.row.goalsFor) throw new Error("GF mismatch");
+    if (gf === 0) zero++;
+    if (gf < minGoals) { minGoals = gf; minAt = `seed ${seed} ${r.club.name}`; }
+    if (r.top) {
+      if (r.tiedWith.length) shared++;
+      if (r.top.goals === 1) oneTop++;
+      if (r.top.goals > maxTop) { maxTop = r.top.goals; maxAt = `seed ${seed}, ${r.club.name}, ${r.top.name} (${r.top.pos}, row ${r.top.row})`; }
+    }
+    if (r.row.position === 8) eighth.push({ seed, c, r });
+  }
+}
+console.log(`seasons ${total}; shared top ${shared} (${(100*shared/total).toFixed(2)}%); zero-goal ${zero}; min GF ${minGoals} (first at ${minAt}); top=1 goal ${oneTop}; max top ${maxTop} at ${maxAt}`);
+console.log(`8th-place seasons: ${eighth.length}`);
+for (const { seed, c, r } of eighth.slice(0, 6)) {
+  console.log(`seed ${seed} club#${c + 1} ${r.club.name}: ${fmtRow(r.row)} | ${topLine(r.top)} | tied: ${r.tiedWith.length ? r.tiedWith.map((x: any) => x.name).join(", ") : "no"}`);
+  for (const x of r.scorers) console.log(`    ${x.name} ${x.pos} row ${x.row}: ${x.goals}`);
+}
+
+console.log("=== D ===");
+const base = JSON.stringify(season("?seed=31", 0).table);
+let same = true;
+for (let c = 1; c < 8; c++) if (JSON.stringify(season("?seed=31", c).table) !== base) same = false;
+console.log(`seed 31 table identical across all 8 managed clubs: ${same}`);
+for (const r of JSON.parse(base)) console.log(`  ${r.position} ${r.name} P${r.played} W${r.won} D${r.drawn} L${r.lost} GF${r.goalsFor} GA${r.goalsAgainst} GD${r.goalDifference} Pts${r.points}`);
+// also check across seeds 1..300 that full results are identical regardless of managed club
+let allSame = true;
+for (let seed = 1; seed <= 300 && allSame; seed++) {
+  const b = JSON.stringify(season(`?seed=${seed}`, 0).table);
+  for (let c = 1; c < 8; c++) if (JSON.stringify(season(`?seed=${seed}`, c).table) !== b) { allSame = false; console.log("differs at seed", seed, c); break; }
+}
+console.log(`tables identical across managed club for all seeds 1..300: ${allSame}`);
+```
+
+</details>
 
 ## Seed 31, Netherwold Borough (1st in the "Clubs" list)
 Final position 3rd: P 14, W 7, D 2, L 5, GF 21, GA 19, GD "+2", Pts 23 (table as `S-008/discuss/reference-season.md`).

@@ -5,7 +5,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // offers "End of season"; its screen has the only h1 "End of season", a "Final position" line equal to the club's
 // Pos in the table, a "Top scorer" line in the stated format and by the stated rule (checked against the goals seen
 // on the club's 14 match screens and the order of the "Squad" list), and "Back" to the club home. They check rules
-// that hold for any seed, not generated names. Where "Play again" lands is a rule of this version and is not checked.
+// that hold for any seed, not generated names, plus two clauses that follow from recorded results never changing:
+// "End of season" reopens the same screen, and a Tactics change after matchday 14 does not change it; and the
+// screen comes from the seed. Where "Play again" lands is a rule of this version and is not checked.
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -41,11 +43,11 @@ const watchErrors = (page: Page) => {
   return errors;
 };
 
-// The texts of the innermost elements whose whole text matches `source` (one per line of text on the screen).
+// The visible texts of the innermost elements whose whole visible text matches `source` (one per line on the screen).
 const linesMatching = (page: Page, source: string): Promise<string[]> =>
   page.evaluate((pattern) => {
     const regex = new RegExp(pattern);
-    const text = (el: Element) => (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    const text = (el: Element) => ((el as HTMLElement).innerText ?? "").replace(/\s+/g, " ").trim();
     const reads = (el: Element) => regex.test(text(el));
     return [...document.body.querySelectorAll("*")].filter((el) => reads(el) && ![...el.children].some(reads)).map(text);
   }, source);
@@ -229,5 +231,22 @@ test("the End of season screen comes from the seed: ?seed=abc shows the same scr
   const invalid = await read("?seed=abc");
   const unseeded = await read("");
   expect(unseeded, "?seed=abc shows the same End of season screen as no seed").toEqual(invalid);
+  expect(errors).toEqual([]);
+});
+
+// US-1 "A one-goal top scorer reads (1 goal)" (?seed=13, 8th club): the rules again, on a season where the club's
+// goals are few, so the singular "goal", a tie at the top count and the lowest positions are exercised.
+test("on a season with few goals the End of season screen follows the same rules, with \"goal\" singular at 1", async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = watchErrors(page);
+  const clubs = await newGame(page, "?seed=13");
+  const club = clubs[7]!;
+  await pickClub(page, clubs, club);
+  const squad = await readSquad(page, club);
+  const own = await playSeason(page, club);
+  const seen = await openSeasonEnd(page, club);
+  expectTopScorer(seen.scorer, own, squad);
+  await backHome(page, club);
+  expect(seen.position, "the final position is the club's Pos in the League table").toBe(ORDINALS[(await tablePos(page, club)) - 1]);
   expect(errors).toEqual([]);
 });

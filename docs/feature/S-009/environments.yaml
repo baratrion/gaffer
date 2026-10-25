@@ -48,7 +48,7 @@ coexistence_matrix:
     impact: none; S-008's protected file does not reach "Season over" and never pinned the line; "Play match" keeps its exact name
     action: must stay green
   - component: tests/protected/S-009/
-    impact: this story's locked scenarios (plan run; not in the tree when DEVOPS ran); one 28-tap season per scenario, test.setTimeout(90000)
+    impact: this story's locked scenarios (plan run, 3 scenarios); one 28-tap season per scenario with test.setTimeout(90000), except the determinism scenario (two seasons, test.setTimeout(150000))
     action: must exist before DELIVER and pass on main
   - component: tests/e2e/S-008-season.spec.ts, tests/e2e/S-008-club-home-regression.spec.ts, tests/acceptance/S-008/season-end.test.ts
     impact: non-protected "Season over" assertions superseded by ADR-0015 (DESIGN amend list)
