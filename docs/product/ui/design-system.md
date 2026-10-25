@@ -36,4 +36,10 @@ Patterns:
 - **Table refinements (visual pass)**: the header row has a 2px gold rule; Pos is muted chalk (full chalk on the managed row); Pts is bold gold, the one number the eye should land on; the last row closes with a heavier rule. Still no `display` override or `text-transform`.
 
 ## Season over (S-008)
-- **Season over line** (`p.season-over`): in the "Play match" slot of `.club-actions` after matchday 14. Plain text, not a button: block, centred, 48px minimum height, gold text, dashed chalk 25% border, no fill, no `text-transform`, no flex or grid.
+- ~~**Season over line** (`p.season-over`): in the "Play match" slot of `.club-actions` after matchday 14. Plain text, not a button: block, centred, 48px minimum height, gold text, dashed chalk 25% border, no fill, no `text-transform`, no flex or grid.~~ Superseded by S-009 (ADR-0015): the slot holds the "End of season" primary button and the `.season-over` rule is deleted.
+
+## End of season (S-009)
+- **Club home**: after matchday 14 "End of season" is a primary action button (same gold fill, 48px) in the "Play match" slot; the five club actions are primary buttons again.
+- **Stat lines** (`p.season-line`): label, one space, value on one line, 1.1rem with tabular numerals, same scale as the player stat lines but a new class (`.player-line` has `:nth-of-type` rules for the player screen). Label muted chalk, value bold; the "Final position" value is gold. Inline flow only: spans and `<p>` take no `display`, `position`, `float`, flex or grid and no `text-transform`, so `innerText` and `textContent` read exactly "Final position 3rd" and "Top scorer Name (5 goals)". Long names wrap (`overflow-wrap: anywhere`).
+- **Actions** (`div.season-actions`): a one-column grid, 10px gap, below the lines. "Play again" is the pitch-gold primary button (`button.primary`, full width, 48px); "Back" is the shared outlined gold `.back-button` (48px). Both stay 44px or taller.
+- **Heading**: `.season-end h1` 1.75rem with a 16px bottom margin, like the other screens.

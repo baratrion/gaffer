@@ -1,0 +1,69 @@
+# S-009 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Inherits S-008 (and S-001..S-007); no platform change.
+base_path: /gaffer/
+client:
+  browser: chromium
+  device: Pixel 7        # Playwright devices["Pixel 7"]
+  viewport_width_px: 390
+platform_notes:
+  - "Every S-009 navigation (club home to End of season, Back, Play again to the pick-a-club screen) is a screen change, so focus goes to the new h1 (ADR-0008); no platform-specific focus path."
+  - "Cross-engine determinism (ADR-0015 Earned Trust 1): the screen is derived from the 56 results (ADR-0011/0014, no new stream) and the squad order. The e2e reads the browser's seed-31, seed-20260 and seed-13 End of season lines and compares them with the goldens the Node test pins. Probed in Chromium only (local-preview and production)."
+  - "Each line is one inline <p> (label span, single-space text node, value span): innerText equals textContent, no flex/grid/float/text-transform (ADR-0015 Earned Trust 2). Chromium only."
+  - "A full season is 28 taps; the replay test plays two. Agent e2e timeout is 30s per test (playwright.config.ts, retries 1 in CI) so full-season tests set test.setTimeout(90000). The locked protected runner is 20s per test, 2s per action/expect, retries 0, 4 workers: every protected S-009 scenario that plays a season must call test.setTimeout(90000) (as tests/protected/S-008/season.spec.ts does), one seed and one season per test."
+target_environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+deployment_strategy: recreate
+container_orchestration: none
+observability: browser console + Playwright smoke on deployed URL
+mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts plus src/app/state.ts. INSIDE: src/domain/season.ts (new), src/domain/standings.ts (formatOrdinal), src/app/state.ts (ViewSeasonEnd, NewGame from seasonEnd, seasonSummaryOf). OUTSIDE: src/ui/screens/season-end.ts, club-home.ts, src/main.ts (e2e and grep tests only). No stryker.config.mjs change.
+branching: trunk-based, short-lived claude/* branches, squash merge
+deployment_assumptions:
+  artifact: static (dist/index.html under /gaffer/)
+  strategy: recreate
+  persistence: none         # the End of season screen is derived from GameState.results (memory only); a reload shows the title screen and the season is lost
+  data_migration: none      # no storage, no save version
+  deploy_idempotent: true   # redeploying a ref yields the same artifact
+  result_stability: "no new RNG stream; every result, schedule and squad for every seed is unchanged (ADR-0011); Final position and Top scorer are pure functions of the log, the squad order (ADR-0005) and the seed"
+kpi_instrument:
+  - kpi: K1 verdict in 1 tap from the club home after matchday 14; a new season's first match in 3 taps (Play again, club, Play match); owner's demo observes whether he taps Play again
+    spec: tests/e2e/S-009-end-of-season.spec.ts (click counter); manual owner demo (no analytics)
+    runs_on: [local-preview, production]
+  - kpi: K2 0 disagreements between Final position and the table's Pos, and between Top scorer and the 14 Goals lists, over seeds 1..300 x 8 clubs and every CI run
+    spec: tests/acceptance/S-009/ (oracle sweep, fast-check with FC_SEED, ordinal table, goldens), tests/e2e/S-009-end-of-season.spec.ts (seeds 31, 20260/abc, 13 goldens), tests/protected/S-009/
+    runs_on: [ci:test, local-preview, production]
+  - kpi: K3 100% of Play again states equal a fresh NewGame state of the same league; a replayed season reads the same
+    spec: tests/acceptance/S-009/ (property on update after up to 40 actions) and tests/e2e/S-009-end-of-season.spec.ts (replay with the same choices)
+    runs_on: [ci:test, local-preview, production]
+coexistence_matrix:
+  - component: tests/protected/S-001/ .. tests/protected/S-008/
+    impact: none; S-008's protected file does not reach "Season over" and never pinned the line; "Play match" keeps its exact name
+    action: must stay green
+  - component: tests/protected/S-009/
+    impact: this story's locked scenarios (plan run, 3 scenarios); one 28-tap season per scenario with test.setTimeout(90000), except the determinism scenario (two seasons, test.setTimeout(150000))
+    action: must exist before DELIVER and pass on main
+  - component: tests/e2e/S-008-season.spec.ts, tests/e2e/S-008-club-home-regression.spec.ts, tests/acceptance/S-008/season-end.test.ts
+    impact: non-protected "Season over" assertions superseded by ADR-0015 (DESIGN amend list)
+    action: replace with End of season button checks in the same commit as the production change (never weaken)
+  - component: tests/e2e/S-001..S-007 specs, shell.spec.ts
+    impact: focus on h1 after navigation still holds (ADR-0008)
+    action: reuse unchanged, regression-watch
+  - component: tests/e2e/S-009-end-of-season.spec.ts, tests/acceptance/S-009/
+    impact: new specs
+    action: add (DISTILL)
+  - component: .github/workflows/*, ci:* scripts, playwright.config.ts
+    impact: none
+    action: reuse
+  - component: stryker.config.mjs
+    impact: none; season.ts, standings.ts and state.ts inside the mutate globs, UI files outside (e2e only)
+    action: none
+rollback: revert the S-009 squash commit on main (deploy fires on merge), or workflow_dispatch of deploy.yml on a known-good ref (pre-S-009 commit); fallback fix-forward
+rollback_owner: owner

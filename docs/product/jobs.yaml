@@ -123,3 +123,22 @@ jobs:
       One tap per matchday from the club home, each result recorded for good and the table updated every
       time, carries the five-minute loop through a whole season and sets up the end-of-season screen,
       save and continue, and the other results.
+  - id: J-09
+    name: see-how-my-season-ended
+    statement: >-
+      When my club's last match of the season is played, I want to see where we finished and who
+      scored our goals, and to start again at once, so that the season feels complete and I can try
+      to do better.
+    dimensions:
+      functional: See the club's final league position and its top scorer in one tap after the last matchday, on a phone, and start a fresh season of the same league in one more tap.
+      emotional: Feel the closure of a season with a verdict, the pride (or the sting) of where we finished, and the pull of another go.
+      social: Be able to tell other football fans "we finished third, and Thistlewood got five".
+    forces:
+      push: A season that ends with a bare "Season over" has no verdict; finding the position needs a table scan, the scorers are lost on match screens that cannot be re-opened, and another season needs a page reload.
+      pull: The end-of-season summary of the management games Sam grew up with, a final place and a star player at a glance, then "new game".
+      anxiety: A final position that disagrees with the table, a top scorer that is not the one he remembers, a tie decided at random; losing the season he just finished by tapping the wrong button.
+      habit: Reading the final table and closing the tab; reloading the page to start over.
+    opportunity: >-
+      One tap from the club home to a derived verdict (final position and top scorer from the recorded
+      results) and one tap to a fresh season closes the "start to finish" loop of the north star and sets
+      up save and continue, a next season and season records.

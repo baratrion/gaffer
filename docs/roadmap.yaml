@@ -265,3 +265,50 @@ stories:
       matchdays the player's club meets every other club exactly twice, named first once and named
       second once. The "Season over" line and the missing "Play match" button after matchday 14 are
       rules of this version only. No horizontal scroll at 390px and no console errors.
+
+  - id: S-009
+    week: 7
+    title: See how my season ended
+    tags: [season, league]
+    outcome: >
+      Once all 14 matchdays of the season have been played, the club home shows, in the place where
+      "Play match" was, a button named exactly "End of season" (44px or taller); the line "Season
+      over" of S-008 is no longer shown, and the club home's heading (the club's name) and its
+      "Squad", "Tactics", "Starting XI" and "Table" buttons stay. Before matchday 14 has been played
+      there is no "End of season" button and "Play match" is there as before. Tapping "End of season"
+      opens a screen whose only top-level heading (h1) reads exactly "End of season", focused on
+      arrival. It shows these lines, each read as one line of text (label, one space, value): "Final
+      position" followed by the ordinal of the club's Pos in the League table after matchday 14, one
+      of "1st", "2nd", "3rd", "4th", "5th", "6th", "7th" or "8th" (pattern ^Final position
+      (1st|2nd|3rd|4th|5th|6th|7th|8th)$, for example "Final position 3rd"), equal to that club's Pos
+      on the "Table" screen; and "Top scorer" followed either by exactly "none", when the club scored
+      no goal all season, or by the name of the club's player with the most goals for the club over
+      its 14 league matches, one space and the count in round brackets, "(N goals)", or "(1 goal)"
+      when the count is 1 (one pattern for the whole line: ^Top scorer (none|(.+) \((\d+) goals?\))$,
+      with "goal" singular exactly when the count is 1; for example "Top scorer Garrick Thistlewood (5
+      goals)", "Top scorer Orrin Yarrow (1 goal)" or "Top scorer none"). The count equals the number
+      of items naming that player and the club on the club's 14 match screens' "Goals" lists, and no
+      player of the club has more; when players are tied, the one listed first in the club's "Squad"
+      list is named. Player names are unique within a league and hold no round brackets. Below them
+      are a button named exactly "Play again" and a button named exactly "Back", both 44px or taller.
+      "Back" returns to the club home with focus on its heading, the club's name, still showing "End
+      of season" and no "Play match"; "Table" still shows every row at P 14, and "End of season"
+      opens the same screen again; an already played match cannot be re-opened. "Play again" starts a
+      new game at once with the same seed and shows the screen that "New game" on the title screen
+      shows, with focus on that screen's only top-level heading (h1), whose text is not checked, and
+      the list named "Clubs" holding the same 8 clubs in the same order; nothing of the old season
+      remains: after picking a club the table reads P 0, W 0, D 0, L 0, GD 0 and Pts 0 on every row in
+      A to Z order, Tactics has "4-4-2" checked, the Starting XI is the automatic one, and the next
+      "Play match" plays "Matchday 1". Everything on the End of season screen comes from the season's
+      recorded results and the seed, and nothing new is stored: two fresh visits with the same
+      "?seed=", the same club and the same choices show the same End of season screen, "?seed=abc"
+      shows the same screen as no "?seed=" in the address, and after "Play again" the same club and
+      the same choices play the same season again. Changing Tactics or the Starting XI after matchday
+      14 does not change the End of season screen. Results are kept until the page is reloaded. These
+      hold in every later version of the game, within each season: once the season's 14 matchdays are
+      played the club home offers "End of season", and does not before; its screen has the only h1
+      "End of season", the "Final position" line equal to the club's Pos in the table, the "Top
+      scorer" line in this format and by this rule, and "Back" to the club home. Where "Play again"
+      lands is a rule of this version only. This version replaces S-008's "Season over" line, which
+      S-008 marked as a rule of its version only; S-008's durable list is unchanged. No horizontal
+      scroll at 390px and no console errors.
