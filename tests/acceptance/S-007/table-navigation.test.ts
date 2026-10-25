@@ -22,6 +22,7 @@ import { generateLeague } from "../../../src/domain/league";
 import { playMatchday, type MatchSide, type PlayedMatch } from "../../../src/domain/match";
 import { automaticXI } from "../../../src/domain/selection";
 import { PLAYERS_PER_SQUAD } from "../../../src/domain/squad";
+import { standings } from "../../../src/domain/standings";
 
 const league = generateLeague(31);
 const clubIds = league.clubs.map((club) => club.id);
@@ -170,16 +171,19 @@ describe("@US-2 S-007 the first Play match records the matchday for the whole le
     );
   });
 
-  it("Given the record exists, when Sam taps Play match again, Back, Table or anything on the way, then the very same array stays in the state @driving_port @contract-shape:bounded-change", () => {
+  it("Given the record exists, when Sam taps Play match again, Back, Table or anything on the way, then the very same array stays; Play match again appends the next four @driving_port @contract-shape:bounded-change", () => {
     const played = walk(onHome(), [play]);
     const record = played.results!;
     const states = [
-      update(walk(played, [back]), play), walk(played, [back, table]), walk(played, [back, table, back]),
+      walk(played, [back, table]), walk(played, [back, table, back]),
       walk(played, [back, ...CHOOSE_433]), walk(played, [back, ...CHOOSE_433, ...NORTHCOTT_IN_433]),
       walk(played, [back, { type: "ViewSquad" }, { type: "ViewPlayer", playerIndex: 3 }, back, back]),
       walk(played, [back, { type: "ViewTactics" }, back, { type: "ViewStartingXI" }, back]),
     ];
     for (const state of states) expect(state.results).toBe(record);
+    const again = update(walk(played, [back]), play);
+    expect(again.results).toHaveLength(8);
+    record.forEach((entry, i) => expect(again.results![i]).toBe(entry));
   });
 
   it("Given Sam has played, when he changes the formation, picks Kestrel Northcott for Calder Redfern and visits Squad and Tactics, then the table and his match are exactly as before @walking_skeleton @driving_port @contract-shape:bounded-change", () => {
@@ -396,19 +400,23 @@ describe("@US-2 S-007 whatever Sam taps afterwards, what is played stays played"
     fc.integer({ min: -2, max: PLAYERS_PER_SQUAD + 1 }).map((playerIndex): Action => ({ type: "ViewPlayer", playerIndex })),
   );
 
-  it("Given any run of up to 40 taps from the title (valid and invalid), when Sam plays, then the game never throws, once recorded the very same array stays, the table keeps its row rules and a table screen is always for a club in the league @property @error @contract-shape:bounded-change", () => {
+  it("Given any run of up to 40 taps from the title (valid and invalid), when Sam plays, then the game never throws, earlier entries stay the very same objects, the table keeps its row rules and a table screen is always for a club in the league @property @error @contract-shape:bounded-change", () => {
     fc.assert(
       fc.property(fc.array(anyAction, { maxLength: 40 }), (actions) => {
         let state = deepFreeze(initialState(league));
         for (const action of actions) {
           const next = deepFreeze(update(state, action));
-          if (state.results !== undefined && !(action.type === "NewGame" && state.screen.kind === "title")) expect(next.results).toBe(state.results);
+          if (state.results !== undefined && !(action.type === "NewGame" && state.screen.kind === "title")) {
+            state.results.forEach((entry, i) => expect(next.results![i]).toBe(entry));
+            expect(next.results!.length % 4).toBe(0);
+            expect(next.results!.length).toBeLessThanOrEqual(56);
+          }
           if (state.results === undefined && next.results !== undefined) expect(action.type).toBe("PlayMatch");
           if (next.screen.kind === "table") expect(clubIds).toContain(next.screen.clubId);
           for (const row of standingsOf(next)) {
             expect(row.won + row.drawn + row.lost).toBe(row.played);
             expect(row.points).toBe(3 * row.won + row.drawn);
-            expect(row.played).toBe(next.results === undefined ? 0 : 1);
+            expect(row.played).toBe((next.results?.length ?? 0) / 4);
           }
           state = next;
         }
@@ -426,15 +434,14 @@ describe("@US-2 S-007 whatever Sam taps afterwards, what is played stays played"
       fc.integer({ min: -2, max: PLAYERS_PER_SQUAD + 1 }).map((playerIndex): Action => ({ type: "ViewPlayer", playerIndex })),
     );
     const played = walk(onHome(), [play, back]);
-    const before = { rows: standingsOf(played), match: matchFor(played, clubId), results: played.results };
+    const before = { rows: standingsOf(played), results: played.results };
     fc.assert(
       fc.property(fc.array(tinkering, { maxLength: 40 }), (actions) => {
         let state = deepFreeze(played);
         for (const action of actions) {
           state = deepFreeze(update(state, action));
-          expect(state.results).toBe(before.results);
-          expect(standingsOf(state)).toEqual(before.rows);
-          expect(matchFor(state, clubId)).toEqual(before.match);
+          before.results!.forEach((entry, i) => expect(state.results![i]).toBe(entry));
+          expect(standings(league.clubs, state.results!.slice(0, 4))).toEqual(before.rows);
         }
       }),
     );
@@ -477,10 +484,12 @@ describe("@US-2 S-007 the S-006 cases that D12 supersedes, restated with the rec
     expect(walk(state, [play, back])).toEqual({ ...state, results: expectedRecord(state, clubId) });
   });
 
-  it("Given Sam taps Play match, Back and Play match again, then the same match screen is shown with the very same record (the re-show of this version) @boundary @contract-shape:bounded-change", () => {
+  it("Given Sam taps Play match, Back and Play match again, then the second match screen is matchday 2 (eight entries, the first four the very same objects) @boundary @contract-shape:bounded-change", () => {
     const first = update(onHome(), play);
     const second = walk(first, [back, play]);
-    expect(second).toEqual(first);
-    expect(second.results).toBe(first.results);
+    expect(second.results).toHaveLength(8);
+    first.results!.forEach((entry, i) => expect(second.results![i]).toBe(entry));
+    expect(matchFor(second, clubId)!.matchday).toBe(2);
+    expect(matchFor(second, clubId)).not.toEqual(matchFor(first, clubId));
   });
 });

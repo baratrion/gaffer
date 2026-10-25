@@ -3,6 +3,7 @@ import type { Club, League } from "../domain/league";
 import { playMatchday, type MatchResult, type MatchSide, type PlayedMatch } from "../domain/match";
 import { automaticXI, isSlotIndex, pickForSlot, type StartingXI } from "../domain/selection";
 import { generateSquad, PLAYERS_PER_SQUAD, type Player } from "../domain/squad";
+import { MATCHDAYS } from "../domain/schedule";
 import { standings, type StandingRow } from "../domain/standings";
 
 export type Screen =
@@ -22,7 +23,7 @@ export interface GameState {
   readonly screen: Screen;
   readonly formation: FormationId;
   readonly xi?: StartingXI | undefined;
-  /** The recorded matchday-1 results; absent until the first Play match (ADR-0012). */
+  /** The recorded results, four per matchday, appended on each Play match; absent until the first one (ADR-0012, ADR-0014). */
   readonly results?: readonly PlayedMatch[] | undefined;
 }
 
@@ -152,10 +153,21 @@ const pickPlayer = (state: GameState, { playerIndex }: ActionOf<"PickPlayer">): 
   return next === base ? backToXI : { ...backToXI, xi: next };
 };
 
+const highestMatchday = (results: readonly PlayedMatch[] | undefined): number =>
+  (results ?? []).reduce((highest, { matchday }) => Math.max(highest, matchday), 0);
+
+/** The matchday the next Play match plays: the highest recorded plus one (1 when none); undefined once all 14 are recorded. */
+export const nextMatchday = (state: GameState): number | undefined => {
+  const next = highestMatchday(state.results) + 1;
+  return next > MATCHDAYS ? undefined : next;
+};
+
 const playMatchAction = (state: GameState): GameState => {
   const { screen } = state;
-  if (screen.kind !== "clubHome" || !isKnownClub(state.league, screen.clubId)) return state;
-  return { ...toScreen(state, { kind: "match", clubId: screen.clubId }), results: state.results ?? playOpeningMatchday(state, screen.clubId) };
+  const matchday = nextMatchday(state);
+  if (screen.kind !== "clubHome" || !isKnownClub(state.league, screen.clubId) || matchday === undefined) return state;
+  const played = matchdayFor(state, screen.clubId, matchday);
+  return { ...toScreen(state, { kind: "match", clubId: screen.clubId }), results: [...(state.results ?? []), ...played] };
 };
 
 const viewTable = (state: GameState): GameState =>
@@ -178,7 +190,7 @@ const back = (state: GameState): GameState => {
   return state;
 };
 
-/** Matchday of the one match played until the season story keeps a matchday in state. */
+/** The matchday a state with nothing recorded falls back to. */
 export const OPENING_MATCHDAY = 1;
 
 export interface MatchSideView {
@@ -198,15 +210,16 @@ const sideFor = (state: GameState, clubId: string, managedId: string): MatchSide
   return { squad, xi: clubId === managedId ? currentXI(state, squad) : automaticXI(squad, DEFAULT_FORMATION) };
 };
 
+const matchdayFor = (state: GameState, clubId: string, matchday: number): readonly PlayedMatch[] =>
+  playMatchday({
+    seed: state.league.seed,
+    matchday,
+    sides: state.league.clubs.map((club) => sideFor(state, club.id, clubId)),
+  });
+
 /** Plays matchday 1 for the whole league: the managed side with its current eleven, every other side an automatic 4-4-2. */
 export const playOpeningMatchday = (state: GameState, clubId: string): readonly PlayedMatch[] | undefined =>
-  isKnownClub(state.league, clubId)
-    ? playMatchday({
-        seed: state.league.seed,
-        matchday: OPENING_MATCHDAY,
-        sides: state.league.clubs.map((club) => sideFor(state, club.id, clubId)),
-      })
-    : undefined;
+  isKnownClub(state.league, clubId) ? matchdayFor(state, clubId, OPENING_MATCHDAY) : undefined;
 
 export const standingsOf = (state: GameState): readonly StandingRow[] => standings(state.league.clubs, state.results ?? []);
 
@@ -215,11 +228,12 @@ const sideViewOf = (state: GameState, clubIndex: number): MatchSideView => {
   return { club, squad: squadOf(state.league, club.id)! };
 };
 
-/** The managed club's matchday-1 match, read from the record (derived when nothing is recorded yet); undefined for a club not in the league. */
+/** The managed club's match of the latest recorded matchday (matchday 1, derived, when nothing is recorded); undefined for a club not in the league. */
 export const matchFor = (state: GameState, clubId: string): MatchView | undefined => {
   const clubIndex = state.league.clubs.findIndex((club) => club.id === clubId);
   const results = clubIndex < 0 ? undefined : (state.results ?? playOpeningMatchday(state, clubId));
-  const entry = results?.find(({ home, away }) => home === clubIndex || away === clubIndex);
+  const latest = highestMatchday(results);
+  const entry = results?.find(({ home, away, matchday }) => matchday === latest && (home === clubIndex || away === clubIndex));
   return entry === undefined
     ? undefined
     : { matchday: entry.matchday, home: sideViewOf(state, entry.home), away: sideViewOf(state, entry.away), result: entry.result };

@@ -83,11 +83,11 @@ const readNow = (page: Page): Promise<Reading> =>
 const ITEM = /^(\d{1,2})' (.+) \((.+)\)$/;
 
 /** Taps "Play match" and asserts the whole screen as Sam reads it right away: one heading, one score line, the list "Goals". */
-const playAndRead = async (page: Page): Promise<{ readonly score: string; readonly goals: readonly string[]; readonly reading: Reading }> => {
+const playAndRead = async (page: Page, matchday = 1): Promise<{ readonly score: string; readonly goals: readonly string[]; readonly reading: Reading }> => {
   await button(page, "Play match").click();
   const reading = await readNow(page);
   expect(reading.focusedTag, "focus is on the heading the moment the match opens").toBe("H1");
-  expect(reading.focusedText).toBe("Matchday 1");
+  expect(reading.focusedText).toBe(`Matchday ${matchday}`);
   expect(reading.headings, "one heading on the screen").toBe(1);
   expect(reading.scoreLines, "exactly one piece of text reads as a score line").toHaveLength(1);
   const line = reading.scoreLines[0]!;
@@ -228,9 +228,17 @@ test.describe("@US-1 @US-2 S-006 who scored, and the lists that must stay exactl
     await expect(page.getByRole("button", { name: "MF Dorian Dunmore 7", exact: true })).toHaveCount(0);
     await back(page).click();
 
-    const second = await playAndRead(page);
-    expect(second.goals, "playing again replays the same match (nothing is recorded)").toEqual(goals);
-    expect(second.score).toBe(first.score);
+    const second = await playAndRead(page, 2);
+    const secondParsed = second.goals.map((text) => /^\d+' (.+) \((.+)\)$/.exec(text)!.slice(1, 3) as [string, string]);
+    for (const [scorer] of secondParsed.filter(([, clubName]) => clubName === club)) {
+      expect(eleven, `${scorer} is one of the 11 in matchday 2`).toContain(scorer);
+      expect(scorer).not.toBe("Dorian Dunmore");
+    }
+    const otherOf = (score: string): string => {
+      const [, home, , , away] = /^(.+) (\d)–(\d) (.+)$/.exec(score)!;
+      return home === club ? away! : home!;
+    };
+    expect(otherOf(second.score), "playing again plays a new opponent on matchday 2").not.toBe(otherOf(first.score));
     await back(page).click();
 
     const rival = await openClubHome(page, "?seed=31", 7);
@@ -301,7 +309,7 @@ test.describe("@US-1 S-006 Back keeps the team as Sam left it", () => {
     await back(page).click();
     await expect(heading(page)).toHaveText(club);
     await expect(heading(page)).toBeFocused();
-    await playAndRead(page);
+    await playAndRead(page, 2);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
     await back(page).click();
     await expect(heading(page)).toHaveText(club);
