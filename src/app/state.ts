@@ -4,6 +4,7 @@ import { playMatchday, type MatchResult, type MatchSide, type PlayedMatch } from
 import { automaticXI, isSlotIndex, pickForSlot, type StartingXI } from "../domain/selection";
 import { generateSquad, PLAYERS_PER_SQUAD, type Player } from "../domain/squad";
 import { MATCHDAYS } from "../domain/schedule";
+import { topScorer, type TopScorer } from "../domain/season";
 import { standings, type StandingRow } from "../domain/standings";
 
 export type Screen =
@@ -16,7 +17,8 @@ export type Screen =
   | { readonly kind: "startingXI"; readonly clubId: string }
   | { readonly kind: "choosePlayer"; readonly clubId: string; readonly slot: number }
   | { readonly kind: "match"; readonly clubId: string }
-  | { readonly kind: "table"; readonly clubId: string };
+  | { readonly kind: "table"; readonly clubId: string }
+  | { readonly kind: "seasonEnd"; readonly clubId: string };
 
 export interface GameState {
   readonly league: League;
@@ -39,6 +41,7 @@ export type Action =
   | { readonly type: "PickPlayer"; readonly playerIndex: number }
   | { readonly type: "PlayMatch" }
   | { readonly type: "ViewTable" }
+  | { readonly type: "ViewSeasonEnd" }
   | { readonly type: "Back" };
 
 type ActionOf<T extends Action["type"]> = Extract<Action, { readonly type: T }>;
@@ -77,17 +80,12 @@ const sameScreen = (previous: Screen, next: Screen): boolean => {
     case "title":
     case "pickClub":
       return next.kind === previous.kind;
-    case "clubHome":
-    case "match":
-    case "tactics":
-    case "squad":
-    case "startingXI":
-    case "table":
-      return sameClub(previous, next);
     case "choosePlayer":
       return sameClub(previous, next) && next.kind === "choosePlayer" && next.slot === previous.slot;
     case "player":
       return sameClub(previous, next) && next.kind === "player" && next.playerIndex === previous.playerIndex;
+    default:
+      return sameClub(previous, next);
   }
 };
 
@@ -98,8 +96,9 @@ export const focusPlan = (previous: Screen | undefined, next: Screen, focusId: s
 
 const toScreen = (state: GameState, screen: Screen): GameState => ({ ...state, screen });
 
+/** NewGame is "New game" on the title and "Play again" on the End of season screen. */
 const newGame = (state: GameState): GameState =>
-  state.screen.kind === "title"
+  state.screen.kind === "title" || state.screen.kind === "seasonEnd"
     ? { ...withoutPicks(toScreen(state, { kind: "pickClub" })), formation: DEFAULT_FORMATION, results: undefined }
     : state;
 
@@ -175,7 +174,12 @@ const viewTable = (state: GameState): GameState =>
     ? toScreen(state, { kind: "table", clubId: state.screen.clubId })
     : state;
 
-const HOME_RETURNING_KINDS: ReadonlySet<Screen["kind"]> = new Set(["squad", "match", "tactics", "startingXI", "table"]);
+const viewSeasonEnd = (state: GameState): GameState =>
+  state.screen.kind === "clubHome" && isKnownClub(state.league, state.screen.clubId) && nextMatchday(state) === undefined
+    ? toScreen(state, { kind: "seasonEnd", clubId: state.screen.clubId })
+    : state;
+
+const HOME_RETURNING_KINDS: ReadonlySet<Screen["kind"]> = new Set(["squad", "match", "tactics", "startingXI", "table", "seasonEnd"]);
 
 const back = (state: GameState): GameState => {
   const { screen, league } = state;
@@ -239,6 +243,21 @@ export const matchFor = (state: GameState, clubId: string): MatchView | undefine
     : { matchday: entry.matchday, home: sideViewOf(state, entry.home), away: sideViewOf(state, entry.away), result: entry.result };
 };
 
+export interface SeasonSummary {
+  readonly position: number;
+  readonly topScorer: TopScorer | undefined;
+}
+
+/** The club's final position (its Pos in the table) and top scorer over the recorded results; undefined for a club not in the league. */
+export const seasonSummaryOf = (state: GameState, clubId: string): SeasonSummary | undefined => {
+  const clubIndex = state.league.clubs.findIndex((club) => club.id === clubId);
+  const row = standingsOf(state).find((standing) => standing.clubId === clubId);
+  const squad = squadOf(state.league, clubId);
+  return row === undefined || squad === undefined
+    ? undefined
+    : { position: row.position, topScorer: topScorer(state.results ?? [], clubIndex, squad) };
+};
+
 export const update = (state: GameState, action: Action): GameState => {
   switch (action.type) {
     case "NewGame":
@@ -263,6 +282,8 @@ export const update = (state: GameState, action: Action): GameState => {
       return playMatchAction(state);
     case "ViewTable":
       return viewTable(state);
+    case "ViewSeasonEnd":
+      return viewSeasonEnd(state);
     case "Back":
       return back(state);
   }

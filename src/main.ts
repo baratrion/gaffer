@@ -6,6 +6,7 @@ import {
   initialState,
   matchFor,
   nextMatchday,
+  seasonSummaryOf,
   type MatchView,
   squadOf,
   standingsOf,
@@ -23,6 +24,7 @@ import { renderClubHome } from "./ui/screens/club-home";
 import { renderMatch, type MatchScreenView } from "./ui/screens/match";
 import { renderPickClub } from "./ui/screens/pick-club";
 import { renderPlayer } from "./ui/screens/player";
+import { renderSeasonEnd } from "./ui/screens/season-end";
 import { renderSquad } from "./ui/screens/squad";
 import { renderStartingXI } from "./ui/screens/starting-xi";
 import { renderTable } from "./ui/screens/table";
@@ -40,6 +42,12 @@ const squadOrThrow = (league: League, clubId: string) => {
   const squad = squadOf(league, clubId);
   if (!squad) throw new Error(`Unknown club in game state: ${clubId}`);
   return squad;
+};
+
+const seasonSummaryOrThrow = (state: GameState, clubId: string) => {
+  const summary = seasonSummaryOf(state, clubId);
+  if (!summary) throw new Error(`Unknown club in game state: ${clubId}`);
+  return summary;
 };
 
 const scorerName = (side: MatchView["home"], playerIndex: number): string => {
@@ -110,6 +118,9 @@ const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void =
     }
     case "table":
       renderTable(root, { rows: standingsOf(state), managedClubId: screen.clubId }, dispatch);
+      break;
+    case "seasonEnd":
+      renderSeasonEnd(root, seasonSummaryOrThrow(state, screen.clubId), dispatch);
       break;
     default: {
       const unhandled: never = screen;

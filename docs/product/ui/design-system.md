@@ -43,3 +43,8 @@ Patterns:
 - **Stat lines** (`p.season-line`): label, one space, value on one line, 1.1rem with tabular numerals, same scale as the player stat lines but a new class (`.player-line` has `:nth-of-type` rules for the player screen). Label muted chalk, value bold; the "Final position" value is gold. Inline flow only: spans and `<p>` take no `display`, `position`, `float`, flex or grid and no `text-transform`, so `innerText` and `textContent` read exactly "Final position 3rd" and "Top scorer Name (5 goals)". Long names wrap (`overflow-wrap: anywhere`).
 - **Actions** (`div.season-actions`): a one-column grid, 10px gap, below the lines. "Play again" is the pitch-gold primary button (`button.primary`, full width, 48px); "Back" is the shared outlined gold `.back-button` (48px). Both stay 44px or taller.
 - **Heading**: `.season-end h1` 1.75rem with a 16px bottom margin, like the other screens.
+
+## End of season (S-009)
+- **Season lines** (`p.season-line`): the chalk-panel surface (1px chalk 25% border, 8% wash, 10px radius) with a 4px gold left edge; label in muted chalk (`.season-label`), value bold gold at 1.25rem (`.season-value`). The `p` and its spans keep inline flow, with no flex, grid, float, position, `display` override, `text-transform` or generated content, so the line reads as one string of text.
+- **Actions** (`.season-actions`): "Play again" is the primary gold button, "Back" the shared outlined `.back-button`; one column, 10px gap, 48px tall.
+- **Club home**: "End of season" takes the "Play match" slot as the fifth primary button.

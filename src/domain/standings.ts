@@ -88,3 +88,14 @@ export const standings = (clubs: readonly Club[], played: readonly ScoredMatch[]
 /** +N, 0 or -N, with the ASCII hyphen-minus. */
 export const formatGoalDifference = (goalDifference: number): string =>
   goalDifference > 0 ? `+${goalDifference}` : goalDifference < 0 ? `-${-goalDifference}` : "0";
+
+const ORDINAL_SUFFIXES: Readonly<Record<number, string>> = { 1: "st", 2: "nd", 3: "rd" };
+
+/** 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th, 21st; a RangeError unless the position is a positive integer. */
+export const formatOrdinal = (position: number): string => {
+  if (!Number.isInteger(position) || position < 1) {
+    throw new RangeError(`Not a position: ${position}`);
+  }
+  const teens = position % 100 >= 11 && position % 100 <= 13;
+  return `${position}${teens ? "th" : (ORDINAL_SUFFIXES[position % 10] ?? "th")}`;
+};
