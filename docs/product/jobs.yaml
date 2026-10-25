@@ -105,3 +105,21 @@ jobs:
       One tap from the club home to a compact table built from the matchday's recorded results, his row
       highlighted and kept for the session, closes the five-minute loop (pick team, play match, see table)
       and sets up the later matchdays, the other results and the end-of-season position.
+  - id: J-08
+    name: play-out-my-season
+    statement: >-
+      When I come back for a few spare minutes, I want to play my club's next match of the
+      season, so that each result builds toward where we finish.
+    dimensions:
+      functional: Play the next matchday in one tap from the club home, meet every rival home and away over 14 matchdays, and read the table after every match, on a phone.
+      emotional: Feel the season move, with each result and each change to my eleven counting for what comes next, and feel the closure of a final position.
+      social: Be able to tell other football fans "we finished third, five points off the title, and beat Marlbrook away".
+    forces:
+      push: A season stuck on matchday 1 has no next decision; one result and a table that never moves are not a season.
+      pull: The classic "play the next fixture, check the table" rhythm of the management games Sam grew up with, one match per tap.
+      anxiety: Results that change after the fact, picks that do not count for the next match, a season that never ends or ends without saying so.
+      habit: Re-reading the last result and table instead of playing on; expecting to set up every match from scratch.
+    opportunity: >-
+      One tap per matchday from the club home, each result recorded for good and the table updated every
+      time, carries the five-minute loop through a whole season and sets up the end-of-season screen,
+      save and continue, and the other results.
