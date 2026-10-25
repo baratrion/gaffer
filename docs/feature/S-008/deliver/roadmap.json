@@ -1,0 +1,78 @@
+{
+  "roadmap": {
+    "project_id": "S-008",
+    "created_at": "2026-10-25T12:15:57Z",
+    "total_steps": 2
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Play the season, matchday by matchday",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Next matchday recording, latest-match screen and re-show test amendments",
+          "criteria": [
+            "Each Play match from a known club's home appends the 4 results of the next matchday (highest recorded matchday + 1, 1 when none); earlier entries stay the identical objects",
+            "The match screen shows the managed club's fixture of the latest recorded matchday, with the h1 reading Matchday N, instead of re-showing matchday 1",
+            "Play match after matchday 14, or off a known club's home, returns the very same state and never throws; NewGame still clears the results",
+            "Formation and Starting XI picks made between matches change nothing recorded and count from the next match on",
+            "The held-out season-progression, season-end and season-for-a-club specs are moved into tests/acceptance/S-008/ and pass; the first Play match of a new game is still matchday 1",
+            "The 11 superseded S-006/S-007 re-show assertions (upstream-issues U-1 rows 1-11) are replaced, not weakened, in the same commit; ci:lint, ci:typecheck, ci:test and ci:e2e are green"
+          ],
+          "test_file": "tests/acceptance/S-008/season-progression.test.ts",
+          "scenario_name": "Second Play match: first four entries the very same objects, next four matchday 2, screen reads Rushmoor Heath Albion 2\u20131 Netherwold Borough",
+          "files_to_modify": [
+            "src/app/state.ts",
+            "tests/acceptance/S-008/season-progression.test.ts",
+            "tests/acceptance/S-008/season-end.test.ts",
+            "tests/acceptance/S-008/season-for-a-club.test.ts",
+            "tests/acceptance/S-006/match-navigation.test.ts",
+            "tests/acceptance/S-007/table-navigation.test.ts",
+            "tests/e2e/S-006-match.spec.ts",
+            "tests/e2e/S-007-table.spec.ts"
+          ]
+        },
+        {
+          "id": "01-02",
+          "name": "Season over line on the club home after matchday 14",
+          "criteria": [
+            "After matchday 14 the club home shows the plain text Season over (no heading, no button) in the Play match slot and no button named Play match",
+            "Squad, Tactics, Starting XI and Table stay on the club home, each 44px or taller; Table still reads P 14 on every row",
+            "The club-name h1 is focused on arrival and nothing in the renderer moves focus; no sideways scroll at 390px and no console errors",
+            "A whole seed-31 season in 28 taps plays Matchday 1 to Matchday 14 and matches the reference season, final table included",
+            "The held-out S-008-season e2e spec is moved into tests/e2e/; ci:e2e and tests/protected S-001..S-008 pass; season-reference.ts is kept and distill/pending/ is removed"
+          ],
+          "test_file": "tests/e2e/S-008-season.spec.ts",
+          "scenario_name": "Whole season at ?seed=31 in 28 taps: Matchday 1..14, Season over, final table cell for cell",
+          "files_to_modify": [
+            "src/main.ts",
+            "src/ui/screens/club-home.ts",
+            "src/ui/styles.css",
+            "tests/e2e/S-008-season.spec.ts"
+          ]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/"
+    ],
+    "test_directories": [
+      "tests/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**",
+      "coverage/**",
+      "tests/protected/**",
+      "**/*.d.ts"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-acceptance-designer-reviewer",
+    "approved_at": "2026-10-25T12:30:00Z"
+  }
+}
