@@ -3,7 +3,11 @@ import type { Club } from "../../app/types";
 import { el } from "../dom";
 import { COLOUR_HEX } from "./club-colours";
 
-export const renderClubHome = (root: HTMLElement, club: Club, dispatch: (action: Action) => void): void => {
+export const renderClubHome = (
+  root: HTMLElement,
+  { club, seasonOver }: { readonly club: Club; readonly seasonOver: boolean },
+  dispatch: (action: Action) => void,
+): void => {
   const actionButton = (label: string, action: Action): HTMLElement => {
     const button = el("button", { type: "button", class: "primary" }, label);
     button.addEventListener("click", () => dispatch(action));
@@ -26,7 +30,7 @@ export const renderClubHome = (root: HTMLElement, club: Club, dispatch: (action:
         actionButton("Squad", { type: "ViewSquad" }),
         actionButton("Tactics", { type: "ViewTactics" }),
         actionButton("Starting XI", { type: "ViewStartingXI" }),
-        actionButton("Play match", { type: "PlayMatch" }),
+        seasonOver ? el("p", { class: "season-over" }, "Season over") : actionButton("Play match", { type: "PlayMatch" }),
         actionButton("Table", { type: "ViewTable" }),
       ),
     ),

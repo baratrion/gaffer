@@ -5,8 +5,8 @@
 // highlighted; after "Play match", "Back", "Table" it reads 1 Tarnbeck Borough +4 3 ... 6 Netherwold Borough -1 0 (the golden of US-2
 // example 1, derived from ADR-0011 values and written out below before the table exists). Covers only what tests/protected/S-007 does
 // not: the cross-engine golden table, focus on each heading the instant it opens, role counts, text equality, 44px, the highlighted row
-// (aria-current), the click-everything check that only "Back" navigates, "what is played stays played" with a real pick, the re-show on a
-// second "Play match" (this version only), no sideways scroll and no console error.
+// (aria-current), the click-everything check that only "Back" navigates, "what is played stays played" with a real pick, Matchday 2 on a
+// second "Play match", no sideways scroll and no console error.
 // Environment precondition: runs against local-preview (ci:serve, http://localhost:4173/gaffer/) or, via BASE_URL, the deployed Pages site;
 // both serve the production build under /gaffer/. Not meant for local-dev (vite dev, :5173): waived (as S-003..S-006).
 // Environment probes (ADR-0012/0013 Earned Trust): (1) the browser reproduces the Node golden table; (2) native table roles survive the
@@ -174,8 +174,8 @@ const parseScore = (line: string): { home: string; away: string; homeGoals: numb
   const [, home, h, a, away] = /^(.+) (\d)–(\d) (.+)$/.exec(line)!;
   return { home: home!, away: away!, homeGoals: Number(h), awayGoals: Number(a) };
 };
-const readMatch = async (page: Page): Promise<{ score: string; goals: string[] }> => {
-  await expect(heading(page)).toHaveText("Matchday 1");
+const readMatch = async (page: Page, matchday = 1): Promise<{ score: string; goals: string[] }> => {
+  await expect(heading(page)).toHaveText(`Matchday ${matchday}`);
   const score = (await page.locator("section p").filter({ hasText: /–/ }).first().innerText()).trim();
   const goals = (await page.getByRole("list", { name: "Goals", exact: true }).getByRole("listitem").allInnerTexts()).map((text) => text.trim());
   return { score, goals };
@@ -342,7 +342,7 @@ test.describe("@US-2 S-007 see the table after matchday 1", () => {
     expect(marked).toEqual(["Marlbrook Athletic"]);
   });
 
-  test("@walking_skeleton What is played stays played: after 4-3-3, Kestrel Northcott for Calder Redfern and a visit to Squad the table reads exactly as before, and Play match shows the same score line and Goals @contract-shape:bounded-change", async ({ page }) => {
+  test("@walking_skeleton What is played stays played: after 4-3-3, Kestrel Northcott for Calder Redfern and a visit to Squad the table reads exactly as before, and Play match shows Matchday 2 @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
     const club = await openClubHome(page, "?seed=31", 0);
     await playBackTable(page);
@@ -372,9 +372,12 @@ test.describe("@US-2 S-007 see the table after matchday 1", () => {
     await back(page).click();
 
     await button(page, "Play match").click();
-    const again = await readMatch(page);
-    expect(again.score, "the re-show of this version: the same recorded score line").toBe(SCORE_31);
-    expect(again.goals, "and the same Goals list").toEqual(GOALS_31);
+    const again = await readMatch(page, 2);
+    expect(again.score, "matchday 2: Rushmoor Heath Albion named first, Netherwold Borough second").toMatch(/^Rushmoor Heath Albion \d–\d Netherwold Borough$/);
+    expect(again.score, "and not the matchday-1 score line").not.toBe(SCORE_31);
+    for (const goal of again.goals.filter((text) => text.endsWith("(Netherwold Borough)"))) {
+      expect(goal, "his scorers come from the eleven he picked").not.toContain("Calder Redfern");
+    }
     await back(page).click();
     await expect(heading(page)).toHaveText(club);
     await expect(heading(page)).toBeFocused();
@@ -431,7 +434,7 @@ test.describe("@US-1 @US-2 S-007 the table on a phone", () => {
     expect((await readTable(page)).rows).toEqual(GOLDEN_31);
     await back(page).click();
     await button(page, "Play match").click();
-    expect((await readMatch(page)).score).toBe(SCORE_31);
+    expect((await readMatch(page, 2)).score, "matchday 2's score line, not matchday 1's").not.toBe(SCORE_31);
     await back(page).click();
     await expect(heading(page)).toHaveText(club);
     await expect(heading(page)).toBeFocused();

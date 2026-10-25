@@ -97,12 +97,16 @@ describe("@US-1 S-006 Sam sends his team out from the club home and comes back t
       }
     });
 
-    it("when Sam taps Play match, Back and Play match again, then the same match screen is shown (the recorded matchday is kept, not replayed) @boundary @contract-shape:bounded-change", () => {
+    it("when Sam taps Play match, Back and Play match again, then the second match screen is matchday 2 (eight entries, the first four the very same objects) @boundary @contract-shape:bounded-change", () => {
       const first = update(onHome(), play);
       const again = walk(first, [back, play]);
-      expect(again).toEqual(first);
-      expect(again.results).toBe(first.results);
-      expect(matchFor(again, clubId)).toEqual(matchFor(first, clubId));
+      expect(again.results).toHaveLength(8);
+      first.results!.forEach((entry, i) => expect(again.results![i]).toBe(entry));
+      expect(again.screen).toEqual({ kind: "match", clubId });
+      expect(matchFor(again, clubId)!.matchday).toBe(2);
+      expect(matchFor(again, clubId)).not.toEqual(matchFor(first, clubId));
+      expect(again.formation).toBe(first.formation);
+      expect(again.xi).toBe(first.xi);
     });
 
     it("when the club is not in the league, then Play match changes nothing (the very same state) @error @boundary @contract-shape:bounded-change", () => {
