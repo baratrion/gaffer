@@ -24,7 +24,7 @@ If this slice fails, it disproves this: "playing the next matchday on each tap, 
 ## Acceptance (player-facing)
 - `?seed=31`, "Netherwold Borough", untouched tactics: "Play match" "Matchday 1" "Netherwold Borough 1–2 Marlbrook Athletic"; "Back", "Play match" "Matchday 2" "Rushmoor Heath Albion 2–1 Netherwold Borough". "Back", "Table": every row P 2, with Netherwold Borough 8th on Pts 0 and GD "-2". After matchday 3 ("Netherwold Borough 2–1 Oakhampton Rise Borough") he is 6th on Pts 3.
 - `?seed=abc`, "Oakhampton Rise Borough": "Matchday 2" reads "Oakhampton Rise Borough 2–2 Mossdale Wanderers"; its row reads P 2, W 1, D 1, GD "+1", Pts 4.
-- After matchday 1: "Back", "Tactics", "4-3-3", "Back", "Starting XI", "MF Calder Redfern 15", "Kestrel Northcott 6", "Back", "Table": the table is unchanged; "Back", "Play match" shows "Matchday 2" against Rushmoor Heath Albion, and every Netherwold Borough goal is scored by one of his 11 now, never the GK.
+- After matchday 1: "Back", "Tactics", "4-3-3", "Back", "Starting XI", "MF Calder Redfern 15", "Kestrel Northcott 6", "Back", "Table": the table is unchanged; "Back", "Starting XI" (read the 11), "Back", "Play match" shows "Matchday 2" against Rushmoor Heath Albion, and every Netherwold Borough goal is scored by one of his 11 now, never the GK.
 - Two fresh pages, same seed and club, 3 matches each: identical match screens and tables.
 
 ## Developer criteria (not story AC)

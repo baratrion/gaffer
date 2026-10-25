@@ -26,7 +26,7 @@ Facts checked in the code:
 ### 1. How the next matchday is known
 | Option | Pros | Cons |
 |---|---|---|
-| **A. Highest recorded matchday + 1 (0 when nothing is recorded); `undefined` after 14 (chosen)** | One source (the log). No assumption about entry order or count per matchday. 56 entries at most | Reads the whole log per call (microseconds) |
+| **A. Highest recorded matchday + 1 (the max over an empty log is taken as 0, so next = 1); `undefined` after 14 (chosen)** | One source (the log). No assumption about entry order or count per matchday. 56 entries at most | Reads the whole log per call (microseconds) |
 | B. `results.length / 4 + 1` | Simplest arithmetic | Silently wrong if a partial or reordered log ever exists (a future loader) |
 | C. A stored `matchday` counter in `GameState` | O(1) | A second source of truth; `initialState` gains a key or an optional field that can disagree with the log; every S-007 whole-state `toEqual` pattern needs care |
 
@@ -40,7 +40,7 @@ Facts checked in the code:
 ### 3. What the match screen reads
 | Option | Pros | Cons |
 |---|---|---|
-| **A. `matchFor(state, clubId)` returns the managed club's entry of the latest recorded matchday; the matchday-1 derivation stays as its fallback when nothing is recorded (chosen)** | Same signature, same `MatchView`; `main.ts` and `renderMatch` unchanged; S-006 cases and the fallback-equivalence property stay green. The match screen is reachable only straight after a tap, so "latest" is "just played" | "Latest" is implicit; re-opening an older match (a later story) needs a matchday on the screen |
+| **A. `matchFor(state, clubId)` returns the managed club's entry of the latest recorded matchday (selection rule below); the matchday-1 derivation stays as its fallback when nothing is recorded (chosen)** | Same signature, same `MatchView`; `main.ts` and `renderMatch` unchanged; S-006 cases and the fallback-equivalence property stay green. The match screen is reachable only straight after a tap, so "latest" is "just played" | "Latest" is implicit; re-opening an older match (a later story) needs a matchday on the screen |
 | B. `Screen` match carries `matchday` | Ready for re-open | Breaks the `toEqual({ kind: "match", clubId })` literals, extends `sameScreen`; no consumer today |
 | C. `matchFor(state, clubId, matchday)` | Explicit | Same ripple in S-006 cases; `main.ts` must find the matchday somewhere |
 
@@ -58,8 +58,9 @@ Facts checked in the code:
 ### App: `src/app/state.ts` (EXTEND)
 - `nextMatchday(state) => number | undefined` (exported, pure): highest `matchday` in `state.results` plus 1 (1 when none); `undefined` when that exceeds `MATCHDAYS` (14).
 - `PlayMatch` (valid only from a known club's `clubHome`, as before): when `nextMatchday(state)` is `undefined` it returns the very same state (no-op, `toBe`); else it goes to `match` of the same club with `results` = the old entries followed by the 4 entries of `matchdayFor(state, clubId, next)`. The earlier entries are the same objects; `results` itself is a new array per tap.
-- `matchFor` per 3A. `OPENING_MATCHDAY = 1` stays as the fallback matchday and as the value `playOpeningMatchday` passes; `update` no longer reads it.
-- Unchanged: `NewGame` drops `results`; no other action touches it; `Screen`, `Action`, `focusPlan`, `sameScreen`, `back`, `standingsOf`, `initialState`; `update` stays at 13 cases.
+- `matchFor` per 3A, with this **selection rule (binding)**: let `latest` = the highest `matchday` in the record, which is `nextMatchday(state) - 1` while matchdays remain and 14 when the season is over. Restrict the record to entries whose `matchday === latest`, then take the entry that contains the club's index. The S-007 body (`results.find(home === i || away === i)` over the whole log) returns the FIRST entry, matchday 1, and would ship the re-show; it must not survive. With nothing recorded, the record is the matchday-1 derivation (`latest` = 1).
+- `OPENING_MATCHDAY = 1` stays as the fallback matchday and as the value `playOpeningMatchday` passes; `update` no longer reads it.
+- Unchanged: `NewGame` drops `results`; no other action touches it; `Screen`, `Action`, `focusPlan`, `sameScreen`, `back`, `standingsOf`, `initialState`; `update` stays at 12 cases (complexity 13, limit 15).
 - The domain is unchanged: `playMatchday`, `fixturesOf`, `standings`, the streams and every golden.
 
 ### UI
@@ -88,19 +89,21 @@ No new stream or draw. Matchday 1 is bit-identical to S-007. The same seed, club
 |---|---|---|
 | `nextMatchday` | pure, return-only | 1 on none, k+1 for k recorded, `undefined` at 14; property: equals `results.length / 4 + 1` along any play-only run; frozen state unchanged |
 | `update` (`PlayMatch`) | pure, return-only | Returned state is `{ ...state, screen, results }`: `screen` becomes `match`; `results` grows by exactly the 4 entries of matchday k+1 (equal to `playMatchday` with Sam's `currentXI` and automatic others); earlier entries `toBe` identical; after 14 the very same state (`toBe`); `NewGame` drops `results`; any other action keeps the same array (`toBe`) |
-| `matchFor` | pure, return-only | The managed club's entry of the latest recorded matchday (`matchday` = N); unknown club `undefined`; nothing recorded: the S-006 fallback (cases unedited) |
+| `matchFor` | pure, return-only | Entries restricted to `matchday === latest`, then the club's entry (`matchday` = N, never the matchday-1 entry once 2 are recorded); unknown club `undefined`; nothing recorded: the S-006 fallback (cases unedited). Unit boundary cases at matchday 2 (not matchday 1) and 14 |
 | `renderClubHome` | bounded-change | Universe: `section.club-home` = swatch, h1, `div.club-actions` of 5 children in the order Squad, Tactics, Starting XI, [`button.primary` "Play match" or `p.season-over` "Season over"], Table. The flag is the only input that changes it |
+| `main.ts` | bounded-change (S-008 delta) | Universe of the delta: the `clubHome` case's props (the `seasonOver` flag). As a whole `main.ts` stays the ADR-0003 imperative shell (reads `location.search` once, writes `root`'s children and focus), outside the plan-returning rule; every other case, the loop and the focus calls are unchanged |
 
 ### Earned Trust (no adapter; environment assumptions named and probed)
 1. **Chromium vs Node over 14 matchdays.** The e2e reads all 14 score lines at `?seed=31` and compares them with the reference season pinned by the Node test (DISCUSS `reference-season.md`). WebKit and iOS Safari are not probed. Fault: an approximated function in `match.ts` (the grep test also covers it).
-2. **Append-only.** Property over seeds, 8 clubs and runs of up to 80 actions: every earlier entry stays `toBe` identical; `results.length` is 0, 4, ..., 56; matchdays contiguous. Fault: a re-record or reorder.
+2. **Append-only.** fast-check property over seeds, 8 clubs and runs of up to 80 actions (`numRuns` 100, fresh `FC_SEED`): every earlier entry stays `toBe` identical; `results.length` is 0, 4, ..., 56; matchdays contiguous. Fault: a re-record or reorder.
+2a. **K2 measurement (DISCUSS: 100% over seeds 1..1000 x 8 managed clubs).** Two layers. (i) A committed fixed-seed test over seeds 1..1000 x 8 clubs for the schedule invariants: over matchdays 1..7 and 8..14 the club meets each other club once, and is named first against each exactly once. This is seed-independent schedule data (`fixturesOf`), so it is cheap. (ii) fast-check sampling (`numRuns` 100, fresh `FC_SEED`, whole seasons through `update`) for the season and table invariants: row rules, totals, `played` = N after every tap, Sam's row equals the sum of his score lines. The full 8000 seasons are not simulated; the claim is the sample plus the exhaustive schedule layer.
 3. **The guard.** Fourteen taps then a 15th `PlayMatch` returns `toBe` the same state and never throws; boundary cases at 13, 14 (kills an off-by-one mutant in Stryker's nightly run on `state.ts`).
 4. **Derived equals counted.** `nextMatchday` equals `results.length / 4 + 1` on every reachable state (reachable states are contiguous); a future persistence story must validate shape, order and contiguity of a loaded log, with its own `probe()`.
 5. **"Season over" is plain text.** The e2e asserts: no button named "Play match", one element reading exactly "Season over" that is no heading and no button, the other four buttons present and 44px or taller, no sideways scroll, `innerText` equals `textContent`. Fault: a disabled button, a `text-transform`, a heading.
 6. **Names.** "Season over" in no `names.ts` string (unit check, as D9).
 
 ### Enforcement
-- oxlint boundaries unchanged (`state.ts` imports domain only, ui imports app and domain). `max-params` 3 (`renderClubHome` keeps 3 through a props object), `complexity` 15.
+- oxlint boundaries unchanged (`state.ts` imports domain only, ui imports app and domain). `max-params` 3 (`renderClubHome` keeps 3 through a props object), `complexity` 15 (`update` stays at 12 cases, complexity 13).
 - Stryker's globs already cover `state.ts`; no config change. The `.focus(` grep test over `src/ui/` still holds.
 
 No external integrations, no contract tests, no new dependency.

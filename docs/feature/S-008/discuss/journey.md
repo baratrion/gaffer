@@ -30,18 +30,19 @@ the real generator's (`reference-season.md`).
 | 7 | Club home | "Play match" on matchday 8 | "Marlbrook Athletic 1–2 Netherwold Borough": the matchday-1 rival again, names in the other order | Revenge |
 | 8 | Club home | Plays matchdays 9 to 14 | Matchday 14 "Tarnbeck Borough 2–1 Netherwold Borough" | A last-day defeat |
 | 9 | Match screen | "Back" | Club home, heading "Netherwold Borough" (focused), the line "Season over" where "Play match" was; "Squad", "Tactics", "Starting XI", "Table" stay | Closure |
-| 10 | Club home | "Table" | Every row P 14; 1 Oakhampton Rise Borough Pts 28, 2 Tarnbeck Borough 26, 3 Netherwold Borough (highlighted) W 7, D 2, L 5, GD "+2", Pts 23 | Closure: a final place, and "one more season?" |
+| 10 | Club home | "Table" | Every row P 14; 1 Oakhampton Rise Borough Pts 28, 2 Tarnbeck Borough 26, 3 Netherwold Borough (highlighted) W 7, D 2, L 5, GD "+2", Pts 23 | Closure: a final place; the season ends here in this version ("one more season?" is a later-story feeling) |
 
 Emotional arc: the sting of matchday 1, the worry of the bottom after two defeats, then relief and the
 climb, mid-season tension, revenge on matchday 8, and the closure of a final table with a finishing place.
-Each step is one tap or two; the screen title is focused on every arrival.
+Each step is one tap or a short run of taps; the screen title is focused on every arrival.
 
 ## Shared artifacts (single source each)
 - **Schedule**: `fixturesOf(N)` (ADR-0010). Opponent and name order per matchday, the same for every seed.
 - **Results log**: `GameState.results` (ADR-0012), appended 4 at a time by "Play match". It is the single
   source for the match screen, the table, the next matchday and "season over"; none of these is stored
   separately.
-- **Next matchday**: the number of matchdays recorded plus 1; "season over" when 14 are recorded.
+- **Next matchday**: as defined in the feature-delta Glossary (the matchday after the last recorded one;
+  1 when none); "season over" when 14 are recorded.
 - **Starting XI at the tap**: `currentXI` at the moment of "Play match" (S-005). It is read once, then frozen
   in that matchday's result.
 - **Standings**: `standingsOf(state)` (S-007), unchanged; derived on render.
