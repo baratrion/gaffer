@@ -1,0 +1,100 @@
+{
+  "roadmap": {
+    "project_id": "S-009",
+    "created_at": "2026-10-25T21:44:09Z",
+    "total_steps": 3
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "See how my season ended",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Season rules: ordinal final position and top scorer in the domain",
+          "criteria": [
+            "Positions 1 to 8 read 1st, 2nd, 3rd, 4th, 5th, 6th, 7th, 8th; 11, 12 and 13 and larger positions follow the English suffix rule; zero, negatives, fractions, NaN and infinities are rejected with a RangeError",
+            "The top scorer is the club player with the most goals for the club only (home and away both count, the opponent's goals and matches the club did not play never count); a tie goes to the player listed first in the Squad list, in any log order",
+            "A club that scored no goal has no top scorer and its line reads exactly Top scorer none; one goal reads (1 goal) and any other count reads (N goals), always matching the one Top scorer pattern",
+            "A counted goal naming a player outside the squad is rejected with a RangeError; inputs are never mutated and repeated calls give equal answers",
+            "For any seed and each of the 8 clubs the top scorer equals the player most often named with his club on the 14 Goals lists, ties to Squad order",
+            "The held-out season-rules spec is moved into tests/acceptance/S-009/ in this step and passes; the committed S-009 guards stay green; ci:lint, ci:typecheck and ci:test are green"
+          ],
+          "test_file": "tests/acceptance/S-009/season-rules.test.ts",
+          "scenario_name": "Given two players tie on 2 goals (squad indices 14 and 17), when the top scorer is read in either log order, then the one listed first in the Squad list is named, never the last",
+          "files_to_modify": [
+            "src/domain/season.ts",
+            "src/domain/standings.ts",
+            "tests/acceptance/S-009/season-rules.test.ts"
+          ]
+        },
+        {
+          "id": "01-02",
+          "name": "App state: End of season screen, season summary selector and Play again reset",
+          "criteria": [
+            "End of season opens the club's own End of season screen only from a known club's home with all 14 matchdays played; with 0 to 13 played, from any other screen, or from the End of season screen itself, the game is exactly as it was",
+            "The season summary of a finished season gives the club's final position, equal to its Pos in the League table, and its top scorer; the seed 31, 20260, 13 and 1 reference seasons and all 2400 seasons of seeds 1 to 300 x 8 clubs agree with an independent count of the recorded Goals lists",
+            "Changing Tactics or the Starting XI after matchday 14 leaves the summary, the table and the results unchanged; the same seed, club and choices give the same summary, and ?seed=abc equals no seed",
+            "Back from the End of season screen returns to the finished club home exactly as it was, and End of season opens the same summary again; Table still reads P 14 on every row",
+            "Play again, New game from the End of season screen, gives exactly a new game of the same league (pick-a-club screen, 4-4-2, no picks, no results), also after a tuned season; New game on every other screen but the title stays a no-op; the same club and choices replay the same 56 results",
+            "Focus goes to the new heading on every screen change to and from End of season; the game keeps only its five existing state keys and never throws over runs of 40 valid and invalid actions",
+            "The held-out season-summary and season-end-navigation specs are moved into tests/acceptance/S-009/ and pass; the S-008 season-end key-list assertion is amended (replaced, not weakened) from the amend patch in this step; ci:lint, ci:typecheck, ci:test and ci:e2e are green"
+          ],
+          "test_file": "tests/acceptance/S-009/season-end-navigation.test.ts",
+          "scenario_name": "Given Sam is on the End of season screen, when he taps Play again, then the pick-a-club screen shows and the game equals a new game of the same league: no results, 4-4-2, no picks, the same league",
+          "files_to_modify": [
+            "src/app/state.ts",
+            "tests/acceptance/S-009/season-summary.test.ts",
+            "tests/acceptance/S-009/season-end-navigation.test.ts",
+            "tests/acceptance/S-008/season-end.test.ts"
+          ]
+        },
+        {
+          "id": "01-03",
+          "name": "End of season screen, club home button, Play again wiring and S-008 e2e amendments",
+          "criteria": [
+            "After matchday 14 the club home shows five buttons, Squad, Tactics, Starting XI, End of season and Table, each 44px or taller, no Play match button and no Season over text; before matchday 14 Play match is there and End of season is not",
+            "End of season opens a screen whose only heading reads End of season and has focus; Final position (1st to 8th, equal to the club's Pos on the Table) and Top scorer each read as one line of text inside 390px; at seed 31 they read Final position 3rd and Top scorer Garrick Thistlewood (5 goals) after a 5-5 tie",
+            "The screen offers only Play again and Back, each 44px or taller; tapping the title or the lines does nothing; Back returns to the club home with its name focused and End of season still offered",
+            "Play again shows the pick-a-club screen with focus on its heading and the same 8 clubs in the same order; after picking a club the table is all zero in A to Z order, Tactics shows 4-4-2, the Starting XI is the automatic one and Play match reads Matchday 1 with the same first match",
+            "At seeds 13 and 1 the screen reads 8th with Orrin Yarrow (1 goal) and Bram Fairbourne (3 goals); at ?seed=abc it reads 2nd with Joren Northcott (8 goals), the same as with no seed; Chromium agrees with Node",
+            "The held-out season-end-source spec and the S-009 end-of-season e2e spec are moved into tests/acceptance/S-009/ and tests/e2e/; the remaining S-008 e2e amendments from the patch replace, never weaken, the Season over assertions; no sideways scroll at 390px and no console errors",
+            "ci:lint, ci:typecheck, ci:test, ci:e2e and tests/protected S-001..S-009 pass; docs/feature/S-009/distill/pending/ is removed and season-end-reference.ts and season-oracle.ts are kept"
+          ],
+          "test_file": "tests/e2e/S-009-end-of-season.spec.ts",
+          "scenario_name": "Sam plays 14 matches at ?seed=31; the club home offers End of season in the Play match slot only then; one tap opens the screen titled End of season (focused, the only heading) with Final position 3rd, Top scorer Garrick Thistlewood (5 goals) after a 5-5 tie broken by Squad order, and Play again and Back, 44px or taller",
+          "files_to_modify": [
+            "src/ui/screens/season-end.ts",
+            "src/ui/screens/club-home.ts",
+            "src/main.ts",
+            "src/ui/styles.css",
+            "tests/acceptance/S-009/season-end-source.test.ts",
+            "tests/e2e/S-009-end-of-season.spec.ts",
+            "tests/e2e/S-008-season.spec.ts",
+            "tests/e2e/S-008-club-home-regression.spec.ts"
+          ]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/"
+    ],
+    "test_directories": [
+      "tests/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**",
+      "coverage/**",
+      "tests/protected/**",
+      "**/*.d.ts"
+    ]
+  },
+  "validation": {
+    "status": "pending",
+    "reviewer": "nw-acceptance-designer-reviewer",
+    "approved_at": "pending"
+  }
+}
