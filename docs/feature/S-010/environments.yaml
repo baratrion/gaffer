@@ -1,0 +1,100 @@
+# S-010 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Inherits S-009 (and S-001..S-008); no platform change.
+base_path: /gaffer/
+client:
+  browser: chromium
+  device: Pixel 7        # Playwright devices["Pixel 7"]
+  viewport_width_px: 390
+platform_notes:
+  - "New platform surface: browser localStorage (ADR-0016). Key gaffer.save (the save) and gaffer.probe (a sentinel the adapter writes, reads back and removes at boot). One save slot per browser."
+  - "GitHub Pages serves every project of <owner>.github.io from one origin, so localStorage is shared with the owner's other Pages sites. The key is namespaced by convention, not isolated; the strict decoder rejects foreign text under the key. localhost:4173 is a separate origin from production."
+  - "Playwright gives each test a fresh browser context (empty storage), and the deployed-site smoke runs in fresh contexts too, so a stale save from an older deploy cannot affect CI or smoke. goto and reload inside one test share storage. Real players can hold a stale save: the version number, the strict decode and the replay-verify turn anything the current build cannot honour into 'no saved game'."
+  - "page.addInitScript re-runs on every navigation including reload: a script that seeds a save must write only when the key is absent, otherwise it overwrites what the app saved. Blocking and filling scripts are meant to run on every load."
+  - "Focus (ADR-0008): title to club home after Continue is a screen change, so the club home h1 is focused; the title h1 is focused on load with or without Continue."
+  - "Storage faults are simulated in Chromium only (init scripts); real private mode and WebKit/iOS Safari are not probed. The adapter and decoder log nothing (D6), so the e2e 0-console-errors check is the only runtime signal."
+  - "A season is 28 taps. Agent e2e timeout is 30s per test (playwright.config.ts, retries 1 in CI), so the multi-context seed-31 test sets test.setTimeout. The locked protected runner is 20s per test, 2s per action/expect, retries 0, 4 workers: protected S-010 scenarios that play a full season (P5) or two contexts (P2) must call test.setTimeout(90000)."
+target_environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+storage_state_environments:
+  # Each runs on local-preview (ci:e2e, protected where noted) and, for the non-protected e2e, on production through smoke.
+  empty:
+    produced_by: fresh context, no seeding
+    expected: no Continue; title markup exactly as before S-010
+    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/protected/S-010/ P1]
+  valid_save:
+    produced_by: play and page.reload(), or seed a valid gaffer.save text (only when the key is absent) before load
+    expected: Continue (44px or taller) above New game; lands on the club home with the club name focused
+    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/protected/S-010/ P1-P5, tests/acceptance/S-010/]
+  damaged_or_incompatible:
+    produced_by: init script seeding garbage, a truncated valid save, and an object with another v
+    expected: no Continue, no console error; a later club pick replaces the text
+    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/ (property on decodeSave)]
+  blocked:
+    produced_by: init script making reading window.localStorage throw SecurityError
+    expected: store degraded; no Continue; 2 matches and Table work; no console error
+    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/ (throwing getter)]
+  full:
+    produced_by: init script making Storage.prototype.setItem throw QuotaExceededError
+    expected: probe write fails, store degraded; no Continue; play unaffected; no console error
+    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/ (throwing setItem)]
+deployment_strategy: recreate
+container_orchestration: none
+observability: browser console + Playwright smoke on deployed URL
+mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts plus src/app/state.ts. INSIDE: src/domain/selection.ts (isLegalXI), src/app/state.ts (Continue handler, handler table, sidesFor). OUTSIDE: src/app/save.ts, src/adapters/save-store.ts, src/ui/screens/title.ts, src/main.ts (property, fault-injection, e2e and grep tests only). No stryker.config.mjs change; owner request recorded to add save.ts and src/adapters to mutate.
+branching: trunk-based, short-lived claude/* branches, squash merge
+deployment_assumptions:
+  artifact: static (dist/index.html under /gaffer/)
+  strategy: recreate
+  persistence: "client-side only: one localStorage key (gaffer.save), about 2 KB average, under 10.5 KB worst case, no server data, no personal data"
+  data_migration: none      # no migration; a format or model change must bump SAVE_VERSION, and old saves then read as no saved game
+  deploy_idempotent: true   # redeploying a ref yields the same artifact
+  result_stability: "no new RNG stream; every result, schedule and squad for every seed is unchanged; a continued season equals an uninterrupted one by construction (ADR-0016 round-trip law)"
+kpi_instrument:
+  - kpi: K1 next match screen in 2 taps from the title (Continue, Play match) at any point of the season; 1 tap to the club home
+    spec: tests/e2e/S-010-save-continue.spec.ts (click counter); manual owner demo (no analytics)
+    runs_on: [local-preview, production]
+  - kpi: K2 0 differences between a continued and an uninterrupted season; 100% of restores keep formation and XI
+    spec: tests/acceptance/S-010/ (round-trip sweep, fast-check with FC_SEED, golden save text, size), tests/protected/S-010/ P2, P3, P5
+    runs_on: [ci:test, local-preview]
+  - kpi: K3 0 thrown errors and 0 console errors over 200 runs of unreadable inputs; 100% of unreadable saves show no Continue
+    spec: tests/acceptance/S-010/ (decode property, adapter fault catalogue), tests/e2e/S-010-save-continue.spec.ts (damaged, old-version, blocked, full)
+    runs_on: [ci:test, local-preview, production]
+coexistence_matrix:
+  - component: tests/protected/S-001/ .. tests/protected/S-009/
+    impact: none; they start with New game in fresh contexts, where the title is exactly today's
+    action: must stay green
+  - component: tests/protected/S-010/
+    impact: this story's locked scenarios (plan run, pins P1-P5); P5 plays a full season plus a reload
+    action: must exist before DELIVER and pass on main; test.setTimeout(90000) where a season or two contexts are played
+  - component: tests/e2e/S-008-season.spec.ts (reload test, header comment)
+    impact: non-protected 'no save yet' title superseded (DESIGN amend list)
+    action: replace with a reworded title plus Continue visible, every assertion kept (never weaken), in the same commit as the production change
+  - component: tests/acceptance/S-009/existing-navigation-unchanged.test.ts, focusPlan suites, renderers-never-move-focus
+    impact: none; no GameState key added, the adapter is outside src/ui
+    action: reuse, regression-watch
+  - component: tests/e2e/S-001..S-009 specs, shell.spec.ts
+    impact: one goto per test in a fresh context; New game found by non-exact name, which Continue does not match
+    action: reuse unchanged, regression-watch
+  - component: tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/
+    impact: new specs
+    action: add (DISTILL)
+  - component: .oxlintrc.json
+    impact: gains the ADR-0016 layer overrides (a strengthening; path not locked)
+    action: DELIVER edits
+  - component: .github/workflows/*, ci:* scripts, playwright.config.ts
+    impact: none
+    action: reuse
+  - component: stryker.config.mjs
+    impact: none; state.ts and selection.ts inside the mutate globs, save.ts and src/adapters outside
+    action: owner request to add save.ts and src/adapters/**/*.ts (not a blocker)
+rollback: revert the S-010 squash commit on main (deploy fires on merge), or workflow_dispatch of deploy.yml on a known-good ref (pre-S-010 commit); fallback fix-forward. A pre-S-010 build ignores gaffer.save; a later format change must bump SAVE_VERSION.
+rollback_owner: owner

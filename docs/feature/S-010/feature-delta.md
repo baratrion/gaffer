@@ -411,3 +411,119 @@ Deviation recorded: the generic "refuse to start" rule is replaced by "degrade s
   - The pending-then-activate pattern of S-006..S-009 applies to the amend list, in the same commit as the production change.
 
 ### Wave: DESIGN / [REF] Peer review
+
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered; no platform change. Owner-locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, brief/scope, `tests/protected/`, `stryker.config.mjs`, `playwright.config.ts`) are read-only. Machine-readable: `docs/feature/S-010/environments.yaml`. Inherits S-009 (and S-001..S-008); only deltas are recorded. `.oxlintrc.json` is not locked: the D11 layer overrides are an ordinary DELIVER change, not a platform change.
+
+Checklist: ✓ existing infra reused | ✓ K1-K3 mapped to instruments | ✓ rollback defined | ✓ storage-state matrix for DISTILL | ✓ mutation strategy (nightly-delta; `state.ts` and `selection.ts` inside the mutate globs, `save.ts` and `src/adapters/` outside, recorded as an owner request, no config change) | ✓ protected-runner timeout constraint carried over | ⊘ new IaC/containers | ⊘ server-side observability | ⊘ continuous learning | ⊘ CLAUDE.md edit
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test: phone-viewport Chromium (Pixel 7 profile, 390px); unit, property, e2e, `tests/protected/S-001..S-010/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke through `BASE_URL` (same Pixel 7, 390px) |
+
+Unchanged: no staging (static, recreate); Chromium only. Deltas, all about the one new platform surface, browser storage (the first state that outlives a page load):
+
+**Storage states DISTILL must cover** (one e2e or unit case each; "fresh" = a new Playwright context, which is the default per test):
+
+| State | How it is produced | Expected | Instrument |
+|---|---|---|---|
+| empty | fresh context, no seeding | no "Continue", title markup exactly as before S-010 | e2e; protected P1 |
+| valid save | play in the test and `page.reload()`, or seed a valid text under `gaffer.save` before load | "Continue" (44px or taller) above "New game"; lands on the club home | e2e; protected P1-P5 |
+| damaged or incompatible | seed garbage, a truncated valid save, and an object with another `v` before load | no "Continue", no console error; a later club pick replaces it | e2e (non-protected); unit property on `decodeSave` |
+| blocked (access throws) | init script that makes reading `window.localStorage` throw `SecurityError` | no "Continue", 2 matches and "Table" work, no console error | e2e (non-protected); unit with a throwing getter |
+| full (write throws) | init script making `Storage.prototype.setItem` throw `QuotaExceededError` | no "Continue" (the probe write fails, store `degraded`), play unaffected, no console error | e2e (non-protected); unit with a throwing `setItem` |
+
+Notes:
+- **Seeding pattern.** `page.addInitScript` re-runs on every navigation, `page.reload()` included, so an init script that writes the save would overwrite whatever the app saved between `goto` and `reload`. The seeding script must write only when the key is absent (or the case must not reload). Blocking and filling scripts are meant to run on every load.
+- **Fresh contexts, in CI and on the live URL.** Playwright gives each test a fresh context, and the deployed-site `smoke` (`BASE_URL`) runs in fresh contexts too, so a stale save from an older deploy cannot reach CI or smoke. `goto` and `reload` inside one test share storage; that is fine because "New game" always starts fresh (DISTILL D12). Smoke never writes to a real player's browser.
+- **Real players can hold a stale save.** A browser that played an earlier deploy keeps `gaffer.save`. The `v` check plus the strict decode and replay-verify (ADR-0016) turn any save the current build cannot honour into "no saved game"; a save format change must bump `SAVE_VERSION` (see Deployment strategy and rollback). Nothing is migrated.
+- **Shared origin.** GitHub Pages serves every project of `<owner>.github.io` from one origin, so `localStorage` is shared with the owner's other Pages sites. The key is namespaced (`gaffer.save`, probe key `gaffer.probe`); this is a convention, not isolation. The decoder rejects foreign text under the key (Earned Trust 5), and the adapter touches only those two keys. The local-preview origin (`localhost:4173`) is separate from production.
+- **Boot cost.** One storage round trip (sentinel) plus, with a save, decode and replay (estimated a few milliseconds). DELIVER measures it once in the e2e (ADR-0016 Consequences); no budget is imposed here.
+- **Focus** (ADR-0008) unchanged: title to club home after "Continue" is a screen change, so the club home `<h1>` is focused; the title's h1 is focused on load with or without "Continue".
+- **e2e runtime.** The seed-31 reload test plays 3 matches in each of two contexts (no full season in non-protected e2e); the protected file has the only full-season reload (P5, 28 taps). See the timeout constraint in the coexistence section.
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch; 30 min): PR guards (locked paths, append-only protected, diff cap 1200, `Math.random`/`Date` in `src/domain/`, which covers the `selection.ts` extension), roadmap lint, `ci:lint` (confirms the D9 complexity counts and enforces the D11 `.oxlintrc.json` layer overrides, which DELIVER adds), `ci:typecheck` (the handler table's missing-key compile error), `ci:test` (fresh `FC_SEED`), `ci:build`, `ci:e2e`, protected no-regression check vs main (a new `tests/protected/S-010/*.spec.ts` must fail on main until DELIVER).
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` (10 min) runs `ci:e2e` against the live URL, including the new S-010 spec and the amended S-008 reload spec.
+- `nightly` (03:00, 45 min): `ci:mutation`; failure opens a `mutation-alarm` issue. `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- No pipeline change: S-010 adds unit, property and e2e specs run by existing scripts, and no dependency. DELIVER diff about 793 lines (about 1,043 with protected), under the 1200 guard; `docs/` is outside the count.
+- Local gate: `pnpm run check` mirrors the commit stage; no git hooks (locked). Security: no secrets, no runtime deps, no network; the save is untrusted input and is validated strictly before use (shift-left through the decoder property tests); stored text never reaches the DOM except through `el()`/`textContent` after decoding (ADR-0002). SAST/SCA/SBOM not added (inherited owner-only item).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI to instrument)
+E2E instrument: `tests/e2e/S-010-save-continue.spec.ts` (Pixel 7, 390px) via `ci:e2e` on PR and main and `smoke` on the live URL. Unit/property rows run in `ci:test` with a fresh `FC_SEED`. `tests/protected/S-010/` runs on local-preview in `ci` and must pass on main.
+
+| KPI (DISCUSS) | Instrument | Pass condition |
+|---|---|---|
+| K1: next match screen in 2 taps from the title ("Continue", "Play match") at any point of the season; 1 tap to the club home | e2e: page-side capture-phase click counter (as S-003..S-009) after a reload at seed 31 with 2 matches played: 1 click ("Continue") to the focused club home, 2 clicks to "Matchday 3" with the golden score line "Netherwold Borough 2–1 Oakhampton Rise Borough". Protected P2 pins the focus, the table and the Matchday 3 equality. Manual: owner's Friday demo (closes the tab mid-season, carries on; no analytics in the POC) | 1 and 2 clicks |
+| K2: 0 differences between a continued and an uninterrupted season; 100% of restores keep formation and XI | unit: round-trip sweep (seeds 1..300 x 8 clubs x matchdays 0..14, untouched tactics; DISTILL may trim) restores the same formation, XI, results and next matchday; fast-check (`numRuns` 100, fresh `FC_SEED`) continued equals uninterrupted over random formation, pick and Play match sequences with a restore at a random point; golden save text for seed 31, two matchdays (RED-first, never re-pinned from DELIVER output); size under 16 KB worst case and under 3 KB for seed 31. Protected: P2, P3, P5 | 0 differences; golden exact |
+| K3: 0 thrown errors and 0 console errors over 200 fast-check runs of unreadable inputs; 100% of unreadable saves show no "Continue" | unit: property on `decodeSave`/`fromSave` (`fc.jsonValue()`, arbitrary strings, truncated, bit-flipped, key-dropped, version-changed, matchday-swapped, `numRuns` 200) never throws and returns `undefined`; adapter fault catalogue with injected storages (throwing getter, throwing `setItem`, ignored writes, odd reads). e2e: damaged, old-version, blocked and full storage states (matrix above), each with 0 console errors | 0 throws; 0 console errors |
+| Save triggers and D4 timing | unit on `createAutosave` with a fake store: club pick, formation, XI pick, Play match write; Squad, Player, Table, Tactics unchanged, Starting XI, Back, End of season, New game, Play again, no-op pick, same formation do not; after New game with no club the stored text is the old one, after a club pick the new one. e2e: reload after New game still resumes the old game; after a club pick and reload, the new one | holds |
+| D5 seed from the save | unit: restore uses the saved seed; `NewGame` from `seasonEnd` after `Continue` keeps it. e2e: `?seed=abc` after a seed-31 save, "Continue" lands on Netherwold Borough at Matchday 3 | holds |
+| 44px, no sideways scroll at 390px, 0 console errors, focus | e2e on the title with a save (Continue 44px or taller, above "New game", "Gaffer" the only h1 and focused) and the club home after Continue (club name focused); click-everything on the title dispatches only `NewGame` and `Continue` | holds |
+| Names, determinism, layering | unit: "Continue" in no `names.ts` string (locators `exact: true`); grep tests per D11 (storage names only in `src/adapters/` and the `() => localStorage` getter in `main.ts`; one `"Continue"` dispatch site; no `console` in `src/adapters/`); no `Math.random`/`Date` in `src/domain/` (PR guard) | holds |
+| S-001..S-009 unchanged | existing e2e and acceptance (only the DESIGN amend list: the S-008 reload test is replaced and strengthened) and `tests/protected/S-001..S-009/` | green |
+| Domain test strength | Stryker on `src/domain/**` (`selection.ts` `isLegalXI`) and `src/app/state.ts` (`Continue` handler, the handler table, `sidesFor`) | nightly, at or above break 70 |
+
+No analytics (POC). The e2e tap counter, the property tests and the owner's demo are the KPIs' sole measurements.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact; idempotent.
+- Rollback (designed first): revert the S-010 squash commit on main; the merge triggers `deploy` and `smoke` validates the restored site. Alternative: `workflow_dispatch` of `deploy.yml` on the pre-S-010 commit (the S-009 deploy). Fallback: fix-forward on a `claude/*` branch. The append-only protected guards may block a plain revert of a squash that added `tests/protected/S-010/`; the dispatch route is then the owner action. Time to restore: one deploy cycle (about 5 minutes).
+- **Rolling back across saves.** A pre-S-010 build has no storage code, so it ignores `gaffer.save`: the title shows only "New game" and the game plays as in S-009. The save stays in players' browsers untouched; rolling forward again offers "Continue" if the save still decodes (same `SAVE_VERSION`, same squads and match model). Nothing to clean up, nothing at risk.
+- **Rolling forward with a changed save format.** Any later deploy that changes the format, squads, streams, the match model or the AI-side policy must bump `SAVE_VERSION` (ADR-0016); old saves then read as "no saved game" (no "Continue", no console error, no migration). The replay-verify is a safety net for an unannounced change, not a substitute for the bump.
+- Failure detection: a red `smoke` marks the deploy run red (including the seeded-storage, reload and "Continue" probes on the live origin); a golden save text that stops decoding shows as a red `ci:test` before merge.
+- Data: the only persisted data is one client-side key per player, about 2 KB average (under 10.5 KB worst case), no server data, no personal data. Blast radius: one static page and the player's own browser.
+- Result stability: no new RNG stream and no change to any result, schedule or squad for any seed; a continued season equals an uninterrupted one by construction (the round-trip law).
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` (read) mutates `src/domain/**/*.ts` except `names.ts`, plus `src/app/state.ts`; thresholds high 85, low 70, break 70. No config change by this story.
+- `src/domain/selection.ts` (`isLegalXI`): INSIDE the existing glob. Killed by the DISTILL table (11 distinct indices, wrong count, duplicate, out of range, wrong position, wrong formation).
+- `src/app/state.ts` (the `Continue` handler, the handler table, the exported `sidesFor`): INSIDE. Killed by `Continue` from `title` returning the payload and `toBe` no-ops elsewhere, the whole S-001..S-009 `update` suites, and the 40-action property.
+- `src/app/save.ts` (the strict decoder, replay-verify, the compact encoding; the logic where mutants matter most): **OUTSIDE** the globs. Gap: a mutant there is caught only by the property tests, the golden save text and the round-trip sweep, not by the nightly. `src/adapters/save-store.ts` (probe, degrade, autosave write rule), `src/ui/screens/title.ts` and `src/main.ts` are outside too (`src/ui/` and `main.ts` never were); covered by the fault-injection unit tests, the e2e and the grep tests.
+- **Owner request** (the DESIGN open question, recorded here for the owner; `stryker.config.mjs` is locked): add `src/app/save.ts` and `src/adapters/**/*.ts` to `mutate`. Not a blocker for S-010.
+- Runtime watch: if the owner widens `mutate` to `save.ts`, each mutant re-runs the round-trip sweep and the fast-check properties, and `state.ts` mutants already re-run the sweep once it exists; see Open questions 3.
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. The adapter and decoder write nothing to the console by design (D6), so the e2e "0 console errors" check is the only runtime signal for storage faults. SLO: smoke green per deploy (including the seed-31 reload and "Continue" probe). Alerting: a red `deploy` run; a red nightly opens `mutation-alarm`. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-010-*` branches, PR to main, squash merge, deploy on merge, no release branches. CI green and protected scenarios not regressing. DESIGN estimates the DELIVER diff at about 793 lines (about 1,043 with protected), under the 1200 guard, so no cut is needed. Slices 01 and 02 ship in ONE DELIVER merge; if DELIVER nears the guard, trim test duplication (the 2400-state sweep can become a seeds 1..60 sample), never split the slices.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-010 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml`, `ci:*` scripts, `playwright.config.ts` | none; Pixel 7, 390px, `BASE_URL` fit; no new script or dependency | reuse |
+| `stryker.config.mjs`, `scripts/guards/pr-guards.mjs` | `state.ts` and `selection.ts` already inside the globs; `save.ts`, `src/adapters/` outside (owner request); determinism grep and 1200 cap fit | none |
+| `.oxlintrc.json` | gains the D11 overrides (a strengthening, unlocked path) | DELIVER edits |
+| `tests/protected/S-001..S-009/` | untouched; they start with "New game" in fresh contexts, where the title is exactly today's | must stay green |
+| `tests/protected/S-010/` | locked scenarios (plan run, pins P1-P5); P5 plays a full season (28 taps) plus a reload | must pass on main |
+| Amend list (`tests/e2e/S-008-season.spec.ts`, the reload test at line 478 and the header comment) | title reworded, every assertion kept, "Continue" visible added | replace, never weaken, in the same commit as the production change |
+| `tests/acceptance/S-009/existing-navigation-unchanged.test.ts` (five-key test), `focusPlan` suites, `renderers-never-move-focus` | unedited (no state key added; the new adapter is outside `src/ui`) | reuse, regression-watch |
+| `tests/e2e/S-001..S-009*.spec.ts`, `shell.spec.ts` | one `goto` per test in a fresh context; "New game" found by non-exact name, which "Continue" does not match | reuse, regression-watch |
+| `src/app/state.ts`, `seed.ts`, `selection.ts`, `title.ts`, `main.ts`, `styles.css`, new `save.ts`, `save-store.ts` | extended / created | S-001..S-009 tests guard |
+| `docs/product/architecture/brief.md`, `adr-0016`, `design-system.md` | updated in DESIGN | none |
+| Pages artifact, base path `/gaffer/`, shared `<owner>.github.io` origin | negligible growth; storage key namespaced | none |
+
+**Constraint for the protected scenarios and DISTILL (timeouts).** As in S-009: the locked runner `scripts/factory/protected.playwright.config.ts` sets `timeout: 20_000` per test, `expect` and `actionTimeout` 2 s, `retries: 0`, `workers: 4`. Any protected S-010 scenario that plays more than a few matchdays must call `test.setTimeout(90_000)`; P5 (28 taps, a reload, the End of season reads) certainly does, and P2 (two contexts, 3 matches each, plus reads) should. One seed and one club per scenario; keep reads per matchday minimal; per-action 2 s is unchanged and enough for one tap. Four parallel workers each simulate a season, so headroom matters. The agent e2e (`playwright.config.ts`: 30 s per test, `retries: 1` in CI) needs `test.setTimeout` for the multi-context seed-31 test; `retries: 1` re-runs a failed test in a fresh context, so storage-seeded tests stay independent.
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-009 delivered and deployed; Pages source "GitHub Actions" enabled (✓). Node 22+, pnpm 10.12.4, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0016 accepted (✓; ADR-0016 landed in DESIGN). `docs/product/jobs.yaml` has J-10 (✓).
+- **`tests/protected/S-010/`** does not exist yet. It is written by the plan run's protected-scenarios step from the D8 pin list (append-only, with `test.setTimeout(90_000)` per the constraint above) and must be committed before DELIVER starts; the `ci` no-regression check expects it to fail on main until DELIVER.
+- `BASE_URL` derived from owner and repo name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001..S-009 (smoke `sleep 20`, no security scanning, no commit-SHA check in smoke, deploy not gated on `ci`, squash revert blocked by append-only guards, no uptime probe, WebKit not probed; see `docs/feature/S-007/feature-delta.md` to `S-009/feature-delta.md`) are unchanged and none block S-010. New:
+1. **Owner request, Stryker scope**: `stryker.config.mjs` `mutate` should list `src/app/save.ts` (the strict decoder and replay-verify) and `src/adapters/**/*.ts` (the probing adapter and autosave rule). Both are new logic that matters and are outside the nightly run; until the owner adds them, the property tests, the golden save text and the fault-injection tests are the guard. `src/ui/screens/*.ts` and `main.ts` remain outside (inherited S-009 question 2). Not a blocker.
+2. **Browser coverage**: storage behaviour (blocked, quota, private mode) is probed in Chromium only, by init-script simulation, not by a real private-mode or WebKit/iOS Safari run. Real engines differ in when `SecurityError` or `QuotaExceededError` fires; the design is robust to that (every call sits in a try/catch and the probe round-trips a sentinel), but only the simulated faults are tested. Owner awareness only.
+3. **Nightly runtime**: widening `mutate` to `save.ts` would re-run the round-trip sweep and the properties per mutant, and `state.ts` mutants re-run them already. DELIVER keeps the sweep bounded (a trimmed seed sample is allowed) and `numRuns` at 100/200; watch the first nightly after the merge against the 45-minute timeout; if it nears it, trim test cost, not bounds, or the owner raises the timeout.
+4. **Smoke on the live URL** runs the S-010 spec in fresh contexts on the shared `<owner>.github.io` origin: init-script seeding is per context, so it cannot touch a real player's storage; it relies on `?seed=` on Pages (as S-001..S-009).
+5. **MDN Web Storage semantics** in DESIGN Technology choices are unverified (no lookup tool in that run); DELIVER may check them with Context7 and amend that bullet only. The e2e fault simulations do not depend on it.
+6. Changes I would need in locked paths: none, other than the Stryker owner request in 1.
+7. Missing `tests/protected/S-010/` (see Pre-requisites) is a plan-run item, not a DEVOPS change; flagged for the orchestrator.
+
+### Wave: DEVOPS / [REF] Peer review
