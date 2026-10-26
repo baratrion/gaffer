@@ -1,5 +1,6 @@
 import type { Action } from "../../app/state";
 import type { MatchdayReport } from "../../domain/inbox";
+import { formatOrdinal } from "../../domain/standings";
 import { el } from "../dom";
 import { matchdayTitle, scoreLine } from "../score-line";
 
@@ -7,8 +8,23 @@ export interface InboxView {
   readonly messages: readonly MatchdayReport[];
 }
 
+const positionLine = (position: number): HTMLElement =>
+  el(
+    "p",
+    { class: "message-position" },
+    el("span", { class: "message-label" }, "League position"),
+    " ",
+    el("span", { class: "message-value" }, formatOrdinal(position)),
+  );
+
 const messageItem = (report: MatchdayReport): HTMLElement =>
-  el("li", { class: "message" }, el("p", { class: "message-title" }, matchdayTitle(report.matchday)), scoreLine(report));
+  el(
+    "li",
+    { class: "message" },
+    el("p", { class: "message-title" }, matchdayTitle(report.matchday)),
+    scoreLine(report),
+    positionLine(report.position),
+  );
 
 export const renderInbox = (
   root: HTMLElement,

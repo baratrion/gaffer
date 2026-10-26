@@ -352,3 +352,6 @@ h1:focus { outline: none; }
 .message { padding: 10px 12px; border-left: 4px solid var(--accent); border-radius: 10px; background: rgba(244, 241, 232, 0.08); }
 .message-title { margin: 0 0 6px; font-size: 0.9rem; font-weight: 700; color: rgba(244, 241, 232, 0.75); overflow-wrap: anywhere; }
 .message .score-line { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; text-align: left; font-size: 1.1rem; }
+.message-position { margin: 6px 0 0; font-size: 0.9rem; }
+.message-label { color: rgba(244, 241, 232, 0.65); }
+.message-value { font-weight: 700; color: var(--accent); }
