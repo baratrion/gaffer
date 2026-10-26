@@ -9,7 +9,7 @@ platform_notes:
   - "GitHub Pages shares one origin across the owner's Pages sites (S-010 note). localhost:4173 is a separate origin from production. Playwright gives each test, and the deployed-site smoke, a fresh context (empty storage)."
   - "page.addInitScript re-runs on every navigation including reload: a counting script (Storage.prototype.setItem for gaffer.save) is meant to run on every load; one that seeds a save must write only when the key is absent."
   - "Focus (ADR-0008): the Inbox h1 is focused on arrival and the club home h1 on Back, through the existing screen-change plan."
-  - "Long score lines (two three-word club names) wrap at 390px: use the longest-names seed (DESIGN, For DISTILL) for the no-horizontal-scroll check."
+  - "Long score lines wrap at 390px: use a seed with the longest club names the generator makes (DISTILL picks the seed by sweeping; DESIGN, For DISTILL) for the no-horizontal-scroll check."
   - "A 14-matchday Inbox check is 28+ taps. Agent e2e timeout is 30s per test (playwright.config.ts, retries 1 in CI): set test.setTimeout(90000). The locked protected runner is 20s per test, 2s per action/expect, retries 0, 4 workers: protected S-011 scenarios that play a season (P3) must call test.setTimeout(90000)."
 target_environments:
   local-dev:

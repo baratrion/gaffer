@@ -1,8 +1,9 @@
 # ADR-0018: `render` becomes a lookup table keyed by screen kind (S-011)
 
-- Status: Accepted (peer review pending: the orchestrator dispatches nw-solution-architect-reviewer)
+- Status: Accepted (peer review: revised, awaiting cycle 2. Cycle 1 of nw-solution-architect-reviewer was conditionally_approved; findings L1, L2 and L5 touch this ADR and are resolved in this revision)
 - Date: 2026-10-26
 - Deciders: nWave solution-architect (S-011 DESIGN, `interaction_mode=propose`)
+- This ADR is DD3 of the S-011 DESIGN decisions (DD1..DD9, `feature-delta.md`); its place in the commit order is DD9 (commit 1).
 - Related: ADR-0003 (composition root, functional core and imperative shell), ADR-0016 (Decision 4: `update` became a handler table; `render` "deferred to the next story that adds a screen, which must do it first"), ADR-0015 (S-009 Open question 1: `render` at 15 of 15), ADR-0017 (the screen that triggers this).
 - **Closes** S-009 Open question 1 for `render` (ADR-0016 closed it for `update`). Amends nothing else.
 
@@ -15,7 +16,7 @@
 | **A. A lookup `RENDERERS` typed `{ [K in Screen["kind"]]: (context, screen: Extract<Screen, { kind: K }>) => void }` in `main.ts`, with `context = { root, state, dispatch }` (chosen)** | The type is the exhaustiveness check: a missing or extra key is a `ci:typecheck` error (replaces the `never` guard). Each entry is its own function (complexity 1 to 3), so a new screen adds one entry and no branch to anything. Same pattern as `HANDLERS` (ADR-0016). Behaviour-preserving: each entry is the body of its old case. Stays in the composition root, next to `offer` and the `findClub`/`...OrThrow` helpers | One documented cast at the call (TypeScript cannot correlate a union key with its entry), as `update` has |
 | B. Keep the switch and shave complexity by grouping cases into helper functions (for example `renderDetail`) | No type work | Pays the debt again at the next screen; the helper grouping is arbitrary; the same 15 of 15 limit returns |
 | C. Move the glue into each screen module so `render` is a dumb map | Screens own their props | The UI layer would import app selectors and domain functions (`matchFor`, `standingsOf`, `generateSquad`), against the dependency direction ui, then app (`ui` only imports app types today) and the "renderers take props, never state" convention |
-| D. A library (router, pattern matching) | Less hand code | A new runtime dependency for a 12-entry table; the bundle budget forbids it (ADR-0001) |
+| D. A library (router, pattern matching) | Less hand code | A new runtime dependency for a 12-entry table; the project has "no runtime dependencies" (brief line 8; ADR-0001) |
 | E. A new file `src/ui/render.ts` for the lookup | `main.ts` shrinks | The table needs `offer` and the boot helpers (so a context object grows) and is shell glue; `main.ts` stays well under 400 lines (about 190), so no file is gained |
 
 `max-params` is 3: the natural `(root, state, screen, dispatch)` has four, so the entries take `(context, screen)`.
@@ -38,8 +39,11 @@ Expected complexity (`ci:lint` confirms in DELIVER): `render` 1; every entry 1, 
 - Pure refactor first, then the feature: the refactor commit is judged alone by the full existing e2e and protected suites.
 
 ### Negative
-- One cast at the lookup (documented; the S-010 `update` precedent). A wrong entry for a key is still caught by the mapped type; a wrong body is caught only by e2e (the same as before).
+- One cast at the lookup (documented; the S-010 `update` precedent). The mapped type guarantees that every screen kind has an entry and that each entry's `screen` parameter has the right shape for its kind. It does **not** guarantee that the entry *calls the right renderer* for its kind (for example the `table` entry calling `renderSquad` with compatible props would typecheck): that pairing of screen kind and renderer is guarded by e2e and the protected scenarios (Earned Trust 2), not by types. A wrong body is caught only by e2e (the same as before the refactor).
 - `main.ts` is not importable from vitest, so no unit test covers the lookup; the guard is the type, a grep test (`main.ts` has no `switch (` on a screen kind and contains `RENDERERS`) and the S-001..S-011 browser suites.
+
+### Composition-root exemption (L5)
+`src/main.ts` is the composition root (ADR-0003) and the one file with no layer override in `.oxlintrc.json`: the `domain`, `app`, `ui` and `adapters` overrides each match their own folders only, so `main.ts` may import from all four (it is the only place that wires an adapter, ADR-0016). The lookup stays there on purpose: its entries are shell glue that read `app` selectors and `domain` functions and call `ui` renderers, which no `ui` module may do (Option C). The exemption is from the layer rules only; `complexity`, `max-params`, `max-lines` and the globals rules still apply to `main.ts`.
 
 ### Contract shape
 | Component | Shape | Universe and assertion |
