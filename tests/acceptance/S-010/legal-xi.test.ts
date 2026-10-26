@@ -7,6 +7,7 @@ import { automaticXI, isLegalXI, pickForSlot } from "../../../src/domain/selecti
 import { generateSquad } from "../../../src/domain/squad";
 const squad = generateSquad(31, 0);
 const xi = automaticXI(squad, "4-4-2");
+const wrongPosition = squad.findIndex((player) => player.position !== squad[xi[10]!]!.position);
 describe("@US-2 S-010 a saved Starting XI must be a legal eleven", () => {
   it("Given the automatic eleven of every formation, when checked, then it is a legal eleven for its own line-up only @boundary @contract-shape:pure-function", () => {
     for (const formation of FORMATIONS) expect(isLegalXI(squad, formation, automaticXI(squad, formation)), formation).toBe(true);
@@ -16,7 +17,7 @@ describe("@US-2 S-010 a saved Starting XI must be a legal eleven", () => {
     ["ten players", xi.slice(0, 10)],
     ["twelve players", [...xi, 17]],
     ["a player twice", [...xi.slice(0, 10), xi[9]!]],
-    ["a player of the wrong position", [...xi.slice(0, 10), 0]],
+    ["a player of the wrong position", [...xi.slice(0, 10), wrongPosition]],
     ["player 18", [...xi.slice(0, 10), 18]],
     ["a player below 0", [...xi.slice(0, 10), -1]],
     ["a fractional player", [...xi.slice(0, 10), 16.5]],

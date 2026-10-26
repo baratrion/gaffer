@@ -87,7 +87,7 @@ describe("@US-1 @US-2 S-010 the autosave writes the stored game at the right mom
     autosave(t1);
     expect(written).toEqual([encodeSave(t1), encodeSave(t2), encodeSave(t1)]);
   });
-  it("Given a write that throws, or a state that cannot be saved, when a tap comes, then play carries on, nothing is logged, and saving is tried again @error @contract-shape:bounded-change", () => {
+  it("Given a write that throws, or a state that cannot be saved, when a tap comes, then play carries on and nothing is logged @error @contract-shape:bounded-change", () => {
     const logged = [vi.spyOn(console, "error"), vi.spyOn(console, "warn")];
     const autosave = createAutosave(() => { throw new Error("quota"); }, undefined);
     expect(() => autosave(home)).not.toThrow();
