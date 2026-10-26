@@ -369,3 +369,52 @@ stories:
       version that changes the save format, or the game model in a way that invalidates saved results,
       may either make saved games unreadable (no "Continue") or let an old save continue with its
       recorded results. No horizontal scroll at 390px and no console errors.
+
+  - id: S-011
+    week: 9
+    title: Read my club's news in the Inbox
+    tags: [inbox, season]
+    outcome: >
+      From the club home screen the player taps a button named exactly "Inbox" (44px or taller), placed
+      after "Table". The club home's heading (the club's name) and its buttons "Squad", "Tactics",
+      "Starting XI", "Play match" (or, once all 14 matchdays are played, "End of season") and "Table"
+      stay, in this order. "Inbox" is there from the moment a club is picked, also after matchday 14 and
+      after "Continue". Tapping "Inbox" opens a screen whose only top-level heading (h1) reads exactly
+      "Inbox", focused on arrival, with a list named exactly "Messages". The list holds exactly one
+      message per matchday the season has played so far, newest first: after N matches (N from 0 to 14)
+      it holds N items, the first for matchday N and the last for matchday 1. Each message is one list
+      item of that list. It holds three lines in this order, each one child element of the list item
+      whose visible text (innerText) is exactly that line, and it holds no button, link or nested list.
+      First, the title "Matchday N" (N from 1 to 14): the same text as the h1 of that matchday's match
+      screen. Second, the score line of the player's club's match on that matchday: exactly the same text
+      as that match screen's score line (pattern ^(.+) (\d)–(\d) (.+)$, with an en dash), for example
+      "Rushmoor Heath Albion 2–1 Netherwold Borough". Third, "League position" and one space and the
+      ordinal of the club's Pos in the table named "League table" right after that matchday was played
+      (pattern ^League position (1st|2nd|3rd|4th|5th|6th|7th|8th)$), for example "League position 3rd".
+      So the newest message's position equals the club's Pos on the "Table" screen now, and after
+      matchday 14 the "Final position" on the "End of season" screen. An older message keeps the position
+      the "Table" screen showed right after its matchday. Before the first match the list holds no item
+      and a line reading exactly "No messages yet" is shown outside the list; once a match has been
+      played that line is absent. An already played match still cannot be re-opened. A button named
+      exactly "Back" (44px or taller) returns to the club home with focus on its heading, the club's
+      name. Everything in the Inbox comes from the season's recorded results and the seed, and nothing
+      new is stored (the saved game is unchanged). Two fresh visits with the same "?seed=", club and
+      choices show the same Inbox, "?seed=abc" shows the same Inbox as no "?seed=", and after a reload
+      and "Continue" the Inbox shows the same messages. Changing "Tactics" or the "Starting XI" never
+      changes a message. In this version the Inbox tells the story of the current season only: "New game"
+      or "Play again", then picking a club, gives an empty Inbox. Opening the Inbox changes nothing in
+      the game and saves nothing. This version adds a sixth button to the club home; the S-005 to S-010
+      outcomes name the buttons that stay but never fix their number, and their durable lists are
+      unchanged. These hold in every later version, within each season: the club home offers "Inbox"; its
+      screen has the only h1 "Inbox" and a list named "Messages"; for each matchday played there is
+      exactly one message whose title line reads "Matchday N", newest first among the matchday messages,
+      with that matchday's score line and its "League position" line in these formats; a message's
+      position equals the Table's Pos right after that matchday; each matchday message is one list item
+      of "Messages" whose lines are separate child elements in this order, holding no button, link or
+      nested list; and a matchday message never changes once played: changing "Tactics" or the "Starting
+      XI" does not change it, and after a reload and "Continue" it reads the same. Later versions may add
+      other kinds of message to the same list, as long as none has a line reading "Matchday N". The "No
+      messages yet" line, the exact number of items, the place of "Inbox" after "Table", the empty Inbox
+      after "New game" or "Play again" (a later version may keep earlier seasons), and the order of tied
+      clubs behind the position values (the Table's tie-breaks as S-007 defines them for this version)
+      are rules of this version only. No horizontal scroll at 390px and no console errors.

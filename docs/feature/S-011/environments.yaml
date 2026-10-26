@@ -1,0 +1,91 @@
+# S-011 DEVOPS environments. Static site, GitHub Pages, base path /gaffer/. Inherits S-010 (and S-001..S-009); no platform change.
+base_path: /gaffer/
+client:
+  browser: chromium
+  device: Pixel 7        # Playwright devices["Pixel 7"]
+  viewport_width_px: 390
+platform_notes:
+  - "No new platform surface. The Inbox is derived from the recorded results (ADR-0017) and touches no storage: no new key, no SAVE_VERSION bump, no write on navigation. Storage keys stay gaffer.save and gaffer.probe (S-010)."
+  - "GitHub Pages shares one origin across the owner's Pages sites (S-010 note). localhost:4173 is a separate origin from production. Playwright gives each test, and the deployed-site smoke, a fresh context (empty storage)."
+  - "page.addInitScript re-runs on every navigation including reload: a counting script (Storage.prototype.setItem for gaffer.save) is meant to run on every load; one that seeds a save must write only when the key is absent."
+  - "Focus (ADR-0008): the Inbox h1 is focused on arrival and the club home h1 on Back, through the existing screen-change plan."
+  - "Long score lines wrap at 390px: use a seed with the longest club names the generator makes (DISTILL picks the seed by sweeping; DESIGN, For DISTILL) for the no-horizontal-scroll check."
+  - "A 14-matchday Inbox check is 28+ taps. Agent e2e timeout is 30s per test (playwright.config.ts, retries 1 in CI): set test.setTimeout(90000). The locked protected runner is 20s per test, 2s per action/expect, retries 0, 4 workers: protected S-011 scenarios that play a season (P3) must call test.setTimeout(90000)."
+target_environments:
+  local-dev:
+    url: http://localhost:5173/gaffer/
+    command: pnpm dev
+  local-preview:
+    url: http://localhost:4173/gaffer/
+    command: pnpm run ci:serve
+    used_by: [ci:e2e, protected-scenarios]
+  production:
+    url: https://<repository_owner>.github.io/gaffer/
+    deploy: .github/workflows/deploy.yml   # on push to main, strategy recreate
+    smoke: "BASE_URL=<production url> pnpm run ci:e2e"
+storage_state_environments:
+  # Each runs on local-preview (ci:e2e, protected where noted) and, for the non-protected e2e, on production through smoke.
+  clean:
+    produced_by: fresh context, no seeding; New game, a club, optionally N x (Play match, Back)
+    expected: club home has Inbox (sixth, 44px or taller); with 0 matches "No messages yet" and an empty Messages list; with N matches N items newest first (title, score line, League position)
+    covered_by: [tests/e2e/S-011-inbox.spec.ts, tests/protected/S-011/ P1-P3, tests/acceptance/S-011/]
+  saved_game_continue:
+    produced_by: play 2 matches, page.reload(), tap Continue (a seeding init script, if used, writes only when the key is absent)
+    expected: Inbox offered on the club home and reads the same messages, line for line, as before the reload; a tactics change in between changes nothing
+    covered_by: [tests/e2e/S-011-inbox.spec.ts, tests/protected/S-011/ P4]
+  no_write_on_navigation:
+    produced_by: init script counting Storage.prototype.setItem calls for gaffer.save; open Inbox, Back
+    expected: 0 added writes; stored gaffer.save text unchanged
+    covered_by: [tests/e2e/S-011-inbox.spec.ts, tests/acceptance/S-011/ (encodeSave and saveTextFor unchanged by the inbox screen)]
+  default_seed:
+    produced_by: ?seed=abc and no seed, fresh contexts, Oakhampton Rise Borough, one match
+    expected: one message "Matchday 1", "Harrowgate Lane United 0–1 Oakhampton Rise Borough", "League position 3rd", the same in both
+    covered_by: [tests/e2e/S-011-inbox.spec.ts, tests/acceptance/S-011/]
+  new_season:
+    produced_by: 14 matchdays, End of season, Play again, same club
+    expected: Inbox empty again ("No messages yet")
+    covered_by: [tests/e2e/S-011-inbox.spec.ts, tests/protected/S-011/ P3]
+  # S-010 storage faults (damaged, blocked, full) are not re-run: the Inbox touches no storage.
+deployment_strategy: recreate
+container_orchestration: none
+observability: browser console + Playwright smoke on deployed URL
+mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts plus src/app/state.ts, src/app/save.ts, src/adapters/**. INSIDE: src/domain/inbox.ts (matchdayReports), src/app/state.ts (ViewInbox, inboxOf). OUTSIDE: src/ui/**, src/main.ts (e2e and grep tests only). No config change.
+branching: trunk-based, short-lived claude/* branches, squash merge
+deployment_assumptions:
+  artifact: static (dist/index.html under /gaffer/)
+  strategy: recreate
+  persistence: "none new; the Inbox is derived from recorded results, gaffer.save unchanged"
+  data_migration: none      # no format change, no SAVE_VERSION bump
+  deploy_idempotent: true   # redeploying a ref yields the same artifact
+  result_stability: "no new RNG stream; every result, schedule, squad and save for every seed is unchanged"
+kpi_instrument:
+  - kpi: K1 1 tap from the club home to every matchday report; 2 taps from the title after a reload (Continue, Inbox); owner states the position path from the Inbox alone
+    spec: tests/e2e/S-011-inbox.spec.ts (click counter); manual owner demo (no analytics)
+    runs_on: [local-preview, production]
+  - kpi: K2 0 differences between message N and match screen N, and between its position and the Table's Pos after matchday N
+    spec: tests/acceptance/S-011/ (goldens, independent oracle, time-travel oracle), tests/protected/S-011/ P2, P3
+    runs_on: [ci:test, local-preview]
+  - kpi: K3 0 changes to formation, xi, results or the saved text from opening the Inbox; 0 message changes after tactics changes
+    spec: tests/acceptance/S-011/ (fast-check with FC_SEED, same-object and save-unchanged checks), tests/e2e/S-011-inbox.spec.ts (setItem counter, stored text), tests/protected/S-011/ P4
+    runs_on: [ci:test, local-preview, production]
+coexistence_matrix:
+  - component: tests/protected/S-001/ .. tests/protected/S-010/
+    impact: none; none counts the club-home buttons
+    action: must stay green
+  - component: tests/protected/S-011/
+    impact: this story's locked scenarios (plan run, pins P1-P4)
+    action: must exist (RED) before DELIVER and pass on main; test.setTimeout(90000) where a season is played
+  - component: "tests/e2e five-button lists (S-005-starting-xi, S-006-match, S-007-table, S-007-club-home-regression, S-008-club-home-regression, S-008-season, S-009-club-home-regression, S-009-end-of-season)"
+    impact: each list gains Inbox last (DISCUSS D8)
+    action: replace, never weaken, in the same commit as the club-home button
+  - component: tests/e2e/S-010-club-home-regression.spec.ts
+    impact: not on the D8 list; may hold a five-button list
+    action: DISTILL greps; amends only if an exact list or count is found
+  - component: tests/acceptance/S-009/existing-navigation-unchanged.test.ts, focusPlan suites, renderers-never-move-focus, S-010 storage grep
+    impact: none; no GameState key, no storage in Inbox code, no .focus( in new UI files
+    action: reuse, regression-watch
+  - component: .github/workflows/*, ci:* scripts, playwright.config.ts, stryker.config.mjs, .oxlintrc.json
+    impact: none
+    action: reuse
+rollback: revert the S-011 squash commit on main (deploy fires on merge), or workflow_dispatch of deploy.yml on a known-good ref (the S-010 deploy); fallback fix-forward. Nothing stored, no format change: nothing to clean up.
+rollback_owner: owner
