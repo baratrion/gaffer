@@ -698,3 +698,31 @@ Four reviewers ran in the foreground (Eclipse, Atlas, Forge, Sentinel).
 - **Atlas (DESIGN): conditionally approved.** H1: the amend table does list S-005 line 176 and S-006 line 148 (8 files plus the S-005/S-006 title edits); DELIVER applies `amend-existing-tests.patch` and greps for `five`. H2: DISTILL measured about 830 test lines, so DELIVER must follow the DD9 checkpoint (trim grep tests first; oracle sweep never narrowed; the `human-approved` label is the owner's call if the cap still bites). L1: the S-007 regression row changes the count, message and comments only.
 - **Forge (DEVOPS): rejected_pending_revisions, all findings inherited platform posture** (no SAST/SCA, deploy not gated on ci, no SLO/DORA, rollback route). S-011 adds no storage, no pipeline change and no `ci:*` change; `.github/` is locked, so these stay owner items, as accepted at S-010.
 - **Sentinel (DISTILL): rejected_pending_revisions (style/mandate).** Accepted as DELIVER-scope notes: the source-grep file is an architecture guard (ADR-0017/0018 Enforcement), not a user-journey scenario, and keeps its code-structure vocabulary on purpose; the committed reference test calls `standings` directly as the independent Table comparator, as the S-007..S-010 acceptance tests do for their domain ports; the `setItem` counter is the K3 observable because a same-text rewrite is invisible otherwise; no state-delta port or Tier-B machine is added (waiver: the repo's fast-check action walks are the Tier-B equivalent, and adding a harness would cost lines against the 1200 cap). Low items F11 (two-matchday points-vs-goal-difference case), F13 (assert the Inbox is opened at least once per property run) and F16 (title wording) are to be folded into the pending files when DELIVER moves them.
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+The club home has a sixth button, "Inbox" (after "Table"). It opens a screen with the h1 "Inbox" and a list "Messages" holding one read-only message per matchday played, newest first. Each message has the title "Matchday N", the match screen's score line and "League position" with the ordinal after that matchday. Everything is derived from the recorded results (`src/domain/inbox.ts`): no new `GameState` data, no save-format change. Before any match, "No messages yet" is shown. `render` became a lookup (ADR-0018) and the score line and matchday title are shared with the match screen (`src/ui/score-line.ts`).
+
+### Wave: DELIVER / [REF] Files modified
+- New: `src/domain/inbox.ts`, `src/ui/score-line.ts`, `src/ui/screens/inbox.ts`, `tests/acceptance/S-011/*` (navigation, oracle, readonly, reference-pinned, reports, save-unchanged, source, time-travel, names-avoid-inbox-words, helpers), `tests/e2e/S-011-inbox.spec.ts`.
+- Changed: `src/app/state.ts` (`ViewInbox`, `Back`), `src/main.ts` (render lookup, inbox case), `src/ui/screens/club-home.ts`, `src/ui/screens/match.ts`, `src/ui/styles.css`.
+- Amended without weakening (D8, "Inbox" added last to the exact button lists): `tests/e2e/S-005-starting-xi`, `S-006-match`, `S-007-club-home-regression`, `S-007-table`, `S-008-club-home-regression`, `S-008-season`, `S-009-club-home-regression`, `S-009-end-of-season` specs.
+
+### Wave: DELIVER / [REF] Scenarios green
+Roadmap: 4 steps (01-01, 01-02, 02-01, 03-01), all DONE. Acceptance: 1213 tests passing. e2e: 155 passing. `tests/protected/S-011/` runs in CI on main.
+
+### Wave: DELIVER / [REF] DoD check
+- Inbox button, screen, list, Back, one message per matchday newest first, three lines, empty state: met (acceptance and e2e).
+- Position equals the Table's Pos right after each matchday (oracle sweep): met.
+- Derived only, read-only, save unchanged, per-season reset: met.
+- D8 amendments replace, never weaken: met.
+- `ci:*` scripts green; no ambient randomness or clock in `src/domain/`: met.
+- Protected S-011 on main: verified by CI after merge.
+
+### Wave: DELIVER / [REF] Quality gates
+- Refactor pass done (inbox derivation helper, empty list height, stale comment).
+- Reviewer (Haiku) found no production defects. Its blocker B1 (missing "Outcome anchor" tag in tests) is declined: earlier stories' tests do not carry it and it is an nWave template convention, not a repo rule.
+- Mutation testing is nightly-delta, so `/nw-deliver` Phase 5 was skipped.
+- `des-verify-integrity` passed (all 4 steps have complete DES traces).
+- Honest note: the 02-01 RED phase was logged without a separate observed run (RED and GREEN share a timestamp), though the scaffolds threw by construction. 01-01 and 01-02 RED were SKIPPED as NOT_APPLICABLE (behaviour-preserving refactors).
