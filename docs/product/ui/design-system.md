@@ -53,3 +53,10 @@ Patterns:
 - **Continue** (`button.primary`): the pitch-gold primary button above "New game", 48px, 200px minimum width, like the title's one button today. It is the primary action because it resumes the season.
 - **New game** (`button.secondary`, only while "Continue" is offered): the outlined gold style of `.back-button` (transparent fill, 1px gold border, gold text, 48px, 12px radius), sized like the title's primary button (200px minimum width, not full width); the colours and border are one shared rule with `.back-button`, not a copy, and only the width differs. Without a saved game "New game" stays the gold `button.primary`, so the first-visit title is unchanged.
 - The h1 "Gaffer" and the tagline are unchanged; the stack (h1, tagline, Continue, New game) keeps the title's 16px gap and centred column; no sideways scroll at 390px. Focus rings follow the shared rule (3px gold, 2px offset).
+
+## Inbox (S-011)
+- **Club home**: "Inbox" is the sixth `button.primary`, after "Table", 48px, same gold fill.
+- **Message cards** (`li.message` in `ul.message-list`): a one-column grid, 10px gap; chalk 8% wash, 10px radius, 4px gold left edge, 10px by 12px padding. The list keeps a 1.5rem box when empty.
+- **Lines**: `p.message-title` ("Matchday N") 0.9rem bold muted chalk; the shared `p.score-line` from the match screen at 1.1rem with its own box, border and background removed by the descendant rule `.message .score-line`; `p.message-position` 0.9rem with a muted `span.message-label` and a bold gold `span.message-value`. Inline flow only (no `display`, flex, grid, float, position or `text-transform` on the spans), so `innerText` equals `textContent`. Long names wrap (`overflow-wrap: anywhere`).
+- **Empty state**: `p.inbox-empty` "No messages yet", gold, 600 weight, outside the list. "Back" is the shared outlined `.back-button`, 48px.
+- **Visual pass**: the build could not be served in the pass session (shell denied the preview server), so no screenshot critique was done and no CSS was changed; the layout is covered by the e2e computed-style and 390px checks.
