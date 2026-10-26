@@ -160,3 +160,21 @@ jobs:
       An automatic save after every tap that changes the game, and one "Continue" on the title that
       restores the club, its team sheet and its results exactly, lets a season be played across many
       five-minute sessions and sets up a next season, the inbox and season records.
+  - id: J-11
+    name: follow-my-seasons-story
+    statement: >-
+      When I come back between matches, I want to look back over how my season has gone, so that I
+      can see whether my decisions are paying off.
+    dimensions:
+      functional: From the club home, in one tap on a phone, re-read every played matchday's result and where my club stood in the league right after it, newest first.
+      emotional: Feel oriented after a break, the pride of a climb (or the honesty of a slide), and that what was played is kept, never rewritten.
+      social: Be able to tell other football fans the story of the season ("bottom after two, second after nine, and we finished third").
+    forces:
+      push: A played match can never be re-opened and the table shows only today, so after a break Sam cannot recall how the last games went or whether his club is climbing or slipping.
+      pull: The inbox of match reports in the management games Sam grew up with, read at a glance between fixtures.
+      anxiety: Reports that disagree with the score he saw or the table he read; a cluttered feed on a small screen; reports that change when he changes his team.
+      habit: Remembering results in his head, or checking only the current table and guessing the trend.
+    opportunity: >-
+      One read-only report per played matchday, derived from the recorded results (score line and league
+      position after it), needs no new stored data and sets up storylines, player form and the other
+      results in the same feed.
