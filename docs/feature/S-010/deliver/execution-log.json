@@ -120,6 +120,13 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-10-26T08:35:02Z"
+    },
+    {
+      "sid": "01-02",
+      "p": "RED",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: scaffold threw on every call, spec activation only",
+      "t": "2026-10-26T08:35:34Z"
     }
   ]
 }
