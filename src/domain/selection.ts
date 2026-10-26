@@ -52,7 +52,12 @@ export const pickForSlot = (
   return xi.map((current, index) => (index === slot ? playerIndex : index === otherSlot ? displaced : current));
 };
 
-/** __SCAFFOLD__ (S-010 DISTILL, Mandate 7): throws until DELIVER writes the rule of ADR-0016. */
-export const isLegalXI = (_squad: readonly Player[], _formation: FormationId, _xi: readonly number[]): boolean => {
-  throw new Error("__SCAFFOLD__ selection.ts isLegalXI: not implemented yet (S-010 DELIVER)");
+/** A saved eleven is legal when it is 11 different squad players, each in the position of its slot. */
+export const isLegalXI = (squad: readonly Player[], formation: FormationId, xi: readonly number[]): boolean => {
+  const slots = lineUp(formation);
+  return (
+    xi.length === SLOTS_PER_XI &&
+    new Set(xi).size === SLOTS_PER_XI &&
+    xi.every((playerIndex, slot) => isSquadIndex(playerIndex) && squad[playerIndex]?.position === slots[slot])
+  );
 };
