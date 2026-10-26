@@ -1,6 +1,6 @@
 # ADR-0014: Season progression: "Play match" plays the next matchday (S-008)
 
-- Status: Accepted. Superseded in part by ADR-0015 (S-009): decision 4, the "Season over" line in the Play match slot; the club home now offers an "End of season" button there, which opens the End of season screen.
+- Status: Accepted. Superseded in part by ADR-0015 (S-009): decision 4, the "Season over" line in the Play match slot; the club home now offers an "End of season" button there, which opens the End of season screen. (amended by ADR-0016, S-010: the "future persistence story" of Earned Trust 4 is S-010; it validates shape, order and contiguity of a loaded log, and results no longer vanish on reload.)
 - Date: 2026-10-25
 - Deciders: nWave solution-architect (S-008 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core), ADR-0008 (focus plan), ADR-0009 (optional state field, `exactOptionalPropertyTypes`), ADR-0010 (schedule), ADR-0011 (streams 200..255), ADR-0012 (the results log this appends to), ADR-0013 (standings, unchanged).

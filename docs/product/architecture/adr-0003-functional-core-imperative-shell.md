@@ -1,6 +1,6 @@
 # ADR-0003: Architecture: functional core (domain) and imperative shell (app + UI)
 
-- Status: Accepted
+- Status: Accepted (note, ADR-0016, S-010: the "Future persistence" paragraph is taken: pure `toSave`/`fromSave` in `src/app/save.ts`, an effectful storage adapter in `src/adapters/`; `fromSave` takes `unknown`)
 - Date: 2026-10-15
 - Deciders: nWave solution-architect (factory plan run, `interaction_mode=propose`)
 
