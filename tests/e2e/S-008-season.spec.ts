@@ -7,7 +7,7 @@
 // shows "End of season" where "Play match" was. The expected values are the reference season of the plan run (season-reference.ts, written
 // before any S-008 code). Covers only what tests/protected/S-008 does not: the cross-engine golden season (Chromium equals Node), focus on
 // each heading, 44px, the picks counting forward with a real pick, the "End of season" button and the missing "Play match" button (durable, S-009 D1),
-// "Table" after 14, determinism between fresh pages, reload loses the season, no sideways scroll and no console error.
+// "Table" after 14, determinism between fresh pages, a reload offers Continue and New game still starts fresh (S-010), no sideways scroll and no console error.
 // Environment precondition: runs against local-preview (ci:serve, http://localhost:4173/gaffer/) or, via BASE_URL, the deployed Pages site;
 // both serve the production build under /gaffer/. Not meant for local-dev (vite dev, :5173): waived (as S-003..S-007).
 // Environment probes (ADR-0014 Earned Trust): (1) the browser reproduces the Node reference season (14 score lines, seed 31 and 20260);
@@ -475,11 +475,12 @@ test.describe("@US-1 S-008 the same seed plays the same season, and a reload sta
     await none.context().close();
   });
 
-  test("@error @boundary Reloading the page after two matches shows the title screen again; New game and the same club start at Matchday 1 with every row at P 0 (the season is lost, there is no save yet) @contract-shape:bounded-change", async ({ page }) => {
+  test("@error @boundary Reloading the page after two matches shows the title with Continue and New game; New game and the same club start at Matchday 1 with every row at P 0 (the saved game is kept, New game starts fresh) @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
     const who = await whoIs(page, "?seed=31", 0);
     await playSeason(page, who, { from: 1, to: 2 });
     await page.reload();
+    await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "New game" })).toBeVisible();
     await page.getByRole("button", { name: "New game" }).click();
     await page.getByRole("list", { name: "Clubs" }).getByRole("button").nth(0).click();

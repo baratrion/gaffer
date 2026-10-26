@@ -35,9 +35,10 @@ const startSeason = async (page: Page, query: string, clubIndex = 0): Promise<st
 };
 
 /** Taps "Play match" and "Back" `count` times from the club home; returns the Matchday heading and score line of each. */
-const playMatches = async (page: Page, club: string, count: number, first = 1): Promise<string[]> => {
+const playMatches = async (page: Page, club: string, count: number | readonly [number, number]): Promise<string[]> => {
+  const [first, last] = typeof count === "number" ? [1, count] : count;
   const seen: string[] = [];
-  for (let matchday = first; matchday < first + count; matchday++) {
+  for (let matchday = first; matchday <= last; matchday++) {
     await button(page, "Play match").click();
     await expect(heading(page)).toHaveText(`Matchday ${matchday}`);
     seen.push((await page.getByText(/^.+ \d–\d .+$/).first().innerText()).trim());
@@ -252,7 +253,7 @@ test.describe("@US-2 S-010 a bad or unavailable store never gets in the way", ()
     const club = await startSeason(page, "?seed=31");
     await playMatches(page, club, 2);
     await flag(page, "failing");
-    await playMatches(page, club, 1, 3);
+    await playMatches(page, club, [3, 3]);
     await page.reload();
     await expect(button(page, "Continue")).toHaveCount(0);
     await expect(button(page, "New game")).toBeVisible();
