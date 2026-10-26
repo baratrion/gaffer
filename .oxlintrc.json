@@ -19,10 +19,11 @@
         "no-restricted-imports": ["error", {
           "patterns": [
             { "group": ["**/ui/**"], "message": "Domain must not depend on UI (architectural boundary)" },
-            { "group": ["**/app/**"], "message": "Domain must not depend on the app shell (ADR-0003)" }
+            { "group": ["**/app/**"], "message": "Domain must not depend on the app shell (ADR-0003)" },
+            { "group": ["**/adapters/**"], "message": "Domain must not depend on adapters (ADR-0016)" }
           ]
         }],
-        "no-restricted-globals": ["error", "document", "window", "localStorage", "location", "Date", "performance", "crypto", "setTimeout", "setInterval"]
+        "no-restricted-globals": ["error", "document", "window", "localStorage", "sessionStorage", "location", "Date", "performance", "crypto", "setTimeout", "setInterval"]
       }
     },
     {
@@ -30,7 +31,30 @@
       "rules": {
         "no-restricted-imports": ["error", {
           "patterns": [
-            { "group": ["**/ui/**"], "message": "App shell state must not depend on UI (ADR-0003)" }
+            { "group": ["**/ui/**"], "message": "App shell state must not depend on UI (ADR-0003)" },
+            { "group": ["**/adapters/**"], "message": "App shell must not depend on adapters (ADR-0016)" }
+          ]
+        }],
+        "no-restricted-globals": ["error", "localStorage", "sessionStorage"]
+      }
+    },
+    {
+      "files": ["src/ui/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["**/adapters/**"], "message": "UI must not depend on adapters (ADR-0016)" }
+          ]
+        }],
+        "no-restricted-globals": ["error", "localStorage", "sessionStorage"]
+      }
+    },
+    {
+      "files": ["src/adapters/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["**/ui/**"], "message": "Adapters must not depend on UI (ADR-0016)" }
           ]
         }]
       }
