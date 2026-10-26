@@ -43,17 +43,17 @@ storage_state_environments:
     expected: store degraded; no Continue; 2 matches and Table work (every row P 2); a reload shows no Continue; no console error
     covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/ (throwing getter)]
   full_at_load:
-    produced_by: a valid seed-31 save stored, then an init script making Storage.prototype.setItem throw QuotaExceededError
-    expected: probe write fails, store degraded; no Continue (a readable older save is not offered); play unaffected; no console error
-    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/ (throwing setItem)]
+    produced_by: a valid seed-31 save stored, then an init script making Storage.prototype.setItem throw QuotaExceededError for every key; later a reload with setItem restored
+    expected: probe write fails, store degraded; no Continue (a readable older save is not offered); play unaffected; no console error. The degraded store removes gaffer.save best effort (at construction and on each saving tap), so after setItem is restored and the page reloaded there is still no Continue. Residual: when access is blocked entirely nothing can be removed
+    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/ (throwing setItem with a working removeItem; a throwing removeItem swallowed)]
   full_mid_session:
-    produced_by: play 2 matches (saved), then make setItem throw, play matchday 3, reload
-    expected: the failed write removes gaffer.save (best effort, silent), so no Continue (never a stale matchday-2 offer); no console error; the next saving tap retries
-    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/ (write returns false, key removed, retry succeeds)]
+    produced_by: play 2 matches (saved), then make only writes to gaffer.save throw (the probe key still writes), play matchday 3, reload
+    expected: the failed write removes gaffer.save (best effort, silent); the store is ok at reload, so the missing Continue shows the removal (never a stale matchday-2 offer); no console error; the next saving tap retries
+    covered_by: [tests/e2e/S-010-save-continue.spec.ts, tests/acceptance/S-010/ (write returns false, key removed, T1 saved / T2 fails / back at T1 writes T1; autosave swallows a throwing write or encode)]
 deployment_strategy: recreate
 container_orchestration: none
 observability: browser console + Playwright smoke on deployed URL
-mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts plus src/app/state.ts. INSIDE today: src/domain/selection.ts (isLegalXI), src/app/state.ts (Continue handler, handler table). DELIVER adds src/app/save.ts and src/adapters/**/*.ts to mutate in the S-010 PR (ADR-0016 Enforcement amendment; stryker.config.mjs is not locked; local baseline measured; thresholds never lowered; owner-request fallback only if the PR guard rejects the edit). OUTSIDE: src/ui/screens/title.ts, src/main.ts (e2e and grep tests only).
+mutation_testing: nightly-delta   # stryker mutates src/domain/** except names.ts plus src/app/state.ts. INSIDE today: src/domain/selection.ts (isLegalXI), src/app/state.ts (Continue handler, handler table). DELIVER adds src/app/save.ts and src/adapters/**/*.ts to mutate in the S-010 PR (ADR-0016 Enforcement amendment; stryker.config.mjs is not locked; local baseline measured; thresholds never lowered; the same edit corrects the file's header comment; owner-request fallback only if the PR guard rejects the edit). OUTSIDE: src/ui/screens/title.ts, src/main.ts (e2e and grep tests only).
 branching: trunk-based, short-lived claude/* branches, squash merge
 deployment_assumptions:
   artifact: static (dist/index.html under /gaffer/)

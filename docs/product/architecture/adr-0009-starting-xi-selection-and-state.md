@@ -1,6 +1,6 @@
 # ADR-0009: Starting XI selection rules and state (S-005)
 
-- Status: Accepted
+- Status: Accepted (note, ADR-0016 Enforcement, S-010: the "owner-locked" description of `stryker.config.mjs` below is superseded; the file is not on CLAUDE.md's lock list, and S-010 widens its `mutate`)
 - Date: 2026-10-18
 - Deciders: nWave solution-architect (S-005 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core, imperative shell), ADR-0005 (d) (squad derived on render), ADR-0006 (derived overall, index-based player screen), ADR-0007 (slot = index in `lineUp`; "S-005 stores slot index to player index in state"), ADR-0008 (focus on the `<h1>` after a screen change). Amends the S-005 storage note of ADR-0007 (which now points here): the slot-to-player map is stored only once the player has changed the XI. Supersedes nothing else.

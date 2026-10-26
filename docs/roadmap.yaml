@@ -351,14 +351,21 @@ stories:
       season remains" holds once a club is picked. A saved game that cannot be read (damaged, or from an
       incompatible older version) is ignored: there is no "Continue" button and the game plays as
       before. When browser storage is unavailable or full when the game loads, there is no "Continue"
-      button (a readable older save is then not offered) and the game plays as before without saving.
-      When a save fails during play, the stored saved game is removed (best effort, silently), so that
-      "Continue" never offers an older state than the last one played; later taps try to save again. A
-      failed save never interrupts play and logs no console error. This version amends S-007, S-008 and S-009, which said that results are kept until the page is
-      reloaded: from this version on a reload keeps the saved game, reachable through "Continue"; their
-      durable lists are unchanged and "New game" still starts fresh. These hold in every later version
-      of the game: with a saved game the title screen offers "Continue" (exact name), and without one it
-      does not; "Continue" restores the saved club with its formation, Starting XI, recorded results and
-      next matchday; and "New game" always starts a fresh game. That "Continue" lands on the club home,
-      and that the saved game is replaced only once a club is picked in a new game, are rules of this
-      version only. No horizontal scroll at 390px and no console errors.
+      button (a readable older save is then not offered), the game plays as before without saving, and
+      the stored saved game is removed (best effort, silently) at load and on each tap that would save,
+      so a later visit never finds an older save; when access to storage is blocked entirely nothing can
+      be removed, so a save that existed before is offered again once access returns. When a save fails
+      during play, the stored saved game is removed (best effort, silently), so that "Continue" never
+      offers an older state than the last one played, except when the removal also fails or storage is
+      blocked entirely, and except with several tabs open at once (out of scope); later taps try to save
+      again. A failed save never interrupts play and logs no console error. This version amends S-007,
+      S-008 and S-009, which said that results are kept until the page is reloaded: from this version on
+      a reload keeps the saved game, reachable through "Continue"; their durable lists are unchanged and
+      "New game" still starts fresh. These hold in every later version of the game: with a saved game
+      the title screen offers "Continue" (exact name), and without one it does not; "Continue" restores
+      the saved club with its formation, Starting XI, recorded results and next matchday; and "New game"
+      always starts a fresh game. That "Continue" lands on the club home, and that the saved game is
+      replaced only once a club is picked in a new game, are rules of this version only; and a later
+      version that changes the save format, or the game model in a way that invalidates saved results,
+      may either make saved games unreadable (no "Continue") or let an old save continue with its
+      recorded results. No horizontal scroll at 390px and no console errors.
