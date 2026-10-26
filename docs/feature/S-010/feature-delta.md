@@ -755,3 +755,34 @@ Step bodies are plain `it`/`test` code over production services (no step-method 
 4. **Review fold-in (coordinator)**: `createAutosave(write, lastText)` now takes only the write capability `(text) => boolean` (`main.ts` passes `store.write`), in the scaffold, the held-out tests and ADR-0016 (amended; the DESIGN rows above still say `store`). `save-source` is folded into `save-store`. A new e2e keeps the 4-3-3 team sheet through Continue. `createSaveStore` is the driven adapter under test.
 5. **State-delta waiver**: no `tests/common/state_delta.ts` port exists in this repo; universes are asserted directly as port-exposed values (returned text, restored `GameState`, written texts, remaining storage entries), which is the Mandate 8 intent. Waived for this project; a port may be bootstrapped later.
 6. **Suggested DELIVER order**: (1) `isLegalXI` + `legal-xi`; (2) `save.ts`, the `update` handler table with `Continue`, `save-round-trip`, `save-unreadable`, `save-triggers` (the `saveTextFor` cases); (3) `save-store.ts` with `save-store` and the `createAutosave` cases of `save-triggers`; (4) `title.ts`, CSS (`button.secondary`, 44px), `main.ts`, `.oxlintrc.json`, `save-source`, the e2e spec and the amend patch.
+
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+The season now survives a reload (ADR-0016). A pure, strict, versioned save format (`encodeSave`, `decodeSave`, `saveTextFor`) sits behind a probing `localStorage` adapter (`createSaveStore`, `createAutosave(write, lastText)`). The title shows "Continue" above "New game" only when a readable save exists; `Continue` restores the saved game and lands on the club home. Saving taps (club, formation, Starting XI pick, Play match) autosave; a failed write removes the stored save; blocked, full or unreadable storage means no "Continue" and no console errors. `update` became a handler table, and `isLegalXI` guards restored team sheets.
+
+### Wave: DELIVER / [REF] Files modified
+- New: `src/app/save.ts`, `src/adapters/save-store.ts`, `tests/acceptance/S-010/*` (legal-xi, names-avoid-continue, save-inputs-pinned, save-round-trip, save-store, save-triggers, save-unreadable, helpers), `tests/e2e/S-010-save-continue.spec.ts`, `tests/e2e/S-010-club-home-regression.spec.ts`.
+- Changed: `src/app/state.ts` (handler table, `Continue`), `src/app/seed.ts`, `src/domain/selection.ts` (`isLegalXI`), `src/main.ts`, `src/ui/screens/title.ts`, `src/ui/styles.css`, `.oxlintrc.json`, `stryker.config.mjs` (mutate scope), ADR-0016 (amended to `createAutosave(write, lastText)`).
+- Amended without weakening (D7): `tests/e2e/S-008-season.spec.ts`, `tests/acceptance/S-009/existing-navigation-unchanged.test.ts`.
+- Commits: 629959d (01-01), 300687a (01-02), 3e814a3 (01-03), 814b38e (01-04), d5e53be (01-05), 699abef (01-06), then refactor and test tidy-ups cd97745, 95a57c3, de99697.
+
+### Wave: DELIVER / [REF] Scenarios green
+`ci:test`: 58 files, 1124 tests passed, including all `tests/acceptance/S-010/*` cases. The S-010 e2e specs (reload and Continue, D4 timing, D5 seed, damaged, version 0, foreign text, blocked, full at load, full mid-session, club-home regression) were added in step 01-06; `ci:e2e` was not re-run at finalization. `tests/protected/S-010/` was not run locally; CI runs it on main.
+
+### Wave: DELIVER / [REF] DoD check
+- Protected S-010 passes on main: verified by CI, not run locally.
+- Round trip, continued equals uninterrupted, save triggers, unreadable inputs, swallowed storage failures, removal on a failed write, names check: met (unit and property).
+- e2e phone smoke for the storage-state matrix: specs committed; not re-run at finalization.
+- D7 amendments replace, never weaken: met.
+- `ci:*` scripts: lint, typecheck and test green. No ambient randomness or clock in `src/domain/`: met.
+- PR size guard (1200 lines, docs excluded): the branch diff is about 1,130 changed lines of code and tests against main, under the guard.
+
+### Wave: DELIVER / [REF] Quality gates
+Roadmap: 6 steps, all DONE; `des-verify-integrity` passed ("All 6 steps have complete DES traces"). `ci:lint`, `ci:typecheck`, `ci:test` (1124 passed) green. Mutation testing is nightly-delta, so `/nw-deliver` Phase 5 was skipped; the first nightly run gives the baseline for `src/app/save.ts` and `src/adapters/**` (now in Stryker `mutate`).
+
+### Wave: DELIVER / [REF] Open questions (from `open-questions.md`)
+1. Step 01-02 and 01-06 RED were SKIPPED (NOT_APPLICABLE: spec activation against a throwing scaffold, or behaviour already implemented in 01-05). The reviewer flagged this as weak RED evidence. Nothing was backdated.
+2. Mutation baseline for `save.ts` and `src/adapters/**` (ADR-0016 Enforcement) is not measured; thresholds unchanged.
+3. The DESIGN rows above still say `createAutosave(store, ...)`; ADR-0016 and DISTILL amended it to `createAutosave(write, lastText)`.
