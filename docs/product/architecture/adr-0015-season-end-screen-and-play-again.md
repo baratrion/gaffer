@@ -1,6 +1,6 @@
 # ADR-0015: End of season screen and Play again (S-009)
 
-- Status: Accepted
+- Status: Accepted (amended by ADR-0016, S-010: "There is no storage" in Earned Trust no longer holds; the game saves to localStorage, and "Play again" after "Continue" keeps the saved league's seed)
 - Date: 2026-10-25
 - Deciders: nWave solution-architect (S-009 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core), ADR-0005 (squad order, derive on demand), ADR-0008 (focus plan), ADR-0009 (inline-flow text rule, optional state field), ADR-0011 (goal events), ADR-0012 (the results log; `NewGame` drops it), ADR-0013 (standings; format functions in the domain; a renderer that emits only named actions), ADR-0014 (season progression; the derived "season over").

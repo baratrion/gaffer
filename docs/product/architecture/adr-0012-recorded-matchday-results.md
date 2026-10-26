@@ -1,6 +1,6 @@
 # ADR-0012: Recorded matchday results in session state (S-007)
 
-- Status: Accepted. Superseded in part by ADR-0014 (S-008): the rule that later "Play match" taps re-show the recorded match (and `OPENING_MATCHDAY` as a matchday to be held in state); every later tap now appends the next matchday.
+- Status: Accepted. Superseded in part by ADR-0014 (S-008): the rule that later "Play match" taps re-show the recorded match (and `OPENING_MATCHDAY` as a matchday to be held in state); every later tap now appends the next matchday. (amended by ADR-0016, S-010: the "no persistence yet" lifetime in D9 and "Future persistence" in Earned Trust 3 no longer hold; the results are saved in the browser and restored by "Continue".)
 - Date: 2026-10-23
 - Deciders: nWave solution-architect (S-007 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core; future `toSave`/`fromSave`), ADR-0005 (d) (derive on render), ADR-0009 (optional state field pattern, `exactOptionalPropertyTypes`), ADR-0010 (schedule), ADR-0011 (match model and streams), ADR-0013 (standings and table screen, which reads what this ADR records).

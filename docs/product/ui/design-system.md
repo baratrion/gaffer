@@ -48,3 +48,8 @@ Patterns:
 - **Season lines** (`p.season-line`): the chalk-panel surface (1px chalk 25% border, 8% wash, 10px radius) with a 4px gold left edge; label in muted chalk (`.season-label`), value bold gold at 1.25rem (`.season-value`). The `p` and its spans keep inline flow, with no flex, grid, float, position, `display` override, `text-transform` or generated content, so the line reads as one string of text.
 - **Actions** (`.season-actions`): "Play again" is the primary gold button, "Back" the shared outlined `.back-button`; one column, 10px gap, 48px tall.
 - **Club home**: "End of season" takes the "Play match" slot as the fifth primary button.
+
+## Title with a saved game (S-010)
+- **Continue** (`button.primary`): the pitch-gold primary button above "New game", 48px, 200px minimum width, like the title's one button today. It is the primary action because it resumes the season.
+- **New game** (`button.secondary`, only while "Continue" is offered): the outlined gold style of `.back-button` (transparent fill, 1px gold border, gold text, 48px, 12px radius), sized like the title's primary button (200px minimum width, not full width); the colours and border are one shared rule with `.back-button`, not a copy, and only the width differs. Without a saved game "New game" stays the gold `button.primary`, so the first-visit title is unchanged.
+- The h1 "Gaffer" and the tagline are unchanged; the stack (h1, tagline, Continue, New game) keeps the title's 16px gap and centred column; no sideways scroll at 390px. Focus rings follow the shared rule (3px gold, 2px offset).
