@@ -22,6 +22,27 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-10-26T21:50:42Z"
+    },
+    {
+      "sid": "01-02",
+      "p": "RED",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: behaviour-preserving extraction, existing suites are the evidence",
+      "t": "2026-10-26T21:53:18Z"
+    },
+    {
+      "sid": "01-02",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-10-26T21:53:18Z"
+    },
+    {
+      "sid": "01-02",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-10-26T21:53:19Z"
     }
   ]
 }
