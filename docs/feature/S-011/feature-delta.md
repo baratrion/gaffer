@@ -630,3 +630,16 @@ Owner-only items inherited from S-001..S-010 (smoke `sleep 20`, no security scan
 
 ### Wave: DEVOPS / [REF] Peer review
 No per-wave review (none triggered): no novel deployment target and no CI change.
+
+## Plan run: protected scenarios
+
+`tests/protected/S-011/inbox.spec.ts` holds 4 black-box scenarios (Pixel 7, 390px; roles, accessible names and visible text, plus the S-006 "innermost element whose whole text matches" scan for the match screen's score line and the End of season line). They pin only the durable clause (DISCUSS D7, D9) and the conventions every story pins (44px, Back to the club home with its h1 focused, focus on the new h1, no sideways scroll at 390px, no console errors). A matchday message is a list item of "Messages" with a child element reading "Matchday N" first, then a child reading the score line and later a child reading "League position Xth"; items without a "Matchday N" line are skipped (later storylines), and each matchday message must hold no button, link or nested list. Clubs are read from the "Clubs" list and scores and positions from the match screens and the "League table", so no generated name and no tie-break order is pinned; the seed-31 position goldens stay unit and e2e goldens for DISTILL.
+
+1. **P1, offer and empty** (`?seed=31`, 1st club). The club home has "Inbox", 44px or taller; it opens the only h1 "Inbox", focused, with one list "Messages" holding no matchday message; "Back" returns to the club home, h1 focused.
+2. **P2, reports and positions** (`?seed=31`, 4th club; 60 s). Three matches, reading each match screen's h1 and score line, then the Table's Pos (every row at P N) after each. The Inbox holds exactly the reports Matchday 3, 2, 1, each with its match screen's score line and "League position" plus the ordinal of the Pos read right after that matchday.
+3. **P3, whole season** (`?seed=31`, 1st club; 90 s). Fourteen matches, then "End of season" and its "Final position". The Inbox holds the 14 reports, Matchday 14 down to 1, each with its match screen's score line, and the newest's position line equals "League position" plus the final position.
+4. **P4, never rewritten** (`?seed=31`, 6th club; 60 s). Two matches and the Inbox read; "4-3-3" in Tactics: the same reports; reload and "Continue" (back to the club home if it lands elsewhere): the same reports.
+
+Not pinned, by design (version-only): "No messages yet", the exact number of items, the place of "Inbox" among the buttons, the empty Inbox after "Play again" or "New game", the tie-break order behind a position value, and the address seed ("?seed=abc").
+
+All 4 fail on the current app at the "Inbox" check (no such button), after the steps before it ran: under the locked runner P2 got there after three matches and three Table reads, and P3 after fourteen matches and the End of season screen. So the match, Table and End of season helpers are known to hold on the real app. The Inbox-reading helper was checked against throwaway mock markup that follows ADR-0017 (three `<p>` lines with inline spans, an extra non-matchday item, and an empty list). It read the two reports and skipped the other item. The mock was not committed and was deleted. DELIVER is the first to run the Inbox path end to end.
