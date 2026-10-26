@@ -134,10 +134,10 @@ const expectEndOfSeasonOffer = async (page: Page, club: string): Promise<void> =
   await expect(page.getByText("Season over"), "the S-008 line is gone").toHaveCount(0);
   await expect(page.getByRole("heading")).toHaveCount(1);
   const buttons = page.getByRole("button");
-  expect((await buttons.allInnerTexts()).map((text) => text.trim()), "five buttons in the Play match slot's order").toEqual(["Squad", "Tactics", "Starting XI", "End of season", "Table"]);
+  expect((await buttons.allInnerTexts()).map((text) => text.trim()), "six buttons in the Play match slot's order").toEqual(["Squad", "Tactics", "Starting XI", "End of season", "Table", "Inbox"]);
   for (const [index, each] of (await buttons.all()).entries()) await tall(each, `club home button ${index}`);
   expect(await page.evaluate(() => [...document.querySelectorAll(".club-actions > *")].map((node) => `${node.tagName}:${node.textContent?.trim()}`)), "the button sits in the Play match slot").toEqual([
-    "BUTTON:Squad", "BUTTON:Tactics", "BUTTON:Starting XI", "BUTTON:End of season", "BUTTON:Table",
+    "BUTTON:Squad", "BUTTON:Tactics", "BUTTON:Starting XI", "BUTTON:End of season", "BUTTON:Table", "BUTTON:Inbox",
   ]);
   const box = (await button(page, "End of season").boundingBox())!;
   expect([box.x >= 0, box.x + box.width <= page.viewportSize()!.width], "inside the 390px screen").toEqual([true, true]);

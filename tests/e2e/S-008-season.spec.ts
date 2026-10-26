@@ -249,10 +249,10 @@ const expectEndOfSeasonOffer = async (page: Page, club: string, headingFocused =
   await expect(page.getByText("Season over"), "the S-008 line is retired").toHaveCount(0);
   await expect(page.getByRole("heading")).toHaveCount(1);
   const buttons = page.getByRole("button");
-  expect((await buttons.allInnerTexts()).map((text) => text.trim()), "five buttons: Squad, Tactics, Starting XI, End of season, Table").toEqual(["Squad", "Tactics", "Starting XI", "End of season", "Table"]);
+  expect((await buttons.allInnerTexts()).map((text) => text.trim()), "six buttons: Squad, Tactics, Starting XI, End of season, Table, Inbox").toEqual(["Squad", "Tactics", "Starting XI", "End of season", "Table", "Inbox"]);
   for (const [index, each] of (await buttons.all()).entries()) expect((await each.boundingBox())?.height ?? 0, `club home button ${index}`).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => [...document.querySelectorAll(".club-actions > *")].map((node) => `${node.tagName}:${node.textContent?.trim()}`)), "the button sits in the Play match slot").toEqual([
-    "BUTTON:Squad", "BUTTON:Tactics", "BUTTON:Starting XI", "BUTTON:End of season", "BUTTON:Table",
+    "BUTTON:Squad", "BUTTON:Tactics", "BUTTON:Starting XI", "BUTTON:End of season", "BUTTON:Table", "BUTTON:Inbox",
   ]);
   const box = (await offer.boundingBox())!;
   const viewportWidth = page.viewportSize()!.width;

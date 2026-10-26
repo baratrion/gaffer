@@ -5,7 +5,7 @@ import { automaticXI, isSlotIndex, pickForSlot, type StartingXI } from "../domai
 import { generateSquad, PLAYERS_PER_SQUAD, type Player } from "../domain/squad";
 import { MATCHDAYS } from "../domain/schedule";
 import { topScorer, type TopScorer } from "../domain/season";
-import type { MatchdayReport } from "../domain/inbox";
+import { matchdayReports, type MatchdayReport } from "../domain/inbox";
 import { standings, type StandingRow } from "../domain/standings";
 
 export type Screen =
@@ -19,7 +19,8 @@ export type Screen =
   | { readonly kind: "choosePlayer"; readonly clubId: string; readonly slot: number }
   | { readonly kind: "match"; readonly clubId: string }
   | { readonly kind: "table"; readonly clubId: string }
-  | { readonly kind: "seasonEnd"; readonly clubId: string };
+  | { readonly kind: "seasonEnd"; readonly clubId: string }
+  | { readonly kind: "inbox"; readonly clubId: string };
 
 export interface GameState {
   readonly league: League;
@@ -182,7 +183,7 @@ const viewSeasonEnd = (state: GameState): GameState =>
     ? toScreen(state, { kind: "seasonEnd", clubId: state.screen.clubId })
     : state;
 
-const HOME_RETURNING_KINDS: ReadonlySet<Screen["kind"]> = new Set(["squad", "match", "tactics", "startingXI", "table", "seasonEnd"]);
+const HOME_RETURNING_KINDS: ReadonlySet<Screen["kind"]> = new Set(["squad", "match", "tactics", "startingXI", "table", "seasonEnd", "inbox"]);
 
 const back = (state: GameState): GameState => {
   const { screen, league } = state;
@@ -261,14 +262,15 @@ export const seasonSummaryOf = (state: GameState, clubId: string): SeasonSummary
     : { position: row.position, topScorer: topScorer(state.results ?? [], clubIndex, squad) };
 };
 
-/** __SCAFFOLD__ (S-011 DISTILL): ViewInbox and inboxOf throw until DELIVER step 3 (the `inbox` screen kind is not added yet, so `render` is untouched). */
-const viewInbox = (): GameState => {
-  throw new Error("__SCAFFOLD__ ViewInbox is not implemented yet (S-011 DELIVER step 3)");
-};
+const viewInbox = (state: GameState): GameState =>
+  state.screen.kind === "clubHome" && isKnownClub(state.league, state.screen.clubId)
+    ? toScreen(state, { kind: "inbox", clubId: state.screen.clubId })
+    : state;
 
-/** __SCAFFOLD__ (S-011 DISTILL): the club's matchday reports; undefined for a club not in the league. */
-export const inboxOf = (_state: GameState, _clubId: string): readonly MatchdayReport[] | undefined => {
-  throw new Error("__SCAFFOLD__ inboxOf is not implemented yet (S-011 DELIVER step 3)");
+/** The club's matchday reports, newest first (derived from the recorded results, nothing stored); undefined for a club not in the league. */
+export const inboxOf = (state: GameState, clubId: string): readonly MatchdayReport[] | undefined => {
+  const clubIndex = state.league.clubs.findIndex((club) => club.id === clubId);
+  return clubIndex < 0 ? undefined : matchdayReports(state.league.clubs, state.results ?? [], clubIndex);
 };
 
 const continueGame = (state: GameState, { game }: ActionOf<"Continue">): GameState =>

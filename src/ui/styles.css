@@ -345,3 +345,10 @@ h1:focus { outline: none; }
 .season-value { font-weight: 700; font-size: 1.25rem; color: var(--accent); }
 .season-actions { display: grid; gap: 10px; margin-top: 16px; }
 .season-actions button { width: 100%; min-height: 48px; margin-top: 0; }
+
+.inbox h1 { font-size: 1.75rem; margin-bottom: 16px; }
+.inbox-empty { margin: 0 0 16px; color: var(--accent); font-weight: 600; }
+.message-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; }
+.message { padding: 10px 12px; border-left: 4px solid var(--accent); border-radius: 10px; background: rgba(244, 241, 232, 0.08); }
+.message-title { margin: 0 0 6px; font-size: 0.9rem; font-weight: 700; color: rgba(244, 241, 232, 0.75); overflow-wrap: anywhere; }
+.message .score-line { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; text-align: left; font-size: 1.1rem; }

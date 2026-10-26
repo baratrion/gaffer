@@ -1,14 +1,14 @@
 // @US-1 @US-2 (S-008 play the season, matchday by matchday) @regression
 // CONTRACT_SHAPE: bounded-change
-// Outcome anchor: DISCUSS D1, D9 and DoD: while matchdays remain the club home keeps its five buttons (Squad, Tactics, Starting XI, Play match,
-// Table, all 44px or taller) and says nothing about the season being over; the FIRST "Play match" of a new game is still "Matchday 1"
+// Outcome anchor: DISCUSS D1, D9 and DoD: while matchdays remain the club home keeps its six buttons (Squad, Tactics, Starting XI, Play match,
+// Table, Inbox, all 44px or taller) and says nothing about the season being over; the FIRST "Play match" of a new game is still "Matchday 1"
 // (Netherwold Borough 1–2 Marlbrook Athletic at ?seed=31) with the heading focused; "Back" returns to the focused club heading with the
 // button still there; "Table" still opens and every row reads P 1; nothing scrolls sideways at 390px and no console error appears.
 // Passes before and after DELIVER: it plays once and never names the second tap. Environment: local-preview or BASE_URL.
 import { expect, test } from "@playwright/test";
 
 test.describe("@US-1 @US-2 S-008 the club home before the season ends keeps working", () => {
-  test("@regression Five buttons and no End of season button; the first Play match is Matchday 1 with the golden score line; Back keeps the heading focused and Play match in place; Table reads P 1 on every row @contract-shape:bounded-change", async ({ page }) => {
+  test("@regression Six buttons and no End of season button; the first Play match is Matchday 1 with the golden score line; Back keeps the heading focused and Play match in place; Table reads P 1 on every row @contract-shape:bounded-change", async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     page.on("pageerror", (e) => errors.push(e.message));
@@ -22,7 +22,7 @@ test.describe("@US-1 @US-2 S-008 the club home before the season ends keeps work
     await expect(heading).toHaveText(club);
     await expect(heading).toBeFocused();
     const buttons = page.getByRole("button");
-    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match", "Table"]);
+    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match", "Table", "Inbox"]);
     for (const [index, each] of (await buttons.all()).entries()) expect((await each.boundingBox())?.height ?? 0, `club home button ${index}`).toBeGreaterThanOrEqual(44);
     await expect(page.getByRole("button", { name: "End of season", exact: true }), "no way to end the season before it is over").toHaveCount(0);
     await expect(page.getByText("Season over", { exact: true })).toHaveCount(0);

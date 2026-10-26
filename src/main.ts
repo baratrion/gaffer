@@ -5,6 +5,7 @@ import { parseSeed } from "./app/seed";
 import {
   currentXI,
   focusPlan,
+  inboxOf,
   initialState,
   matchFor,
   nextMatchday,
@@ -24,6 +25,7 @@ import { playersForPosition } from "./domain/selection";
 import { generateSquad } from "./domain/squad";
 import { renderChoosePlayer } from "./ui/screens/choose-player";
 import { renderClubHome } from "./ui/screens/club-home";
+import { renderInbox } from "./ui/screens/inbox";
 import { renderMatch, type MatchScreenView } from "./ui/screens/match";
 import { renderPickClub } from "./ui/screens/pick-club";
 import { renderPlayer } from "./ui/screens/player";
@@ -51,6 +53,12 @@ const seasonSummaryOrThrow = (state: GameState, clubId: string) => {
   const summary = seasonSummaryOf(state, clubId);
   if (!summary) throw new Error(`Unknown club in game state: ${clubId}`);
   return summary;
+};
+
+const inboxOrThrow = (state: GameState, clubId: string) => {
+  const messages = inboxOf(state, clubId);
+  if (!messages) throw new Error(`Unknown club in game state: ${clubId}`);
+  return messages;
 };
 
 const scorerName = (side: MatchView["home"], playerIndex: number): string => {
@@ -123,6 +131,8 @@ const RENDERERS: Renderers = {
     renderTable(root, { rows: standingsOf(state), managedClubId: screen.clubId }, dispatch),
   seasonEnd: ({ root, state, dispatch }, screen) =>
     renderSeasonEnd(root, seasonSummaryOrThrow(state, screen.clubId), dispatch),
+  inbox: ({ root, state, dispatch }, screen) =>
+    renderInbox(root, { messages: inboxOrThrow(state, screen.clubId) }, dispatch),
 };
 
 const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void => {

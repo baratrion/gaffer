@@ -32,6 +32,7 @@ export const renderClubHome = (
         actionButton("Starting XI", { type: "ViewStartingXI" }),
         seasonOver ? actionButton("End of season", { type: "ViewSeasonEnd" }) : actionButton("Play match", { type: "PlayMatch" }),
         actionButton("Table", { type: "ViewTable" }),
+        actionButton("Inbox", { type: "ViewInbox" }),
       ),
     ),
   );

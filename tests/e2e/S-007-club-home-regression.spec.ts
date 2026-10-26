@@ -1,8 +1,8 @@
 // @US-1 (S-007 see the league table after my first match) @regression
 // CONTRACT_SHAPE: bounded-change
-// Outcome anchor: DISCUSS Notes and DoD: the club home gains a fifth button, but "Squad", "Tactics", "Starting XI" and "Play match" keep
+// Outcome anchor: DISCUSS Notes and DoD: the club home gains a fifth button (Table) and, from S-011, a sixth (Inbox), but "Squad", "Tactics", "Starting XI" and "Play match" keep
 // working, Back still returns to a focused club heading, every button stays 44px or taller and nothing scrolls sideways at 390px.
-// Passes before and after DELIVER: it never names the "Table" button and requires exactly five club-home buttons. Environment:
+// Passes before and after DELIVER: it never names the "Table" button and requires exactly six club-home buttons. Environment:
 // local-preview or BASE_URL.
 import { expect, test } from "@playwright/test";
 
@@ -21,7 +21,7 @@ test.describe("@US-1 S-007 the club home keeps working", () => {
     await expect(heading).toContainText(club);
     await expect(heading).toBeFocused();
     const buttons = await page.getByRole("button").all();
-    expect(buttons, "exactly five club home buttons").toHaveLength(5);
+    expect(buttons, "exactly six club home buttons").toHaveLength(6);
     for (const [index, button] of buttons.entries()) {
       expect((await button.boundingBox())?.height ?? 0, `club home button ${index}`).toBeGreaterThanOrEqual(44);
     }
