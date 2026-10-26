@@ -29,7 +29,7 @@ Real data: `?seed=31`, "Netherwold Borough" (1st in the "Clubs" list), untouched
 | 6 | Days later, 9 played | "Inbox" | Newest "Matchday 9 / Netherwold Borough 3–1 Rushmoor Heath Albion / League position 2nd"; further down "Matchday 7 / Netherwold Borough 2–4 Tarnbeck Borough / League position 5th" | Pride: the climb from 8th to 2nd, visible at a glance |
 | 7 | Matchday 10 played (1–1) | "Inbox" | Newest "League position 4th"; "Matchday 9" still reads "2nd" | Honest: the slip is shown, and the high point is kept |
 | 8 | All 14 played | "Inbox", then "Back", "End of season" | "Matchday 14 / Tarnbeck Borough 2–1 Netherwold Borough / League position 3rd"; "Final position 3rd" agrees | Closure: the whole story of the season, ending where the verdict says |
-| 9 | End of season | "Play again", "Netherwold Borough", "Inbox" | An empty list, "No messages yet" | A clean sheet for another go |
+| 9 | End of season | "Play again", "Netherwold Borough", "Inbox" | An empty list, "No messages yet": the Inbox tells the story of the current season, and a new season starts with an empty one, as the Table resets (a deliberate rule; no history across seasons yet, a later story) | A clean sheet for another go |
 
 Emotional arc: curious, then the sting and relief of the first matches. Then orientation when he comes back days
 later, pride in the climb, honesty about a slip, and the closure of a season whose story he can tell. Every arrival
@@ -55,8 +55,9 @@ focuses the screen's title, and "Inbox" is one tap from the club home.
 | No match played yet (new game, "Play again" then a club, a damaged save then "New game") | An empty "Messages" list and "No messages yet" | Calm: an honest blank, not a broken screen |
 | Tactics or the Starting XI changed after some matches | The same messages; only the next match counts the change | Trust: what was played is never rewritten |
 | Reload, then "Continue" | The same messages as before the reload | Trust: the story of the season survives the break |
+| Storage unavailable or blocked (nothing can be saved) | The Inbox still shows the session's messages, built from this session's recorded results. Nothing is saved, and there is no "Continue" later; no error is shown | Calm: the game works as always, and the story lasts as long as the tab does |
 | A tie on points, goal difference and goals | The position the Table showed then, with its A to Z name tie-break (matchday 4: 5th behind Juniper Hollow United) | No surprise: the Inbox agrees with the Table |
-| Tapping a message | Nothing happens: messages are text, not buttons, and a played match still cannot be re-opened | A small "oh"; nothing to undo, nothing lost |
+| Tapping a message | Nothing happens: a message is one read-only list item with three separate lines, and no button, link or nested list; a played match still cannot be re-opened | A small "oh"; nothing to undo, nothing lost |
 | All 14 played | 14 messages; the newest position equals "Final position" | Closure, consistent with the verdict |
 | Long club names on a 390px screen | Score lines wrap within the message; no sideways scroll | Readable one-handed |
 | A different "?seed=" with no save | A different league and its own Inbox; "?seed=abc" equals no seed | As before: a seed is a league |

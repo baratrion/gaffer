@@ -167,7 +167,7 @@ jobs:
       can see whether my decisions are paying off.
     dimensions:
       functional: From the club home, in one tap on a phone, re-read every played matchday's result and where my club stood in the league right after it, newest first.
-      emotional: Feel oriented after a break, the pride of a climb (or the honesty of a slide), and that what was played is kept, never rewritten.
+      emotional: Feel oriented after a break, the pride of a climb (or the honesty of a slide), and that what was played is kept, never rewritten. The inbox tells the story of the current season; a new season starts with an empty one (no history across seasons yet, a later story).
       social: Be able to tell other football fans the story of the season ("bottom after two, second after nine, and we finished third").
     forces:
       push: A played match can never be re-opened and the table shows only today, so after a break Sam cannot recall how the last games went or whether his club is climbing or slipping.
