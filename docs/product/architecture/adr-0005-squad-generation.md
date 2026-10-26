@@ -1,6 +1,6 @@
 # ADR-0005: Squad generation (league-wide unique names, deriveSeed, derived on render)
 
-- Status: Accepted
+- Status: Accepted (note, ADR-0016, S-010: persistence now exists, so squad order and the name pools are save-relevant; a change that makes saved `playerIndex` values wrong must bump `SAVE_VERSION`)
 - Date: 2026-10-16
 - Deciders: nWave solution-architect (S-002 DESIGN, `interaction_mode=propose`)
 - Refines ADR-0004 (squad bullet) and ADR-0003 (per-entity seed example). Does not supersede them. Changes: (1) player names come from one league-wide stream `deriveSeed(seed, -1)` sliced per club, not from the per-club seed; per-club seeds still drive age and overall; (2) return type is `readonly Player[]`; (3) `deriveSeed` gets `stream` (any integer, -1 reserved for names) and the exact expression below. Kept: signature `generateSquad(seed, clubIndex)`, quota, 17-35 age range.

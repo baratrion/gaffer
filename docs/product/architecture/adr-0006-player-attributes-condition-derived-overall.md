@@ -1,6 +1,6 @@
 # ADR-0006: Player attributes, condition and a derived overall (S-003)
 
-- Status: Accepted
+- Status: Accepted (note, ADR-0016, S-010: "no persistence" no longer holds; the frozen attribute tables, weights and streams are save-relevant, and a change that invalidates saved results must bump `SAVE_VERSION`)
 - Date: 2026-10-16
 - Deciders: nWave solution-architect (S-003 DESIGN, `interaction_mode=propose`)
 - Supersedes ADR-0005 (e) (stored overall) and the `overall` note in ADR-0004: `overall` is now derived from attributes. Kept: `generateSquad(seed, clubIndex)` signature, quota 2/6/6/4, ages 17-35, league-wide unique names (stream -1), derive-on-render (ADR-0005 (d)). Also supersedes the brief's S-002 UI line "listitems, not buttons" (see Decision 6).
