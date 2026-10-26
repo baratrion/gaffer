@@ -463,3 +463,114 @@ No external integrations, so no contract tests. **Enforcement**: oxlint (existin
 
 ### Wave: DESIGN / [REF] Peer review
 Pending: the orchestrator dispatches `nw-solution-architect-reviewer` (at most 2 cycles) on this section, ADR-0017, ADR-0018 and the brief's "Inbox (S-011)" section and ports 40-43.
+
+## Wave: DEVOPS
+
+Lean, unattended. All nine decisions pre-answered; no platform change. Locked paths (`.github/`, `factory/`, `scripts/`, `.nwave/`, `CLAUDE.md`, the product brief and scope, `tests/protected/`) are read-only. Machine-readable: `docs/feature/S-011/environments.yaml`. Inherits S-010 (and S-001..S-009); only deltas are recorded. S-011 adds no storage, no dependency, no script and no config change: the Inbox only reads the recorded results.
+
+Checklist: ✓ existing infra reused | ✓ K1-K3 mapped to instruments | ✓ rollback defined | ✓ storage-state matrix for DISTILL (clean, saved game) | ✓ mutation strategy (nightly-delta; `src/domain/inbox.ts` inside the `src/domain/**` glob, `inboxOf` inside `src/app/state.ts`; verified in `stryker.config.mjs`) | ✓ protected-runner timeout constraint carried over | ⊘ new IaC/containers | ⊘ server-side observability | ⊘ continuous learning | ⊘ CLAUDE.md edit
+
+### Wave: DEVOPS / [REF] Environment matrix
+| Env | URL | Runner | Purpose |
+|---|---|---|---|
+| local-dev | `http://localhost:5173/gaffer/` (`pnpm dev`) | dev machine | Iteration |
+| local-preview | `http://localhost:4173/gaffer/` (`ci:serve`) | dev, CI, protected runner | Production build under test: phone-viewport Chromium (Pixel 7 profile, 390px); unit, property, e2e, `tests/protected/S-001..S-011/` |
+| production | `https://<owner>.github.io/gaffer/` | GitHub Pages | Live site; post-deploy smoke through `BASE_URL` (same Pixel 7, 390px) |
+
+Unchanged: no staging (static, recreate); Chromium only. S-011 adds no new platform surface. The one storage-related delta: the Inbox must survive "Continue" and must never write.
+
+**Storage states DISTILL must cover** (fresh Playwright context per test by default):
+
+| State | How it is produced | Expected | Instrument |
+|---|---|---|---|
+| clean | fresh context, no seeding; "New game", a club | club home offers "Inbox" (sixth, 44px or taller); Inbox shows "No messages yet" and an empty "Messages" list; "Back" returns to the focused club home | e2e; protected P1 |
+| clean, N matches played | play N x ("Play match", "Back") in the test | N items newest first (3 at seed 31: Matchday 3, 2, 1; 14 after a full season), the seed-31 score lines and positions of DISCUSS | e2e; protected P2, P3; unit goldens and oracles |
+| saved game (Continue) | play 2 matches, `page.reload()`, "Continue" (no seeding needed; if an init script seeds a save it writes only when the key is absent, S-010 rule) | the Inbox reads the same messages, line for line, as before the reload; "Inbox" is offered on the club home after Continue | e2e; protected P4 |
+| no write on navigation | init script counting `Storage.prototype.setItem` calls for `gaffer.save` (non-protected spec) | opening "Inbox" and "Back" adds 0 writes; stored `gaffer.save` text unchanged | e2e (non-protected); unit (`encodeSave`, `saveTextFor`) |
+| default seed | `?seed=abc` and no seed, fresh browsers | same one message at "Oakhampton Rise Borough" matchday 1: "Harrowgate Lane United 0–1 Oakhampton Rise Borough", 3rd | e2e |
+| New game, Play again | "End of season", "Play again", same club, "Inbox" | empty again ("No messages yet") | e2e; protected P3 |
+
+Storage faults (blocked, full, damaged saves) are S-010's matrix and are not re-run for the Inbox: it touches no storage, so an S-010 fault cannot reach it. A damaged or blocked store gives no "Continue" and a play-through from "New game" still fills the Inbox in memory.
+
+Notes:
+- **Fresh contexts, in CI and on the live URL.** Each test and the deployed-site `smoke` (`BASE_URL`) run in fresh contexts, so a stale save from an older deploy cannot reach them. Smoke never writes to a real player's browser. Shared `<owner>.github.io` origin as in S-010.
+- **Real players.** No `SAVE_VERSION` bump and no format change (ADR-0017, verified in DESIGN: an Inbox screen encodes to the same text as the club home). A save from S-010 continues unchanged and its Inbox is derived from the saved results.
+- **Focus** (ADR-0008): the Inbox h1 and the club home h1 on "Back" are focused through the existing screen-change plan; no new focus code.
+- **Layout.** Long score lines (two three-word club names) wrap at 390px: the e2e picks the longest-names seed (DESIGN, For DISTILL) for the no-horizontal-scroll check.
+- **e2e runtime.** A 14-matchday Inbox check is 28+ taps: the agent e2e needs `test.setTimeout(90_000)` (config default 30 s, retries 1 in CI).
+
+### Wave: DEVOPS / [REF] CI/CD pipeline outline (existing, unchanged)
+- `ci` (PR, push to main, dispatch; 30 min): PR guards (locked paths, append-only protected, diff cap 1200, `Math.random`/`Date` in `src/domain/`, which covers `src/domain/inbox.ts`), roadmap lint, `ci:lint` (confirms the `render` lookup's and `matchdayReports`' complexity counts, DESIGN D8), `ci:typecheck` (the `RENDERERS` mapped type is the screen-kind exhaustiveness check, ADR-0018), `ci:test` (fresh `FC_SEED`), `ci:build`, `ci:e2e`, protected no-regression check vs main (a new `tests/protected/S-011/*.spec.ts` must fail on main until DELIVER).
+- `deploy` (push to main): `ci:build`, deploy-pages, then `smoke` (10 min) runs `ci:e2e` against the live URL, including the new S-011 spec and the eight amended club-home specs.
+- `nightly` (03:00, 45 min): `ci:mutation`; failure opens a `mutation-alarm` issue. `ai-review`, `factory-tick`, `watchdog`, `weekly-demo`: factory-owned, untouched.
+- No pipeline change: S-011 adds unit, property and e2e specs run by existing scripts, and no dependency. DESIGN estimates DELIVER at about 676 lines (about 896 with protected), under the 1200 guard; `docs/` is outside the count.
+- Local gate: `pnpm run check` mirrors the commit stage; no git hooks (locked). Security: no secrets, no runtime deps, no network, no new untrusted input (the Inbox reads in-memory results only; text goes through `el()`/`textContent`, ADR-0002). SAST/SCA/SBOM not added (inherited owner-only item).
+
+### Wave: DEVOPS / [REF] Monitoring contracts (DISCUSS KPI to instrument)
+E2E instrument: `tests/e2e/S-011-inbox.spec.ts` (Pixel 7, 390px) via `ci:e2e` on PR and main and `smoke` on the live URL. Unit/property rows run in `ci:test` with a fresh `FC_SEED`. `tests/protected/S-011/` runs on local-preview in `ci` and must pass on main.
+
+| KPI (DISCUSS) | Instrument | Pass condition |
+|---|---|---|
+| K1: 1 tap from the club home to every matchday's report and position; 2 taps from the title after a reload ("Continue", "Inbox"); the owner states the position path from the Inbox alone | e2e: page-side capture-phase click counter (as S-003..S-010): at seed 31 after 3 matches, 1 click ("Inbox") from the club home to the 3 reports; after a reload, 2 clicks ("Continue", "Inbox"). Protected P2 and P4 pin the reports and the Continue survival. Manual: owner's Friday demo continues a season and tells its story from the Inbox (no analytics in the POC) | 1 and 2 clicks; owner states the path |
+| K2: 0 differences between message N and match screen N (h1, score line) and between its position and the Table's Pos after matchday N | unit: goldens (seed-31 14 positions 6th, 8th, 6th, 5th, 3rd, 3rd, 5th, 4th, 2nd, 4th, 4th, 4th, 3rd, 3rd; seed-20260 matchday 1), the independent oracle (seeds 1..300 x 8 clubs x 14 matchdays, trimmable; sorts the cumulative rows itself) and the time-travel oracle (`standingsOf` and `matchFor` after each tap). Protected P2, P3 (newest position equals the Table; matchday 14 equals "Final position"). Browser vs Node goldens equal (Earned Trust 1) | 0 differences; goldens exact |
+| K3: 0 changes to `formation`, `xi`, `results` or the saved text from opening the Inbox; 0 message changes after tactics changes | unit: fast-check (`numRuns` 100, fresh `FC_SEED`) over random formation, pick and Play match sequences; same-object checks; `encodeSave`/`saveTextFor` unchanged by the Inbox screen. e2e: `setItem` counter and unchanged `gaffer.save` text. Protected P4 (tactics change then reload and Continue: same messages) | 0 changes; 0 writes |
+| 44px, no sideways scroll at 390px, 0 console errors, focus | e2e: "Inbox" and "Back" 44px or taller, no horizontal scroll on the longest-names seed, console and page-error capture, h1 focus on arrival and on "Back"; click-everything on the Inbox dispatches only `Back`; no button or link inside a message | holds |
+| Names, determinism, layering | unit: "Inbox", "Messages", "League position", "No messages yet" in no `names.ts` string; grep tests (ADR-0017/0018: one `dispatch(`, no `innerHTML`, no `.focus(` in `src/ui`, no `switch (` in `main.ts`, `RENDERERS` present); no `Math.random`/`Date` in `src/domain/` (PR guard) | holds |
+| S-001..S-010 unchanged | existing e2e and acceptance (only the D8 amend list: eight five-button lists become six, replaced never weakened) and `tests/protected/S-001..S-010/`; first two DELIVER commits (`render` lookup, `scoreLine` extraction) run against the whole existing suite before Inbox code lands | green |
+| Domain test strength | Stryker on `src/domain/inbox.ts` (prefix `<=`, newest-first, club-row pick, own-entry pick) and `inboxOf`/`ViewInbox` in `src/app/state.ts` | nightly, at or above break 70 |
+
+No analytics (POC). The e2e tap counter, the property tests and the owner's demo are the KPIs' sole measurements.
+
+### Wave: DEVOPS / [REF] Deployment strategy and rollback
+- Strategy: recreate. Merge to main triggers `deploy`, replacing the whole static artifact; idempotent.
+- Rollback (designed first): revert the S-011 squash commit on main; the merge triggers `deploy` and `smoke` validates the restored site. Alternative: `workflow_dispatch` of `deploy.yml` on the pre-S-011 commit (the S-010 deploy). Fallback: fix-forward on a `claude/*` branch. The append-only protected guards may block a plain revert of a squash that added `tests/protected/S-011/`; the dispatch route is then the owner action. Time to restore: one deploy cycle (about 5 minutes).
+- **Rolling back across saves.** Nothing to clean up: S-011 stores nothing and does not change the save format, so a pre-S-011 build reads every save as today (the club home simply has five buttons). Rolling forward again shows the Inbox derived from the same saved results.
+- Failure detection: a red `smoke` marks the deploy run red; red goldens or oracles show as a red `ci:test` before merge.
+- Data: none new. Blast radius: one static page.
+- Result stability: no new RNG stream and no change to any result, schedule, squad or save for any seed.
+
+### Wave: DEVOPS / [REF] Mutation testing strategy
+nightly-delta, inherited from `CLAUDE.md`; `/nw-deliver` Phase 5 skipped. `stryker.config.mjs` (checked) mutates `src/domain/**/*.ts` except `names.ts`, plus `src/app/state.ts`, `src/app/save.ts` and `src/adapters/**/*.ts`; thresholds high 85, low 70, break 70 (unchanged).
+- `src/domain/inbox.ts` (new, `matchdayReports`): INSIDE the `src/domain/**` glob, no config change. Mutants to kill: `<=` vs `<` in the prefix filter, newest-first order, the club-row pick, the own-entry pick (killed by the goldens, the oracle and the order property).
+- `src/app/state.ts` (`ViewInbox`, `HANDLERS` entry, `inboxOf`, `HOME_RETURNING_KINDS`): INSIDE.
+- `src/ui/score-line.ts`, `src/ui/screens/inbox.ts`, `club-home.ts` and `src/main.ts` (`RENDERERS`): OUTSIDE (UI and the shell never were mutated); covered by e2e and grep tests.
+- Runtime: no new sweep beyond the oracle (bounded, trimmable); watch the first nightly after merge against the 45-minute timeout.
+
+### Wave: DEVOPS / [REF] Observability stack
+Browser console plus Playwright smoke on the deployed URL only. No RUM, error tracking, logs or tracing. SLO: smoke green per deploy (including the Inbox spec in a fresh context on the live origin). Alerting: a red `deploy` run; a red nightly opens `mutation-alarm`. No dashboards.
+
+### Wave: DEVOPS / [REF] Branching strategy
+Trunk-based. Short-lived `claude/S-011-*` branches, PR to main, squash merge, deploy on merge, no release branches. DELIVER commit order (DESIGN D9): `render` lookup, `scoreLine` extraction, slice 01, slice 02, in ONE merge. DESIGN estimates about 676 lines (about 896 with protected), under the 1200 guard; if DELIVER nears it, trim test duplication (the oracle sweep can become a seed sample), never split the slices.
+
+### Wave: DEVOPS / [REF] Coexistence matrix
+| Component | S-011 impact | Action |
+|---|---|---|
+| `ci.yml`, `deploy.yml`, `nightly.yml`, `ci:*` scripts, `playwright.config.ts` | none; Pixel 7, 390px, `BASE_URL` fit; no new script or dependency | reuse |
+| `stryker.config.mjs`, `.oxlintrc.json` | none; `inbox.ts` falls under the existing glob; lint complexity 15 is the gate for the `render` lookup | reuse |
+| `scripts/guards/pr-guards.mjs` | determinism grep and 1200 cap fit | none |
+| `tests/protected/S-001..S-010/` | untouched; none counts the club-home buttons | must stay green |
+| `tests/protected/S-011/` | locked scenarios (plan run, pins P1-P4); P2 and P3 play 3 and 14 matchdays | must exist before DELIVER and pass on main; `test.setTimeout(90_000)` where a season is played |
+| Amend list (D8: `tests/e2e/S-005-starting-xi`, `S-006-match`, `S-007-table`, `S-007-club-home-regression`, `S-008-club-home-regression`, `S-008-season`, `S-009-club-home-regression`, `S-009-end-of-season`) | each five-button list gains "Inbox" last | replace, never weaken, in the same commit as the club-home button |
+| `tests/e2e/S-010-club-home-regression.spec.ts` | not on the D8 list: DISTILL must grep it for a five-button list or `toHaveLength(5)`; no edit if it names buttons only | DISTILL checks |
+| `tests/acceptance/S-009/existing-navigation-unchanged.test.ts` (five-key test), `focusPlan` suites, `renderers-never-move-focus`, the S-010 storage grep | unedited (no state key, no storage in Inbox code, no `.focus(` in new UI files) | reuse, regression-watch |
+| `src/app/state.ts`, `src/main.ts`, `src/ui/screens/{club-home,match}.ts`, `styles.css`, new `domain/inbox.ts`, `ui/score-line.ts`, `ui/screens/inbox.ts` | extended / created | S-001..S-010 tests guard |
+| Pages artifact, base path `/gaffer/` | negligible growth | none |
+
+**Constraint for the protected scenarios and DISTILL (timeouts).** Locked runner `scripts/factory/protected.playwright.config.ts`: `timeout: 20_000` per test, `expect`/`actionTimeout` 2 s, `retries: 0`, `workers: 4`. Any protected S-011 scenario that plays more than a few matchdays (P3: 28+ taps plus the End of season read and "Play again") must call `test.setTimeout(90_000)`; one seed and one club per scenario; keep reads per matchday minimal. The agent e2e (30 s per test, `retries: 1` in CI) needs `test.setTimeout` for the 14-matchday Inbox test.
+
+### Wave: DEVOPS / [REF] Pre-requisites
+- S-010 delivered and deployed; Pages source "GitHub Actions" enabled (✓). Node 22+, pnpm 10.12.4, Playwright chromium via `.github/actions/setup`.
+- ADR-0001..0018 accepted (✓; ADR-0017 and ADR-0018 landed in DESIGN). `docs/product/jobs.yaml` has J-11 (✓).
+- **`tests/protected/S-011/`** does not exist yet (checked). It is written by the plan run's protected-scenarios step from the D9 pin list (append-only, `test.setTimeout(90_000)` where a season is played) and must be committed RED before DELIVER starts; the `ci` no-regression check expects it to fail on main until DELIVER.
+- `BASE_URL` derived from owner and repo name (no secret).
+
+### Wave: DEVOPS / [REF] Open questions
+Owner-only items inherited from S-001..S-010 (smoke `sleep 20`, no security scanning, no commit-SHA check in smoke, deploy not gated on `ci`, squash revert blocked by append-only guards, no uptime probe, WebKit not probed) are unchanged and none block S-011. New:
+1. Changes needed in locked paths: none. No CI, `ci:*`, Stryker, lint-config or Playwright change.
+2. Missing `tests/protected/S-011/` is a plan-run item, not a DEVOPS change; flagged for the orchestrator.
+3. `tests/e2e/S-010-club-home-regression.spec.ts` is absent from the DISCUSS D8 amend list; DISTILL greps it and amends only if it holds an exact five-button list.
+4. Smoke on the live URL runs the Inbox spec in fresh contexts; the `setItem` counter is an init script per context, so it cannot touch a real player's storage.
+5. "Back" sits below up to 14 messages (about 1.4k px at 390px); a sticky or earlier "Back" is a later-story option (DESIGN open question), not a platform item.
+
+### Wave: DEVOPS / [REF] Peer review
+No per-wave review (none triggered): no novel deployment target and no CI change.
