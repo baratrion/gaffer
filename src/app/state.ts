@@ -5,6 +5,7 @@ import { automaticXI, isSlotIndex, pickForSlot, type StartingXI } from "../domai
 import { generateSquad, PLAYERS_PER_SQUAD, type Player } from "../domain/squad";
 import { MATCHDAYS } from "../domain/schedule";
 import { topScorer, type TopScorer } from "../domain/season";
+import type { MatchdayReport } from "../domain/inbox";
 import { standings, type StandingRow } from "../domain/standings";
 
 export type Screen =
@@ -42,6 +43,7 @@ export type Action =
   | { readonly type: "PlayMatch" }
   | { readonly type: "ViewTable" }
   | { readonly type: "ViewSeasonEnd" }
+  | { readonly type: "ViewInbox" }
   | { readonly type: "Back" }
   | { readonly type: "Continue"; readonly game: GameState };
 
@@ -259,6 +261,16 @@ export const seasonSummaryOf = (state: GameState, clubId: string): SeasonSummary
     : { position: row.position, topScorer: topScorer(state.results ?? [], clubIndex, squad) };
 };
 
+/** __SCAFFOLD__ (S-011 DISTILL): ViewInbox and inboxOf throw until DELIVER step 3 (the `inbox` screen kind is not added yet, so `render` is untouched). */
+const viewInbox = (): GameState => {
+  throw new Error("__SCAFFOLD__ ViewInbox is not implemented yet (S-011 DELIVER step 3)");
+};
+
+/** __SCAFFOLD__ (S-011 DISTILL): the club's matchday reports; undefined for a club not in the league. */
+export const inboxOf = (_state: GameState, _clubId: string): readonly MatchdayReport[] | undefined => {
+  throw new Error("__SCAFFOLD__ inboxOf is not implemented yet (S-011 DELIVER step 3)");
+};
+
 const continueGame = (state: GameState, { game }: ActionOf<"Continue">): GameState =>
   state.screen.kind === "title" ? game : state;
 
@@ -277,6 +289,7 @@ const HANDLERS: Handlers = {
   PlayMatch: playMatchAction,
   ViewTable: viewTable,
   ViewSeasonEnd: viewSeasonEnd,
+  ViewInbox: viewInbox,
   Back: back,
   Continue: continueGame,
 };

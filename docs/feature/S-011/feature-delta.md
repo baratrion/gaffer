@@ -643,3 +643,58 @@ No per-wave review (none triggered): no novel deployment target and no CI change
 Not pinned, by design (version-only): "No messages yet", the exact number of items, the place of "Inbox" among the buttons, the empty Inbox after "Play again" or "New game", the tie-break order behind a position value, and the address seed ("?seed=abc").
 
 All 4 fail on the current app at the "Inbox" check (no such button), after the steps before it ran: under the locked runner P2 got there after three matches and three Table reads, and P3 after fourteen matches and the End of season screen. So the match, Table and End of season helpers are known to hold on the real app. The Inbox-reading helper was checked against throwaway mock markup that follows ADR-0017 (three `<p>` lines with inline spans, an extra non-matchday item, and an empty list). It read the two reports and skipped the other item. The mock was not committed and was deleted. DELIVER is the first to run the Inbox path end to end.
+
+## Wave: DISTILL
+
+Lean, unattended. Reconciliation passed: 0 contradictions (DISCUSS D1..D10, DESIGN DD1..DD9 and the DEVOPS part agree on every point checked: the sixth button after "Table", the derived-only Inbox with no save change, `position` in the type from commit 3, the D8 amend list, the K2 sweep floor, the check that the 390px seed is chosen by sweeping). No new port, so no policy row is added (`docs/architecture/atdd-infrastructure-policy.md` does not exist in this repo; the S-006..S-010 precedent is followed: vitest + fast-check at layers 1-2, Playwright for the browser). Language: TypeScript (`[lang-mode] ts`). Detail: `distill/pending-scenarios.md` (held-out files and the D8 amend patch) and `distill/red-classification.md` (the RED gate).
+
+### Wave: DISTILL / [REF] Scenario list with tags
+Every test title carries `@contract-shape:<...>` (the project's existing convention, `pure-function` or `bounded-change`) and Given/When/Then in domain words. 98 cases: 89 acceptance (17 committed, 72 held out) and 9 e2e (held out), plus the 8-file amend patch. About half of the cases are `@error` or `@boundary`.
+
+| File | Cases | Tags | Covers |
+|---|---|---|---|
+| `tests/acceptance/S-011/inbox-reference-pinned.test.ts` (committed) | 7 | `@regression @walking_skeleton @boundary @property` | DISCUSS seed-31 table and seed 20260 against the real generator (RED-first goldens are true), the 3 name ties, oracle equals `standings` over seeds 1..100, the 390px seed |
+| `.../inbox-save-unchanged.test.ts` (committed) | 5 | `@regression @driving_port` | K3: `SAVE_VERSION` 1; an `inbox` screen encodes like the club home; autosave writes nothing |
+| `.../names-avoid-inbox-words.test.ts` (committed) | 5 | `@regression @error @boundary` | "Inbox", "Messages", "League position", "No messages yet" in no generated name |
+| `.../inbox-reports.test.ts` (held out) | 34 | `@walking_skeleton @driving_port @boundary @error @property` | US-1/US-2 goldens (14 messages, seed 20260), name ties at matchdays 4, 5, 7, Table-order rows, prefix boundary (`<=`), any log order, 0..14 counts, `RangeError` table, frozen inputs |
+| `.../inbox-oracle.test.ts` (held out) | 3 | `@property @kpi` | K2: independent oracle (own tallies, no `standings`), seeds 1..300 x 8 clubs x 14 matchdays (floor 1..100 never narrowed) |
+| `.../inbox-time-travel.test.ts` (held out) | 2 | `@property @kpi @walking_skeleton` | time-travel oracle: after every tap the Inbox equals `matchFor`/`standingsOf` read right then; tactics changes rewrite nothing (fast-check, `numRuns` 100) |
+| `.../inbox-navigation.test.ts` (held out) | 26 | `@walking_skeleton @driving_port @error @boundary @kpi` | `ViewInbox` from a known club's home only (12 no-op rows incl. unknown club), screen-only change with the same objects, `Back` returns the home `toEqual`, `focusPlan`, `inboxOf` counts 0..14, unknown club, restored save |
+| `.../inbox-readonly.test.ts` (held out) | 2 | `@property @kpi` | K3: 40-action pool incl. `ViewInbox`: the round trip changes nothing and writes nothing; peeking never changes the season |
+| `.../inbox-source.test.ts` (held out) | 5 | `@boundary @error` | ADR-0017/0018 enforcement greps; zero `__SCAFFOLD__` |
+| `tests/e2e/S-011-inbox.spec.ts` (held out) | 9 | `@walking_skeleton @driving_port @kpi @boundary @error` | empty state, six buttons in order (Inbox after Table, 44px), focus, 3 and 14 messages with exact lines (seed 31), K1 tap counts (1 and 2), `?seed=abc` = default, `setItem` counter plus click-everything, `innerText` = `textContent` plus computed style, Tactics/reload/Continue, New game after a season, 390px with the longest names (seed 585) |
+
+### Wave: DISTILL / [REF] WS strategy, driving ports, adapter coverage
+- **WS**: no new walking skeleton (brownfield). The `@walking_skeleton` tags mark the end-to-end journeys: e2e "3 matches then Inbox" and "14 matches, End of season, Play again", and the unit goldens. Port class decides treatment (no per-feature strategy): driving ports are the real built app at `http://localhost:4173/gaffer/` (Playwright, Pixel 7, 390px) and the pure `update`/`inboxOf`/`matchdayReports` calls; no external port is faked (no clock, network or vendor SDK).
+- **Driving ports** (from DESIGN, none new beyond ports 40-43): `matchdayReports`, `update` (`ViewInbox`, `Back`), `inboxOf`, `focusPlan`, `encodeSave`/`saveTextFor` (read-only), the browser roles and names. Each is hit by at least one scenario above.
+- **Driven adapters**: none new; the S-010 store is untouched. Table: `localStorage` store (S-010) | `@real-io` e2e | `S-011-inbox.spec.ts` (`setItem` counter and unchanged `gaffer.save` text, Continue after a reload).
+- **Environment matrix** (DEVOPS): clean, N matches played, saved game (Continue), no write on navigation, default seed, New game/Play again: each has an e2e case; the longest-names seed is 585 (sweep).
+
+### Wave: DISTILL / [REF] Scaffolds (Mandate 7)
+- `src/domain/inbox.ts`: `__SCAFFOLD__`, `MatchdayReport`, `ReportableMatch`, and `matchdayReports` throwing an `Error` whose message starts `__SCAFFOLD__`.
+- `src/app/state.ts`: `Action` gains `{ type: "ViewInbox" }` with a throwing `viewInbox` (one `HANDLERS` entry, as the S-010 `Continue` scaffold), and a throwing exported `inboxOf`. The `inbox` `Screen` kind is not added yet (it would break the exhaustive `render`), so no UI path can reach a scaffold; DELIVER step 3 adds it with the real handlers. `ci:lint`, `ci:typecheck` and `ci:test` stay green (1141 tests).
+- DELIVER's check: `grep -r __SCAFFOLD__ src/` empty (also asserted by `inbox-source.test.ts`).
+
+### Wave: DISTILL / [REF] Test placement
+`tests/acceptance/S-011/` (vitest `include` already globs `tests/acceptance/**/*.test.ts`) and `tests/e2e/S-011-inbox.spec.ts`, as S-006..S-010. Held-out files live in `docs/feature/S-011/distill/pending/{acceptance,e2e}/` with a `.pending` suffix (outside every glob). Shared helpers are reused from `tests/acceptance/S-010/save-world.ts`; the committed `inbox-reference.ts` and `inbox-oracle.ts` are the S-011 data and the independent oracle. Size: committed 163 lines, held out 331 (acceptance) and 296 (e2e) plus the amend patch (19 lines changed each way): about 830 test lines against DESIGN's 380 (see the upstream note below).
+
+### Wave: DISTILL / [REF] Pre-requisites
+- DESIGN driving ports 40-43 and ADR-0017/0018; DEVOPS environment matrix (local-preview Pixel 7 390px, fresh contexts, no seeding script needed).
+- `tests/protected/S-011/` (4 pins) exists from the plan run; not read here.
+- DELIVER order (DD9): (1) `render` lookup, (2) `score-line.ts` extraction, (3) domain + state + screen + button + CSS, moving `inbox-reports/oracle/time-travel/navigation/readonly/source` and applying the amend patch in the same commit, (4) the position line, moving the e2e spec.
+
+### Wave: DISTILL / [REF] Step-reuse note (informational, Mandate-12)
+There is no Gherkin step layer (vitest/Playwright, project precedent): the "DSL" is typed helpers. Domain types: `ReferenceReport` (`inbox-reference.ts`), `MatchdayReport` (production). Reuse: e2e helpers `startSeason` 7, `playMatches` 7, `openInbox` 12, `leaveInbox` 6, `readMessages` 9 call sites; acceptance helpers `homeOf`/`afterMatchdays`/`withFormation`/`withPick`/`playSeason` shared across 6 files. Natural ceiling for this shape; Pillar 1 readability (titles in domain words) was kept over forcing reuse.
+
+### Wave: DISTILL / [REF] Upstream issues
+None blocking (no `upstream-issues.md`). Notes for the orchestrator and DELIVER:
+1. **Size.** DESIGN estimated about 380 test lines; DISTILL has about 830 (committed 163 + held out 627 + patch 38 line-changes), after trimming. With DESIGN's code estimate (about 296) the whole S-011 diff outside `docs/` could reach about 1150 to 1200, against the 1200 cap, if DISTILL and DELIVER ship in one PR. The DELIVER checkpoint trims (merge `inbox-source` into another file, fold `names-avoid-inbox-words`) save about 40 lines; the oracle sweep must stay. If the guard bites, the `human-approved` label is the owner's call.
+2. DESIGN says the S-007 regression's "name checks gain Inbox", but that file has no name list (only `toHaveLength(5)` and comments); the patch changes the count, message and comments only.
+3. The scaffold `viewInbox` throws from `update`: nothing in the app dispatches it, but nightly Stryker will count the throwing scaffold lines as uncovered until step 3 (as for S-010's `Continue`).
+
+### Wave: DISTILL / [REF] Final wave review dispositions
+Four reviewers ran in the foreground (Eclipse, Atlas, Forge, Sentinel).
+- **Eclipse (DISCUSS): conditionally approved.** The protected pins are written by the plan run and arrive with the branch. The "five" titles and header comments are covered by the amend patch; DELIVER greps for remaining "five" wording in the amended files. Slice estimates are superseded by the DESIGN numbers (676 / 896).
+- **Atlas (DESIGN): conditionally approved.** H1: the amend table does list S-005 line 176 and S-006 line 148 (8 files plus the S-005/S-006 title edits); DELIVER applies `amend-existing-tests.patch` and greps for `five`. H2: DISTILL measured about 830 test lines, so DELIVER must follow the DD9 checkpoint (trim grep tests first; oracle sweep never narrowed; the `human-approved` label is the owner's call if the cap still bites). L1: the S-007 regression row changes the count, message and comments only.
+- **Forge (DEVOPS): rejected_pending_revisions, all findings inherited platform posture** (no SAST/SCA, deploy not gated on ci, no SLO/DORA, rollback route). S-011 adds no storage, no pipeline change and no `ci:*` change; `.github/` is locked, so these stay owner items, as accepted at S-010.
+- **Sentinel (DISTILL): rejected_pending_revisions (style/mandate).** Accepted as DELIVER-scope notes: the source-grep file is an architecture guard (ADR-0017/0018 Enforcement), not a user-journey scenario, and keeps its code-structure vocabulary on purpose; the committed reference test calls `standings` directly as the independent Table comparator, as the S-007..S-010 acceptance tests do for their domain ports; the `setItem` counter is the K3 observable because a same-text rewrite is invisible otherwise; no state-delta port or Tier-B machine is added (waiver: the repo's fast-check action walks are the Tier-B equivalent, and adding a harness would cost lines against the 1200 cap). Low items F11 (two-matchday points-vs-goal-difference case), F13 (assert the Inbox is opened at least once per property run) and F16 (title wording) are to be folded into the pending files when DELIVER moves them.
