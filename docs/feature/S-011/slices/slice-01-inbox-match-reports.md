@@ -8,7 +8,7 @@
 - Code is about 115 lines: the `render` lookup refactor 40; the screen kind, action and selector (title and score line) 35; the Inbox screen, the shared score-line element and the club home button 40.
 - Tests are about 245 lines: unit and property 130, e2e 95 (only what `tests/protected/S-011/` does not cover), and the D8 button-list amendments 20.
 
-**Release:** this slice is the first set of ordered DELIVER commits of S-011. Slice 02's commits follow on the same branch, and both ship in ONE merge. There is no separate release, so main never gets messages without their "League position" line (durable list D7). Carpaccio exception (S011-M1): this slice's two-line message is an intermediate commit state inside the one DELIVER merge. It is never released and is not a durable state.
+**Release:** this slice is the first set of ordered DELIVER commits of S-011. Slice 02's commits follow on the same branch, and both ship in ONE merge. There is no separate release, so main never gets messages without their "League position" line (durable list D7). Carpaccio exception: this slice's two-line message is an intermediate commit state inside the one DELIVER merge. It is never released and is not a durable state.
 
 ## Goal
 The club home offers "Inbox". It opens a list of one read-only message per played matchday, newest first, each with the title "Matchday N" and exactly the score line its match screen showed.
@@ -29,14 +29,14 @@ The club home offers "Inbox". It opens a list of one read-only message per playe
 - **Read-only:** no button or link inside the list.
 - **Refactor first:** `render` in `src/main.ts` moves to a lookup before the inbox case is added (S-009 DESIGN Open question 1, deferred by ADR-0016 Decision 4).
 - **D8 amendments:** the 8 non-protected e2e five-button lists gain "Inbox" last (replaced, never weakened); their test titles, messages and header comments that say "five" change too (the full list is in the feature-delta D8). DISTILL greps `tests/` for "five" first.
-- **Per-season reset (S011-M4):** "Play again" starts a new season with an empty Inbox, as the Table resets. There is no history across seasons (a later story).
+- **Per-season reset (a rule of this version only):** "Play again" starts a new season with an empty Inbox, as the Table resets. There is no history across seasons (a later story).
 
 ## OUT
 - The "League position" line (slice 02).
 - Unread markers or badges, other clubs' results, scorers, storylines, tapping a message, deleting messages, and an end-of-season message.
 
 ## Learning hypothesis
-Tested together with slice 02 in the same merge (this slice alone is never released). If this slice fails, it disproves this: "a one-tap, newest-first list of his own results lets Sam pick up the thread of his season after a break without re-opening matches".
+None of its own: this slice is never released alone, so the story's one hypothesis (in slice 02) is tested on the merged story.
 
 ## Acceptance (player-facing)
 - At `?seed=31`, "New game", "Netherwold Borough":

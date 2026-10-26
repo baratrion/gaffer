@@ -1,6 +1,6 @@
 # ADR-0018: `render` becomes a lookup table keyed by screen kind (S-011)
 
-- Status: Accepted (peer review: revised, awaiting cycle 2. Cycle 1 of nw-solution-architect-reviewer was conditionally_approved; findings L1, L2 and L5 touch this ADR and are resolved in this revision)
+- Status: Accepted (peer review: cycle 1 conditionally approved, cycle 2 conditionally approved; all findings folded in, max 2 cycles. Cycle 1: findings L1, L2 and L5 touch this ADR and are resolved in this revision)
 - Date: 2026-10-26
 - Deciders: nWave solution-architect (S-011 DESIGN, `interaction_mode=propose`)
 - This ADR is DD3 of the S-011 DESIGN decisions (DD1..DD9, `feature-delta.md`); its place in the commit order is DD9 (commit 1).
@@ -43,7 +43,7 @@ Expected complexity (`ci:lint` confirms in DELIVER): `render` 1; every entry 1, 
 - `main.ts` is not importable from vitest, so no unit test covers the lookup; the guard is the type, a grep test (`main.ts` has no `switch (` on a screen kind and contains `RENDERERS`) and the S-001..S-011 browser suites.
 
 ### Composition-root exemption (L5)
-`src/main.ts` is the composition root (ADR-0003) and the one file with no layer override in `.oxlintrc.json`: the `domain`, `app`, `ui` and `adapters` overrides each match their own folders only, so `main.ts` may import from all four (it is the only place that wires an adapter, ADR-0016). The lookup stays there on purpose: its entries are shell glue that read `app` selectors and `domain` functions and call `ui` renderers, which no `ui` module may do (Option C). The exemption is from the layer rules only; `complexity`, `max-params`, `max-lines` and the globals rules still apply to `main.ts`.
+`src/main.ts` is the composition root (ADR-0003) and the one file with no layer override in `.oxlintrc.json`: the `domain`, `app`, `ui` and `adapters` overrides each match their own folders only, so `main.ts` may import from all four (it is the only place that wires an adapter, ADR-0016). The lookup stays there on purpose: its entries are shell glue that read `app` selectors and `domain` functions and call `ui` renderers, which no `ui` module may do (Option C). The exemption is from the layer rules only. `main.ts` also matches none of the `no-restricted-globals` overrides (they cover `src/domain`, `src/app` and `src/ui` only), so it may read `location` and `localStorage` (through the adapter). The top-level rules do apply to it: `complexity` (15), `max-depth`, `max-params` (3), `max-lines` (400), `no-console`, `eqeqeq`, `prefer-const`, `no-var`. The guards for the lookup are the typecheck, the grep test (no `switch (` in `main.ts`, `RENDERERS` present) and the complexity gate.
 
 ### Contract shape
 | Component | Shape | Universe and assertion |
