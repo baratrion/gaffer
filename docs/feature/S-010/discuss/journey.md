@@ -26,7 +26,7 @@ golden pick; the season is in `S-008/discuss/reference-season.md`.
 | 5 | Club home | "Play match" | "Matchday 3", "Netherwold Borough 2–1 Oakhampton Rise Borough", the same as without the reload | The season moves on from where it was; a first win |
 | 6 | Club home | "Tactics", "4-3-3"; "Starting XI", "Kestrel Northcott 6" for "MF Calder Redfern 15" | His new team sheet | In charge: building on the win |
 | 7 | Evening, tab dropped again | "Continue", "Tactics", "Starting XI" | "4-3-3" checked, his same 11 | Confidence: the game remembers his decisions |
-| 8 | Days later, matchday 14 played, reload | "Continue", "End of season" | "End of season" instead of "Play match"; the same "Final position" and "Top scorer" lines as before the reload (with untouched tactics all season: "Final position 3rd", "Top scorer Garrick Thistlewood (5 goals)") | Closure kept: the verdict survives the reload |
+| 8 | Days later, matchday 14 played, reload | "Continue", "End of season" | "End of season" instead of "Play match"; the same "Final position" and "Top scorer" lines as before the reload | Closure kept: the verdict survives the reload |
 
 Emotional arc: curious, then the sting of two defeats and the worry of a lost season, relief at "Continue",
 trust when the table is unchanged and the next match is the one it would have been, a first win, control
@@ -34,8 +34,10 @@ when his team sheet comes back, and the satisfaction of a season
 that spans many short sessions. Every arrival focuses the screen's title; "Continue" is one tap.
 
 ## Shared artifacts (single source each)
-- **Saved game**: one entry in the browser's site storage, written by the shell after a saving tap, read once
-  on load. It holds the seed, the managed club, the formation, the XI picks and the recorded results.
+- **Saved game**: one entry in the browser's site storage under "gaffer.save" (ADR-0016), written by the shell
+  after a saving tap (the pick-a-club screen, which has no club yet, writes nothing; the club-choice tap
+  writes), and read once on load. It holds the seed, the managed club, the formation, the XI picks and the
+  recorded results. A failed write removes it (best effort).
 - **Recorded results**: `GameState.results` (ADR-0012, ADR-0014), the single source for the table, the next
   matchday and the End of season screen, before and after a reload.
 - **Formation and Starting XI**: `GameState.formation` and `GameState.xi` (ADR-0007, ADR-0009), saved and
@@ -45,17 +47,15 @@ that spans many short sessions. Every arrival focuses the screen's title; "Conti
 - **Seed**: the address's "?seed=" for "New game"; the saved seed for "Continue" (D5).
 
 ## Error and boundary paths
-- First visit, or a fresh browser: no "Continue"; the title as before.
-- Tapping "New game" by accident: the pick-a-club screen. The old saved game is kept until a club is picked,
-  so a reload brings back "Continue". There is no "Back" to the title on that screen (out of scope); a reload
-  is the way back.
-- Picking a club in a new game: the old saved game is replaced (version-only rule); a later "Continue" resumes
-  the new game.
-- A damaged save, or one from an incompatible older version: no "Continue", no error; the game plays as on a
-  first visit, and the next club pick writes a good save.
-- Storage blocked (privacy setting, private mode) or full: no "Continue", no error; the game plays, nothing is
-  saved, and a reload loses the season as before S-010.
-- A different "?seed=" in the address: "Continue" still resumes the saved league; "New game" uses the
-  address's seed.
-- A finished season: "Continue" shows "End of season" and no "Play match"; "Play again" keeps the save until a
-  club is picked.
+
+| Path | Player sees | Feels |
+|---|---|---|
+| First visit, or a fresh browser | No "Continue"; the title as before | Curious, as before; nothing to lose yet |
+| "New game" tapped by accident | The pick-a-club screen. The old saved game is kept until a club is picked. There is no "Back" to the title on that screen (out of scope), so a reload is the only way back to "Continue" | A jolt of panic ("did I just lose it?"), then relief when the reload still offers "Continue". Not obvious: he has to think of reloading |
+| Picks a club after a mistaken "New game" (accepted risk, D4) | The old saved game is replaced (version-only rule); a later "Continue" resumes the new game. No confirm, no undo | The sting of a lost season, J-10's anxiety made real. Accepted to ship less; watched in the owner's demo |
+| A damaged save, or one from an incompatible older version | No "Continue", no error; the game plays as on a first visit, and the next club pick writes a good save | Mild surprise at a missing "Continue", but never stuck or shown an error |
+| Storage blocked (privacy setting, private mode) | No "Continue", no error; the game plays, nothing is saved, and a reload loses the season as before S-010 | No worse than before S-010; the game never complains |
+| Storage full when the game loads | No "Continue", even if a readable older save is stored; the game plays without saving | As above: honest rather than offering something it cannot keep |
+| Storage fills up during play | The match plays as usual; that save fails, so the stored game is removed, and after a reload there is no "Continue" (never a stale matchday) | Disappointment if he notices, but never a "Continue" that silently rewinds his season, which would break his trust far more |
+| A different "?seed=" in the address | "Continue" still resumes the saved league; "New game" uses the address's seed | Reassured: a shared link does not overwrite his season |
+| A finished season | "Continue" shows "End of season" and no "Play match". "Play again" keeps the save until a club is picked, so a reload before that still offers the finished season | Closure kept; another go is one tap away |

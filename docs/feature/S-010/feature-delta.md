@@ -2,10 +2,10 @@
 
 ## Wave: DISCUSS
 
-Lean, unattended, revision 1. Reuses `discuss/journey.md` and `slices/slice-01..02`. North star: "manage one fictional club through one short season, on a phone browser, start to finish". Vision: 5-minute sessions on the bus. S-008 made a season of 14 matchdays and S-009 closed it with "End of season" and "Play again", but S-007, S-008 and S-009 all say "Results are kept until the page is reloaded": a season takes more than one sitting, and a reload, a closed tab or a phone that drops the page loses it. scope.md IN says: "Save and continue in the browser (localStorage)". S-009's DISCUSS named save and continue as next. The smallest next visible increment: the game saves itself after every tap that changes it, and after a reload the title screen offers "Continue", which lands on the saved club's home with everything as it was. Narrowed by scope.md precedence (ship less): several save slots, a save list, a "Delete save" button, export or import, sync, and restoring the exact screen are cut. Feature type: user-facing. UX depth: lightweight. Walking skeleton: no (brownfield, extends S-001..S-009). JTBD: yes, new job J-10. No DIVERGE artifact (accepted as lean, as for S-002..S-009).
+Lean, unattended, revision 2 (after `nw-product-owner-reviewer` cycle 1, see Peer review; DESIGN's ADR-0016 already exists and names the storage key "gaffer.save"). Reuses `discuss/journey.md` and `slices/slice-01..02`. North star: "manage one fictional club through one short season, on a phone browser, start to finish". Vision: 5-minute sessions on the bus. S-008 made a season of 14 matchdays and S-009 closed it with "End of season" and "Play again", but S-007, S-008 and S-009 all say "Results are kept until the page is reloaded": a season takes more than one sitting, and a reload, a closed tab or a phone that drops the page loses it. scope.md IN says: "Save and continue in the browser (localStorage)". S-009's DISCUSS named save and continue as next. The smallest next visible increment: the game saves itself after every tap that changes it, and after a reload the title screen offers "Continue", which lands on the saved club's home with everything as it was. Narrowed by scope.md precedence (ship less): several save slots, a save list, a "Delete save" button, export or import, sync, and restoring the exact screen are cut. Feature type: user-facing. UX depth: lightweight. Walking skeleton: no (brownfield, extends S-001..S-009). JTBD: yes, new job J-10. No DIVERGE artifact (accepted as lean, as for S-002..S-009).
 
 ### Wave: DISCUSS / [REF] Scope Assessment
-PASS: 2 small user stories with 8 scenarios in total (4, 4), 1 roadmap story, one new button on an existing screen and one demonstrable outcome ("I reload and carry on where I was"). One new seam: browser storage, behind a pure save format and a thin shell adapter (ADR-0003 functional core, imperative shell). No new screen. 2 carpaccio slices, one release: both ship in ONE DELIVER merge, with no separate release of slice 01, so a "Continue" that drops the player's formation or Starting XI, or a title screen that a damaged save can break, never ships. About 1 to 1.5 days. Integration points: app state (formation, XI, results), title screen, club home, browser storage, the address's seed: 5, at the limit, not over it. No oversized signal: slots, deletion, export and sync are cut (Out-of-scope).
+PASS: 2 small user stories with 11 scenarios in total (US-1 5, US-2 6), 1 roadmap story, one title button, one action, one storage seam, one lookup refactor and one demonstrable outcome ("I reload and carry on where I was"). One new seam: browser storage, behind a pure save format and a thin shell adapter (ADR-0003 functional core, imperative shell). No new screen. The 2 carpaccio slices are ordered DELIVER commits of one story (S-010), shipped in ONE merge: slice 01's commits come first and slice 02's follow on the same branch. There is no separate release of slice 01, so main never gets a "Continue" that drops the player's formation or Starting XI, or a title screen that a damaged save or full storage can break. About 1 to 1.5 days. Integration points: app state (formation, XI, results), title screen, club home, browser storage, the address's seed: 5, at the limit, not over it. No oversized signal: slots, deletion, export and sync are cut (Out-of-scope).
 
 Line budget (changed lines, code plus tests; file names are indicative, and DESIGN names the files). The one hard cap is the 1200-line PR guard.
 
@@ -16,11 +16,11 @@ Line budget (changed lines, code plus tests; file names are indicative, and DESI
 | Continue: building the restored state, plus the refactor of `update` and the `render` switch to lookups that S-009 DESIGN's Open questions require before the next action (`src/app/state.ts`, `src/main.ts`) | code | 45 |
 | `src/ui/screens/title.ts` ("Continue" above "New game"), `src/ui/styles.css` | code | 15 |
 | `tests/acceptance/S-010/*.test.ts` (round trip, strict decode, unreadable inputs, the save triggers, the D4 timing, D5 seed, names check) | tests | 220 |
-| `tests/e2e/S-010-save-continue.spec.ts` (what protected does not cover: D4 timing, D5, unreadable save, blocked and full storage) | tests | 110 |
-| Amended non-protected S-008 e2e title and assertion (D7) | tests | 10 |
-| **DELIVER total** (code 185, tests 340) | code and tests | **525** |
+| `tests/e2e/S-010-save-continue.spec.ts` (what protected does not cover: D4 timing including "Play again", D5, damaged and incompatible saves, blocked storage, full storage at load and during play) | tests | 160 |
+| Amended non-protected S-008 e2e and S-009 acceptance test titles and assertion (D7) | tests | 15 |
+| **DELIVER total** (code 185, tests 395) | code and tests | **580** |
 | `tests/protected/S-010/*.spec.ts` (written in the plan run, outside DELIVER; estimate) | tests | 250 |
-| **Grand total** (with protected) | code and tests | **775** |
+| **Grand total** (with protected) | code and tests | **830** |
 
 ### Wave: DISCUSS / [REF] Persona
 Sam, 34, a lapsed Championship Manager fan. He plays on the bus, one-handed, on a mid-range Android phone 390px wide, with 5 minutes to spare (persona from `docs/feature/S-001/feature-delta.md`). A season is 14 matches; he plays two or three per trip. His browser drops the tab between trips, and today that wipes the season.
@@ -33,7 +33,9 @@ When I come back to the game after a break, I want to pick up my season where I 
 - **Saving tap**: a tap that changes the saved game: picking the club, choosing a formation, picking a player for a Starting XI slot, and "Play match". Navigation ("Squad", "Table", "Back", etc.) changes nothing, so it does not save.
 - **Continue**: the title-screen button that restores the saved game and lands on the saved club's home.
 - **Unreadable save**: stored data that is not a complete, valid saved game of this version: damaged, from an incompatible older version, or inconsistent with its own league. It counts as no saved game.
-- **Storage unavailable**: the browser refuses to read or write site storage (blocked by a setting, a private mode, or full).
+- **Storage blocked**: the browser refuses to read and write site storage (a privacy setting or a private mode); the roadmap outcome calls it "unavailable".
+- **Storage full**: the browser reads site storage but refuses writes (quota exceeded). It may be full when the game loads or become full during play.
+- **Failed save**: a saving tap whose write is refused. The game removes the stored saved game (best effort, silently), so "Continue" never offers a state older than the last one played. Later saving taps try again.
 - **Uninterrupted season**: the same seed, club and choices played in one visit without a reload. A continued season must equal it.
 - **Recorded result**, **Standings**, **Table row**, **Untouched tactics**, **Score line**, **Next matchday**, **End of season screen**: as in S-006..S-009.
 
@@ -41,10 +43,19 @@ When I come back to the game after a break, I want to pick up my season where I 
 - D1 Automatic save, no Save button: once a club has been picked, the game is saved in the browser automatically after every saving tap: picking the club, choosing a formation, picking a Starting XI player, and "Play match". Saved: the league's seed, the managed club, the formation, the Starting XI (including the player's own picks) and the recorded results. Not saved: which screen was open.
 - D2 Title screen: when a saved game exists, the title screen shows a button named exactly "Continue" (44px or taller) above "New game". The title's h1 ("Gaffer") stays, is focused on load, and is the only h1. When no saved game exists (first visit, or a fresh browser) there is no "Continue" button and the title is as before.
 - D3 Continue lands on the club home of the saved club, with focus on its heading (the club's name). Everything is as it was before the reload: the Table screen shows the same rows (the same text in every cell), Tactics has the saved formation checked, the Starting XI screen lists the same 11 slot texts, and when N matches had been played the next "Play match" plays matchday N+1. A finished season shows "End of season", not "Play match", and the End of season screen shows the same "Final position" and "Top scorer" lines. The rest of the season played after Continue equals the uninterrupted season (the same match screens, the same table): saving and continuing changes nothing in the game.
-- D4 New game with a saved game present: "New game" still starts a fresh game from the address's seed exactly as before: after picking a club the table is all zero in A to Z order, Tactics has 4-4-2 checked, the XI is the automatic one, and the next "Play match" is "Matchday 1". Tapping "New game" or "Play again" does not remove the saved game by itself; the save is replaced as soon as a club is picked in the new game. This replacement timing is a rule of this version only.
+- D4 New game with a saved game present: "New game" still starts a fresh game from the address's seed exactly as before: after picking a club the table is all zero in A to Z order, Tactics has 4-4-2 checked, the XI is the automatic one, and the next "Play match" is "Matchday 1". Tapping "New game" or "Play again" does not remove the saved game by itself. The pick-a-club screen (no club yet) writes nothing; the club-choice tap writes, and that replaces the save. This replacement timing is a rule of this version only. Accepted risk (J-10's anxiety, "tapping New game by mistake and losing the season"): "New game" followed by a club pick replaces the saved game, with no confirm dialog and no undo. The pick-a-club screen has no "Back" to the title, so the only way back to "Continue" after a mistaken "New game" is a reload before picking a club. Accepted to ship less (no dialog, no slots); recorded for a later story if the owner's demo shows it bites.
 - D5 One save slot: Continue resumes the saved game whatever "?seed=" the address holds now, because the save carries its own seed. After Continue, "Play again" keeps the saved game's league (S-009: "the same seed"). Not protected-tested; unit and e2e tested.
-- D6 Safety: an unreadable save, or browser storage that is unavailable or full, gives no "Continue" button; the game plays as before and logs no console error. A failed save never interrupts play and logs no console error.
-- D7 Amendment: S-007, S-008 and S-009 said "Results are kept until the page is reloaded". From S-010 on, a reload keeps the saved game, reachable through "Continue". Their durable lists are unchanged. Their protected scenarios always start with "New game" in a fresh browser context, so they are unaffected. Non-protected test to amend (replaced, never weakened): `tests/e2e/S-008-season.spec.ts`, the test "Reloading the page after two matches shows the title screen again ... (the season is lost, there is no save yet)". Its assertions stay true (New game starts fresh). Its title is reworded, and it gains a check that "Continue" is offered after the reload. DISTILL fixes the final list.
+- D6 Safety:
+  - An unreadable save (damaged, or from an incompatible older version) gives no "Continue" button; the game plays as before and logs no console error.
+  - When browser storage is blocked, or full, when the game loads, there is no "Continue" button (a readable older save is then not offered) and the game plays as before without saving.
+  - When a save fails during play, the stored saved game is removed (best effort, silently), so that "Continue" never offers a state older than the last one played; later saving taps try to save again.
+  - A failed save never interrupts play and logs no console error.
+- D7 Amendment: S-007, S-008 and S-009 said "Results are kept until the page is reloaded". From S-010 on, a reload keeps the saved game, reachable through "Continue". Their durable lists are unchanged.
+  - Protected scenarios: they are not all one fresh page per visit. Several reuse one page across visits (S-001 pick-club, S-002 squad, S-004 tactics), so from S-010 on a later visit can meet a title that offers "Continue". They still pass because each visit taps the exact "New game" (`exact: true` or the `button(page, "New game")` helper), which starts fresh from the address's seed (D4). The DoD runs them on the branch with the save in place.
+  - S-009's "Play again ... nothing of the old season remains" holds once a club is picked. Until then, a reload's "Continue" still offers the finished season (D4). E2e intent: finish a season, tap "Play again", reload; "Continue" lands on the finished season's club home with "End of season".
+  - Non-protected tests to amend (replaced, never weakened; DISTILL fixes the final list):
+    - `tests/e2e/S-008-season.spec.ts`, the test "Reloading the page after two matches shows the title screen again ... (the season is lost, there is no save yet)". Its assertions stay true (New game starts fresh). Its title is reworded, and it gains a check that "Continue" is offered after the reload.
+    - `tests/acceptance/S-009/existing-navigation-unchanged.test.ts` (about line 74), the test "... when the title is shown again and New game is tapped (a reload) ...". Only the title is reworded, since a reload no longer equals a title plus "New game"; the assertion is unchanged.
 - D8 Protected pin list (written later by the plan run's protected-scenarios step; each must fail on today's app, which has no "Continue"):
   - P1: in a fresh browser the title has no "Continue". After "New game", picking a club and reloading, the title shows "Continue" (44px or taller) and "New game", with exactly one h1.
   - P2: at `?seed=31`, play 2 matches and read the Table; reload; tap "Continue". The h1 is the club's name and has focus, and the Table is identical. "Play match" shows "Matchday 3". That match screen, and the table after it, equal those of a fresh browser that plays 3 matches with the same seed and club without reloading.
@@ -56,9 +67,9 @@ When I come back to the game after a break, I want to pick up my season where I 
 - D10 Phone first and regression: buttons 44px or taller, no horizontal scroll at 390px, no console errors, text through `el()`/`textContent` (ADR-0002), focus on the new h1 after every navigation (ADR-0008). Every S-001..S-009 protected scenario stays green. Deterministic game logic is unaffected: nothing in the save uses wall-clock time or randomness, and nothing in `src/domain/` touches storage.
 
 ### Wave: DISCUSS / [REF] Story map and priority
-Backbone: **open the game (title: Continue or New game)**, pick club, club home, squad, tactics, starting XI, play next match, see table, end of season, play again. Walking skeleton: the existing S-001..S-009 loop. This story makes it span visits. One release with two thin slices, both shipped in ONE DELIVER merge (no separate release of slice 01):
-1. `slices/slice-01-save-and-continue.md` (US-1): automatic save of the seed, club and results; "Continue" on the title; land on the club home with the same table, the next matchday and a finished season's End of season; "New game" unaffected. Value 5 x urgency 5 / effort 2 = 12.5. It comes first because it is the season-across-sessions promise itself.
-2. `slices/slice-02-team-sheet-and-safe-load.md` (US-2): the formation and Starting XI are saved and restored, an unreadable save or blocked storage never shows "Continue" or an error, and the save carries its own seed. 5 x 4 / 1.5 = 13.3, but it depends on slice 01. Without it a continued season can differ from the uninterrupted one (D3), and a damaged save could break the title screen.
+Backbone: **open the game (title: Continue or New game)**, pick club, club home, squad, tactics, starting XI, play next match, see table, end of season, play again. Walking skeleton: the existing S-001..S-009 loop. This story makes it span visits. One release; two thin slices, which are ordered DELIVER commits of one story shipped in ONE merge (no separate release of slice 01):
+1. `slices/slice-01-save-and-continue.md` (US-1): automatic save of the seed, club and results; "Continue" on the title, whatever "?seed=" the address holds; land on the club home with the same table, the next matchday and a finished season's End of season; "New game" unaffected. Value 5 x urgency 5 / effort 2 = 12.5. It comes first because it is the season-across-sessions promise itself.
+2. `slices/slice-02-team-sheet-and-safe-load.md` (US-2): the formation and Starting XI are saved and restored. A damaged or incompatible save, blocked storage, and storage full at load or during play never show a stale "Continue" or an error. 5 x 4 / 1.5 = 13.3, but it depends on slice 01. Without it a continued season can differ from the uninterrupted one (D3), and a damaged save could break the title screen.
 
 Priority rationale: a 14-matchday season does not fit a 5-minute session, so without a save the brief's north star ("start to finish") only works for a player who never closes the tab. Every later story (inbox, commentary, a next season) adds content to a season that a reload still wipes. Rejected alternatives:
 - Inbox or news first: more to read per match, but still lost on reload; scope lists it, and it comes later.
@@ -77,13 +88,21 @@ Slice-to-clause map (one roadmap outcome, two slices, one merge):
 | Same Table, next "Matchday N+1", finished season's "End of season" with the same lines | 01 | durable |
 | Saved formation checked, same 11 Starting XI texts | 02 | durable |
 | Continued season equals the uninterrupted season | 01 (untouched tactics), 02 (any choices) | durable |
-| "New game" starts fresh from the address's seed; the save is replaced once a club is picked | 01 | durable (fresh); version-only (timing) |
-| Continue ignores the address's "?seed=" | 02 | durable (one saved game carries its seed) |
-| Unreadable save or unavailable or full storage: no "Continue", play as before, no console error | 02 | durable |
+| "New game" starts fresh from the address's seed; the save is replaced once a club is picked ("Play again" too) | 01 | durable (fresh); version-only (timing) |
+| Continue ignores the address's "?seed=" | 01 | durable (one saved game carries its seed) |
+| Damaged or incompatible save, blocked storage, storage full at load: no "Continue", play as before, no console error | 02 | durable |
+| A failed save during play removes the stored game; later taps retry; play never interrupted | 02 | durable |
 | No horizontal scroll at 390px, no console errors | 01, 02 | durable |
 
 ### Wave: DISCUSS / [REF] User stories
-Fixtures from the real generator, read from `docs/feature/S-008/discuss/reference-season.md` and S-009's `discuss/reference-season-end.md` (untouched tactics: every side plays the automatic 4-4-2). At `?seed=31` "Netherwold Borough" (1st in the "Clubs" list) plays "Matchday 1": "Netherwold Borough 1–2 Marlbrook Athletic"; "Matchday 2": "Rushmoor Heath Albion 2–1 Netherwold Borough"; "Matchday 3": "Netherwold Borough 2–1 Oakhampton Rise Borough". After matchday 2 the table reads, top to bottom: Tarnbeck Borough (Pts 4, GD "+4"), Oakhampton Rise Borough (4, "+2"), Marlbrook Athletic (4, "+1"), Juniper Hollow United (3, "0"), Rushmoor Heath Albion (3, "-3"), Fennimore Town (2, "0"), Valebridge Albion (1, "-2") and Netherwold Borough (P 2, W 0, D 0, L 2, GD "-2", Pts 0). These table figures were worked out by hand from the reference season, and DISTILL confirms them with the domain code. The season ends with "Final position 3rd" and "Top scorer Garrick Thistlewood (5 goals)". The golden pick (S-006..S-009): in the Starting XI, slot "MF Calder Redfern 15" gets "Kestrel Northcott 6" (each number is the player's overall, as the S-005 screens print it). The default seed 20260 (`?seed=abc`) is a different league; its "Clubs" list includes "Oakhampton Rise Borough" and "Valebridge Town".
+Fixtures from the real generator, read from `docs/feature/S-008/discuss/reference-season.md` and S-009's `discuss/reference-season-end.md` (untouched tactics: every side plays the automatic 4-4-2). At `?seed=31` "Netherwold Borough" (1st in the "Clubs" list) plays "Matchday 1": "Netherwold Borough 1–2 Marlbrook Athletic"; "Matchday 2": "Rushmoor Heath Albion 2–1 Netherwold Borough"; "Matchday 3": "Netherwold Borough 2–1 Oakhampton Rise Borough". After matchday 2 the table reads, top to bottom: Tarnbeck Borough (Pts 4, GD "+4"), Oakhampton Rise Borough (4, "+2"), Marlbrook Athletic (4, "+1"), Juniper Hollow United (3, "0"), Rushmoor Heath Albion (3, "-3"), Fennimore Town (2, "0"), Valebridge Albion (1, "-2") and Netherwold Borough (P 2, W 0, D 0, L 2, GD "-2", Pts 0). These table figures were hand-derived from the reference season's matchdays 1 and 2 and checked in review (cycle 1); DISTILL confirms them with the domain code. The season ends with "Final position 3rd" and "Top scorer Garrick Thistlewood (5 goals)". The golden pick (S-006..S-009): in the Starting XI, slot "MF Calder Redfern 15" gets "Kestrel Northcott 6" (each number is the player's overall, as the S-005 screens print it). The default seed 20260 (`?seed=abc`) is a different league; its "Clubs" list includes "Oakhampton Rise Borough" and "Valebridge Town".
+
+Named storage fixtures, for the e2e. The key is "gaffer.save" (ADR-0016).
+- **Seed-31 save text**: the exact text the game stores under "gaffer.save" after "New game", "Netherwold Borough" and 2 x ("Play match", "Back") at `?seed=31`. DISTILL computes it once with the real generator and pins it as a golden.
+- **Damaged save**: the seed-31 save text cut after its first 100 characters.
+- **Incompatible save**: the seed-31 save text with its version number set to 0.
+- **Blocked storage**: every read and write of site storage throws (as a privacy setting does).
+- **Full storage**: reads work and every write throws a quota error. It is either set before load ("full at load") or switched on by the test after matchday 2 has been saved ("full mid-session").
 
 #### US-1: Continue my saved season
 **Problem:** Sam plays two matches on the morning bus. At lunch he opens the game again, and his browser has dropped the tab: he gets the title screen and "New game", and his season is gone. To get back to matchday 3 he would have to replay matchdays 1 and 2 with the same choices, and he has not written them down. A 14-matchday season cannot be finished in 5-minute sessions.
@@ -98,6 +117,7 @@ Fixtures from the real generator, read from `docs/feature/S-008/discuss/referenc
 1. `?seed=31`, "New game", "Netherwold Borough", untouched tactics, "Play match", "Back", "Play match", "Back" (the match screens read "Matchday 1" and "Matchday 2", as above). He reloads, and the title shows "Continue" (44px or taller) above "New game", with "Gaffer" focused. He taps "Continue": "Netherwold Borough" focused, and "Table" shows the 8 rows above, the same text in every cell. "Back", "Play match": "Matchday 3", "Netherwold Borough 2–1 Oakhampton Rise Borough", the same as in a browser that never reloaded.
 2. `?seed=31`, all 14 matchdays played. "End of season" reads "Final position 3rd" and "Top scorer Garrick Thistlewood (5 goals)". He reloads and taps "Continue": the club home shows "End of season" and no "Play match", and "End of season" reads the same two lines.
 3. With that saved game, Sam taps "New game" by mistake and sees the pick-a-club screen. He reloads without picking a club: "Continue" is still there, and it still lands on Netherwold Borough with two matches played (D4). Had he picked "Netherwold Borough", the table would read all zero in A to Z order, Tactics "4-4-2", and "Play match" "Matchday 1", "Netherwold Borough 1–2 Marlbrook Athletic". After one more reload, "Continue" would land in that new game.
+4. Saved at `?seed=31` with Netherwold Borough after 2 matches, Sam opens a shared link `/gaffer/?seed=abc`. "Continue" still lands on "Netherwold Borough", and "Play match" is "Matchday 3", "Netherwold Borough 2–1 Oakhampton Rise Borough". "New game" instead lists the seed-20260 clubs ("Oakhampton Rise Borough", "Valebridge Town", ...).
 
 **Acceptance criteria (embedded UAT)**
 ```gherkin
@@ -134,8 +154,14 @@ Scenario: New game starts fresh even when a saved game exists
   Then "Table" shows every row at P 0, W 0, D 0, L 0, GD 0 and Pts 0, in A to Z order of club name
   And "Tactics" has "4-4-2" checked
   And "Play match" shows "Matchday 1"
+
+Scenario: Continue resumes the saved game whatever seed the address holds
+  Given Sam has a saved game of "Netherwold Borough" at "?seed=31" with 2 matches played
+  When Sam opens "/gaffer/?seed=abc" and taps "Continue"
+  Then the heading is "Netherwold Borough"
+  And "Play match" shows "Matchday 3" and "Netherwold Borough 2–1 Oakhampton Rise Borough"
 ```
-Notes: scenarios 1 to 4 are pins P1, P2, P5 and P4. D4's replacement timing (example 3) is version-only: it is tested by e2e and unit tests and is not pinned. Unit: the saving taps write and navigation does not; "Continue" yields a club-home state whose formation, XI and results equal the saved ones; `nextMatchday` after Continue is N+1, and `undefined` after 14; "New game" ignores the saved game.
+Notes: scenarios 1 to 4 are pins P1, P2, P5 and P4. Scenario 5 (D5) is e2e and unit tested, not pinned. D4's replacement timing (example 3, and "Play again" then a reload, D7) is version-only: it is tested by e2e and unit tests and is not pinned. Unit: the saving taps write and navigation does not; "Continue" yields a club-home state whose formation, XI and results equal the saved ones; `nextMatchday` after Continue is N+1, and `undefined` after 14; "New game" ignores the saved game.
 
 **Outcome KPI:** K1, K2 (below).
 **Technical notes (for DESIGN, not AC):**
@@ -155,8 +181,11 @@ Notes: scenarios 1 to 4 are pins P1, P2, P5 and P4. D4's replacement timing (exa
 
 **Domain examples**
 1. `?seed=31`, "Netherwold Borough": "Tactics", "4-3-3", "Back", "Starting XI". He taps "MF Calder Redfern 15", picks "Kestrel Northcott 6" and reads the 11. He reloads and taps "Continue": "Tactics" has "4-3-3" checked, and "Starting XI" reads the same 11 texts in the same order. His next "Play match" equals an uninterrupted browser's match with the same choices.
-2. Saved at `?seed=31` with Netherwold Borough after 2 matches, Sam opens a shared link `/gaffer/?seed=abc`. "Continue" still lands on "Netherwold Borough", and "Play match" is "Matchday 3", "Netherwold Borough 2–1 Oakhampton Rise Borough". "New game" instead lists the seed-20260 clubs ("Oakhampton Rise Borough", "Valebridge Town", ...).
-3. The browser holds a damaged save (cut off halfway), or a save from an incompatible older format: the title has no "Continue" and works as on a first visit, with no console error. After "New game" and a club, a good save replaces it. With storage blocked (a privacy setting) or full: no "Continue"; Sam plays matchdays 1 and 2 with no console error; a reload loses the season, as before S-010.
+2. The browser holds the damaged save (the seed-31 save text cut after 100 characters), or the incompatible save (version 0): the title has no "Continue" and works as on a first visit, with no console error. After "New game", "Netherwold Borough" and "Play match", a good save replaces it, and a reload offers "Continue" with "Matchday 2" next.
+3. Storage problems, at `?seed=31`:
+   - Blocked (a privacy setting): no "Continue". Sam plays matchdays 1 and 2, and every "Table" row reads P 2. No console error. A reload loses the season, as before S-010.
+   - Full when the game loads: no "Continue", even with a readable save stored, and the game plays without saving.
+   - Fills up during play: saved after matchday 2, then the phone's storage fills up and Sam plays matchday 3. Its save fails, the stored game is removed, and after a reload there is no "Continue" rather than a stale matchday-2 offer. No console error.
 
 **Acceptance criteria (embedded UAT)**
 ```gherkin
@@ -167,36 +196,57 @@ Scenario: Continue restores the formation and the Starting XI
   Then "Tactics" has the radio "4-3-3" checked
   And "Starting XI" lists the same 11 slot texts in the same order
 
-Scenario: Continue resumes the saved game whatever seed the address holds
-  Given Sam has a saved game of "Netherwold Borough" at "?seed=31" with 2 matches played
-  When Sam opens "/gaffer/?seed=abc" and taps "Continue"
-  Then the heading is "Netherwold Borough"
-  And "Play match" shows "Matchday 3" and "Netherwold Borough 2–1 Oakhampton Rise Borough"
-
-Scenario: An unreadable saved game is ignored
-  Given the browser holds a saved game that is damaged, or from an incompatible older version
+Scenario: A damaged saved game is ignored
+  Given "gaffer.save" holds the seed-31 save text cut after its first 100 characters
   When Sam opens "/gaffer/?seed=31"
-  Then the title has no button named "Continue" and has "New game"
+  Then the title has no button named "Continue" and has a button named "New game"
   And there is no console error
-  When Sam taps "New game", "Netherwold Borough" and "Play match", and reloads
-  Then the title offers "Continue", and it lands on "Netherwold Borough" with "Matchday 2" next
+  When Sam taps "New game", "Netherwold Borough", "Play match" and "Back", and reloads
+  Then the title has a button named "Continue", and "Continue" then "Play match" shows "Matchday 2"
 
-Scenario: Blocked or full storage never interrupts the game
-  Given the browser refuses to read and write site storage, or its storage is full
-  When Sam opens "/gaffer/?seed=31", taps "New game" and "Netherwold Borough", plays 2 matches and opens "Table"
-  Then there is no "Continue" on the title, every screen works as before S-010, and there is no console error
+Scenario: A saved game from an incompatible older version is ignored
+  Given "gaffer.save" holds the seed-31 save text with its version number set to 0
+  When Sam opens "/gaffer/?seed=31"
+  Then the title has no button named "Continue" and has a button named "New game"
+  And there is no console error
+
+Scenario: Blocked storage never interrupts the game
+  Given every read and write of site storage throws
+  When Sam opens "/gaffer/?seed=31"
+  Then the title has no button named "Continue" and has a button named "New game"
+  When Sam taps "New game", "Netherwold Borough", taps "Play match" and "Back" twice, and taps "Table"
+  Then every row of the "League table" reads P 2
+  When Sam reloads the page
+  Then the title has no button named "Continue"
+  And there was no console error at any step
+
+Scenario: Storage that is full when the game loads offers no Continue
+  Given "gaffer.save" holds the seed-31 save text and every write to site storage throws a quota error
+  When Sam opens "/gaffer/?seed=31"
+  Then the title has no button named "Continue" and has a button named "New game"
+  When Sam taps "New game", "Netherwold Borough", taps "Play match" and "Back" twice, and taps "Table"
+  Then every row of the "League table" reads P 2
+  And there is no console error
+
+Scenario: Storage that fills up during play never offers a stale Continue
+  Given Sam at "?seed=31" managing "Netherwold Borough" has played 2 matches, and the game has saved them
+  And site storage then fills up, so every write throws a quota error
+  When Sam taps "Play match" and sees "Matchday 3", taps "Back" and reloads the page
+  Then the title has no button named "Continue" and has a button named "New game"
+  And there was no console error at any step
 ```
-Notes: scenario 1 is pin P3. Scenarios 2 to 4 are e2e and unit tests, not protected (D5, D6); the e2e seeds the storage before load (for example with a Playwright init script). Unit and property:
+Notes: scenario 1 is pin P3. Scenarios 2 to 6 are e2e and unit tests, not protected (D6); the e2e seeds or blocks the storage before load (for example with a Playwright init script) or switches it to full after matchday 2. Unit and property:
 - the decoder never throws and returns "no saved game" for arbitrary strings, truncated or bit-flipped valid saves, a wrong version, an unknown club, an invalid formation, an XI that is not 11 different players in the formation's positions, and results that do not match the league's schedule (missing or extra matchdays, wrong fixtures, goals outside 0..9);
 - a round trip over reachable states restores the same formation, XI, results and next matchday;
-- the storage adapter swallows read and write failures silently.
+- the storage adapter swallows read and write failures silently;
+- a failed write during play removes "gaffer.save" (best effort; a failing remove is swallowed too), and the next saving tap tries to write again.
 
-**Outcome KPI:** K2, K3 (below).
+**Outcome KPI:** K1 (via US-1), and guardrails K2, K3 (below).
 **Technical notes (for DESIGN, not AC):**
 - Pure encode and decode in the functional core, with an explicit version number and strict validation. Decode regenerates the league from the saved seed and checks every field against it. A failure means "no saved game"; partial restores are not allowed.
-- A localStorage adapter in the imperative shell catches every exception (`SecurityError`, `QuotaExceededError`, access throwing on read) and writes nothing to the console.
-- No timestamps or random ids in the save. A full season (56 results) stays small (guardrail below).
-- Several tabs: last write wins (not tested; one player, one phone). Depends on US-1.
+- A localStorage adapter in the imperative shell catches every exception (`SecurityError`, `QuotaExceededError`, access throwing on read) and writes nothing to the console. On a failed write it removes the stored game (D6).
+- No timestamps or random ids in the save. A full season (56 results) stays under 64 KB, about 1% of a 5 MB quota (guardrail below).
+- Several tabs are out of scope (one player, one phone). Depends on US-1.
 
 Notes for DESIGN and DISTILL (not part of the AC):
 - "Has focus" means `document.activeElement` is the `<h1>`. Locators use `exact: true` for "Continue", "New game", "Play match", "End of season" and the h1.
@@ -207,36 +257,40 @@ Test intents for DISTILL (unit and property, not protected):
 - Round trip: for states reached over seeds 1..300 x 8 clubs after each matchday 0..14 (untouched tactics), restore equals the saved formation, XI, results and next matchday. DISTILL may trim the sweep for runtime.
 - Continued equals uninterrupted: fast-check (numRuns 100, fresh `FC_SEED`) over random formation, pick and Play match sequences with a save and restore at a random point. The rest of the season gives the same results and standings.
 - Save triggers: club pick, formation, pick and Play match change the saved game; "Squad", "Player", "Table", "Tactics" with no change, "Starting XI", "Back", "End of season", "New game" and "Play again" do not.
-- D4: after "New game" or "Play again" with no club picked, the stored game is the old one; after a club is picked, it is the new one.
+- D4: after "New game" or "Play again" with no club picked, the stored game is the old one (the pick-a-club screen writes nothing); after the club-choice tap, it is the new one. E2e (D7): finish a season, tap "Play again", reload; "Continue" lands on the finished season's club home with "End of season".
 - D5: restore uses the saved seed, not the address's.
-- Unreadable inputs (US-2 notes) give "no saved game" and never throw; storage failures are swallowed.
+- Unreadable inputs (US-2 notes) give "no saved game" and never throw; storage failures are swallowed; a failed write removes the stored game, and the next saving tap retries.
+- Size: a full season, and a constructed worst case, encode to under 64 KB.
 - Names check: no generated club or player name holds "Continue".
 
 ### Wave: DISCUSS / [REF] Outcome KPIs
-| # | Who | Does what | By how much (target) | Baseline | Measured by |
-|---|---|---|---|---|---|
-| K1 | Sam on a 390px phone | Picks up his season after a reload | The next match screen in 2 taps from the title ("Continue", "Play match") at any point of the season; 1 tap to his club home | Impossible: the season is lost. Rebuilding matchday N+1 takes 2 + 2(N+1) taps plus every choice from memory (18 taps after 7 matches) | e2e click counter (as S-003..S-009) |
-| K2 | Sam | Trusts that continuing changes nothing | 0 differences between a continued and an uninterrupted season (results, table, End of season) over the round-trip sweep and 100 fast-check runs per CI run; 100% of restores keep formation and XI | not possible | the round-trip and continued-equals-uninterrupted property tests, plus pins P2, P3, P5 |
-| K3 | Sam | Is never blocked by the save | 0 thrown errors and 0 console errors over 200 fast-check runs of unreadable inputs per CI run, and in the blocked-storage and full-storage e2e; 100% of unreadable saves show no "Continue" | n/a (no save) | property test on decode, e2e with seeded and blocked storage |
+K1 is the one user outcome KPI. K2 and K3 are CI guardrails: they keep the KPI honest, and they do not measure behaviour.
 
-Guardrails:
+| # | Kind | Who | Does what | By how much (target) | Baseline | Measured by |
+|---|---|---|---|---|---|---|
+| K1 | User outcome KPI | Sam on a 390px phone | Picks up his season after a reload | The next match screen in 2 taps from the title ("Continue", "Play match") at any point of the season; 1 tap to his club home | Impossible: the season is lost. Rebuilding matchday N+1 takes 2 + 2(N+1) taps plus every choice from memory (18 taps after 7 matches) | e2e tap counter (as S-003..S-009) |
+| K2 | CI guardrail | the CI run | Proves that continuing changes nothing | 0 differences between a continued and an uninterrupted season (results, table, End of season) over the round-trip sweep and 100 fast-check runs per CI run; 100% of restores keep formation and XI | not possible | the round-trip and continued-equals-uninterrupted property tests, plus pins P2, P3, P5 |
+| K3 | CI guardrail | the CI run | Proves the save never blocks play | 0 thrown errors and 0 console errors over 200 fast-check runs of unreadable inputs per CI run, and in the 5 storage e2e (damaged, incompatible, blocked, full at load, full mid-session); 100% of those show no "Continue" | n/a (no save) | property test on decode, e2e with seeded, blocked and full storage |
+
+Other guardrails:
 - S-001..S-009 protected scenarios stay green.
 - The league, squads, schedule, every result and the S-006..S-009 goldens are unchanged for every seed.
-- A saved full season stays under 16 KB (unit check).
+- A full saved season stays under 64 KB, about 1% of a 5 MB quota (unit check).
 - No ambient randomness or wall-clock time in `src/domain/`, and no storage access there.
 - No sideways scroll at 390px and 0 console errors on the title and the club home.
 - No analytics in the POC. In the owner's Friday demo, the owner closes the tab mid-season and carries on with "Continue".
 
 ### Wave: DISCUSS / [REF] DoD
-- `tests/protected/S-010/` passes on main. It is written by this plan run's protected-scenarios step from the D8 pin list; it is append-only and does not exist before that step. `tests/protected/S-001/` to `S-009/` still pass.
-- Unit and property tests pass for the test intents above: round trip, continued equals uninterrupted, the save triggers, D4 timing, D5 seed, unreadable inputs, swallowed storage failures, the 16 KB guardrail and the names check. The `ci:*` scripts are green.
-- The e2e phone smoke covers the seed-31 reload and "Continue" (focus, 44px, no sideways scroll at 390px), D4's timing, D5, an unreadable save, and blocked and full storage, each with 0 console errors.
-- Slices 01 and 02 land in one DELIVER merge.
-- The D7 amendment replaces, never weakens, the S-008 reload test; no other S-001..S-009 acceptance assertion is edited.
-- DESIGN records the persistence decision in an ADR. The DELIVER change stays under the 1200-line PR guard (525 budgeted, tests included).
+- `tests/protected/S-010/` passes on main. It is written by this plan run's protected-scenarios step from the D8 pin list, and the pin files are committed RED on main before the first DELIVER commit. It is append-only and does not exist before that step.
+- `tests/protected/S-001/` to `S-009/` are run on the DELIVER branch with the save in place (pages reused across visits included, D7) and still pass.
+- Unit and property tests pass for the test intents above: round trip, continued equals uninterrupted, the save triggers, D4 timing, D5 seed, unreadable inputs, swallowed storage failures, removal on a failed write, the 64 KB guardrail and the names check. The `ci:*` scripts are green.
+- The e2e phone smoke covers the seed-31 reload and "Continue" (focus, 44px, no sideways scroll at 390px), D4's timing ("New game" and "Play again"), D5, and the damaged, incompatible, blocked, full-at-load and full-mid-session fixtures, each with 0 console errors.
+- Slices 01 and 02 are ordered commits in one DELIVER merge.
+- The D7 amendments (the S-008 e2e reload test, and the S-009 acceptance test title) replace, never weaken; no other S-001..S-009 acceptance assertion is edited.
+- DESIGN records the persistence decision in ADR-0016. The DELIVER change stays under the 1200-line PR guard (580 budgeted, tests included).
 
 ### Wave: DISCUSS / [REF] Out-of-scope
-- Several save slots, a save list or naming; export or import; a "Delete save" button or a confirm dialog; cloud or account sync (`multiplayer` and `backend` are OUT); restoring the exact last screen; carrying a finished season into a next season; a "Back" from the pick-a-club screen to the title; an inbox, commentary, stats.
+- Several save slots, a save list or naming; export or import; a "Delete save" button or a confirm dialog; cloud or account sync (`multiplayer` and `backend` are OUT); restoring the exact last screen; carrying a finished season into a next season; a "Back" from the pick-a-club screen to the title; telling the player that a save failed; migrating old save versions; several tabs open at once (one player, one phone; not specified or tested); an inbox, commentary, stats.
 - Every OUT tag: `match-2d`, `utility-ai`, `transfers`, `finances`, `training`, `youth`, `staff`, `multiplayer`, `backend`, `real-data`.
 
 ### Wave: DISCUSS / [REF] WS strategy
@@ -250,31 +304,53 @@ No new walking skeleton (brownfield). The story adds one seam (browser storage, 
   - the shell's storage adapter, behind an injectable storage, so failures can be simulated.
 
 ### Wave: DISCUSS / [REF] Pre-requisites
-- S-001..S-009 are delivered: the `results` log, `nextMatchday`, `standingsOf`, `seasonSummaryOf`, `currentXI`, and "New game" and "Play again" through `NewGame`. ADR-0001..0015 are accepted.
+- S-001..S-009 are delivered: the `results` log, `nextMatchday`, `standingsOf`, `seasonSummaryOf`, `currentXI`, and "New game" and "Play again" through `NewGame`. ADR-0001..0015 are accepted, and ADR-0016 (this story's DESIGN, key "gaffer.save") now exists.
 - `docs/product/jobs.yaml` now has J-10 (resolved). Roadmap entry S-010 is appended from the draft below (done in this run).
 - `tests/protected/S-010/` is written by this plan run's protected-scenarios step from the D8 pin list, after this DISCUSS (append-only); it is not claimed to exist yet.
-- D7 lists the non-protected assertion DELIVER amends.
+- D7 lists the non-protected tests DELIVER amends (the S-008 e2e reload test and the S-009 acceptance test title) and the protected specs that reuse one page across visits.
 - S-009 DESIGN Open question 1 (`update` and `render` at their complexity limits) must be resolved in this story's DESIGN before a new action is added.
 
 ### Wave: DISCUSS / [REF] Roadmap outcome (draft)
-Once a club has been picked, the game is saved in the browser automatically, with no Save button, after every tap that changes it: picking the club, choosing a formation in "Tactics", picking a player for a "Starting XI" slot, and "Play match". The saved game holds the league's seed, the managed club, the formation, the Starting XI (including the player's own picks) and the recorded results; which screen was open is not saved. When a saved game exists, the title screen shows a button named exactly "Continue" (44px or taller) above the button named exactly "New game"; its only top-level heading (h1) still reads "Gaffer", focused on load. On a first visit, or in a fresh browser, there is no "Continue" button and the title screen is as before. Tapping "Continue" shows the club home of the saved club with focus on its heading, the club's name, and everything is as it was before the reload. "Table" shows the table named "League table" with the same rows, the same text in every cell. "Tactics" has the saved formation checked ("4-4-2", "4-3-3" or "4-2-3-1"). "Starting XI" lists the same 11 slot texts in the same order. When N matches had been played, the next "Play match" shows the match screen whose h1 reads "Matchday N+1"; for example, after two matches it is "Matchday 3". When all 14 had been played, the club home shows "End of season" and no "Play match", and the End of season screen shows the same "Final position" and "Top scorer" lines. "Back" works on every screen as before. Saving and continuing changes nothing in the game: the rest of the season played after "Continue" gives the same match screens (the score line and the "Goals" list) and the same table as the same seed, club and choices played in one visit without a reload. There is one saved game: "Continue" resumes it whatever "?seed=" the address holds now. "New game" still starts a fresh game from the address's seed exactly as before: after picking a club, the table reads P 0, W 0, D 0, L 0, GD 0 and Pts 0 on every row in A to Z order, "Tactics" has "4-4-2" checked, the Starting XI is the automatic one, and the next "Play match" shows "Matchday 1". Tapping "New game" or "Play again" does not by itself remove the saved game; it is replaced as soon as a club is picked in the new game. A saved game that cannot be read (damaged, or from an incompatible older version) is ignored: there is no "Continue" button and the game plays as before. When browser storage is unavailable or full, there is no "Continue" button and the game plays as before without saving; a failed save never interrupts play. This version amends S-007, S-008 and S-009, which said that results are kept until the page is reloaded: from this version on, a reload keeps the saved game, reachable through "Continue". Their durable lists are unchanged, and "New game" still starts fresh. These hold in every later version of the game: with a saved game the title screen offers "Continue" (exact name), and without one it does not; "Continue" restores the saved club with its formation, Starting XI, recorded results and next matchday; and "New game" always starts a fresh game. That "Continue" lands on the club home, and that the saved game is replaced only once a club is picked in a new game, are rules of this version only. No horizontal scroll at 390px and no console errors.
+Once a club has been picked, the game is saved in the browser automatically, with no Save button, after every tap that changes it: picking the club, choosing a formation in "Tactics" (the radio buttons named exactly "4-4-2", "4-3-3" and "4-2-3-1", as in S-004), picking a Starting XI player (as in the S-005 outcome: tapping a slot's button in the list named "Starting XI", then a player's button in the list named "Players"), and "Play match". The pick-a-club screen (no club yet) writes nothing; the tap that picks the club writes. The saved game holds the league's seed, the managed club, the formation, the Starting XI (including the player's own picks) and the recorded results; which screen was open is not saved. Every control named here is named exactly: the buttons "Continue", "New game", "Play match", "Table", "Tactics", "Starting XI", "End of season", "Play again" and "Back", and the radio buttons above. When a saved game exists, the title screen shows a button named exactly "Continue" (44px or taller) above the button named exactly "New game"; its only top-level heading (h1) still reads "Gaffer", focused on load. On a first visit, or in a fresh browser, there is no "Continue" button and the title screen is as before. Tapping "Continue" shows the club home of the saved club with focus on its heading, the club's name, and everything is as it was before the reload. "Table" shows the table named "League table" with the same rows, the same text in every cell. "Tactics" has the saved formation checked ("4-4-2", "4-3-3" or "4-2-3-1"). "Starting XI" lists the same 11 slot texts in the same order. When N matches had been played, the next "Play match" shows the match screen whose h1 reads "Matchday N+1"; for example, after two matches it is "Matchday 3". When all 14 had been played, the club home shows "End of season" and no "Play match", and the End of season screen shows the same "Final position" and "Top scorer" lines. "Back" works on every screen as before. Saving and continuing changes nothing in the game: the rest of the season played after "Continue" gives the same match screens (the score line and the "Goals" list) and the same table as the same seed, club and choices played in one visit without a reload. There is one saved game: "Continue" resumes it whatever "?seed=" the address holds now. "New game" still starts a fresh game from the address's seed exactly as before: after picking a club, the table reads P 0, W 0, D 0, L 0, GD 0 and Pts 0 on every row in A to Z order, "Tactics" has "4-4-2" checked, the Starting XI is the automatic one, and the next "Play match" shows "Matchday 1". Tapping "New game" or "Play again" does not by itself remove the saved game; it is replaced as soon as a club is picked in the new game. Until then a reload's "Continue" still offers the earlier game, a finished one included: S-009's "nothing of the old season remains" holds once a club is picked. A saved game that cannot be read (damaged, or from an incompatible older version) is ignored: there is no "Continue" button and the game plays as before. When browser storage is unavailable or full when the game loads, there is no "Continue" button (a readable older save is then not offered) and the game plays as before without saving. When a save fails during play, the stored saved game is removed (best effort, silently), so that "Continue" never offers an older state than the last one played; later taps try to save again. A failed save never interrupts play and logs no console error. This version amends S-007, S-008 and S-009, which said that results are kept until the page is reloaded: from this version on, a reload keeps the saved game, reachable through "Continue". Their durable lists are unchanged, and "New game" still starts fresh. These hold in every later version of the game: with a saved game the title screen offers "Continue" (exact name), and without one it does not; "Continue" restores the saved club with its formation, Starting XI, recorded results and next matchday; and "New game" always starts a fresh game. That "Continue" lands on the club home, and that the saved game is replaced only once a club is picked in a new game, are rules of this version only. No horizontal scroll at 390px and no console errors.
 
 ### Wave: DISCUSS / [REF] DoR validation
 | # | Item | Status | Evidence |
 |---|---|---|---|
 | 1 | Problem clear, domain language | PASS | US-1: a dropped tab wipes the season, and 14 matchdays do not fit a 5-minute session. US-2: a continue that resets his 4-3-3 and his pick would field a side he never chose, and a bad save must not block the game |
 | 2 | Persona specific | PASS | Sam, 34, one-handed on a bus, 390px Android, 5 minutes, two or three matches per trip, and the browser drops the tab between trips |
-| 3 | 3+ domain examples, real data | PASS | Real generator output from `S-008/discuss/reference-season.md` and S-009's `reference-season-end.md`: seed-31 Netherwold Borough matchdays 1 to 3 and the table after 2 (worked out by hand; DISTILL confirms), "Final position 3rd" and "Top scorer Garrick Thistlewood (5 goals)", the golden pick "Kestrel Northcott 6" for "MF Calder Redfern 15", and the seed-20260 league for D5. 3 examples per story |
-| 4 | UAT Given/When/Then, 3-7 | PASS | 8 for S-010 (US-1 4, US-2 4). Every Given and When is a tap sequence, a reload or seeded storage on the real app; every Then reads only what an earlier step read, or a fixed label |
-| 5 | AC derived from UAT | PASS | Project convention since S-001: the AC are the embedded Gherkin scenarios. D1, D2 and D3 are in US-1 scenarios 1 to 3 and US-2 scenario 1; D4 in US-1 scenario 4; D5 in US-2 scenario 2; D6 in US-2 scenarios 3 and 4; D7 to D10 are covered by the pin list, unit tests, e2e and review |
-| 6 | Right-sized | PASS | 2 slices in about 1 to 1.5 days; 525 changed lines in DELIVER including tests, under the 1200-line PR guard (the one hard cap); one outcome |
+| 3 | 3+ domain examples, real data | PASS | Real generator output from `S-008/discuss/reference-season.md` and S-009's `reference-season-end.md`: seed-31 Netherwold Borough matchdays 1 to 3 and the table after 2 (hand-derived from the reference matchdays 1-2, checked in review; DISTILL confirms), "Final position 3rd" and "Top scorer Garrick Thistlewood (5 goals)", the golden pick "Kestrel Northcott 6" for "MF Calder Redfern 15", and the seed-20260 league for D5. 3 examples per story |
+| 4 | UAT Given/When/Then, 3-7 | PASS | 11 for S-010 (US-1 5, US-2 6). Every Given is a single condition: no "or" in any Given, and one named storage fixture per scenario. Every Given and When is a tap sequence, a reload or a named storage fixture on the real app. Every Then reads only what an earlier step read, or a fixed label |
+| 5 | AC derived from UAT | PASS | Project convention since S-001: the AC are the embedded Gherkin scenarios. D1, D2 and D3 are in US-1 scenarios 1 to 3 and US-2 scenario 1; D4 in US-1 scenario 4; D5 in US-1 scenario 5; D6 in US-2 scenarios 2 to 6; D7 to D10 are covered by the pin list, unit tests, e2e and review |
+| 6 | Right-sized | PASS | 2 slices (ordered commits, one merge) in about 1 to 1.5 days; 580 changed lines in DELIVER including tests, under the 1200-line PR guard (the one hard cap); one outcome |
 | 7 | Technical notes | PASS | Per story: the save lives outside `GameState` (the five-key test), a projection written while the screen carries a club, the `update` and `render` complexity refactor first, a pure versioned encode and decode with strict validation, an exception-swallowing storage adapter in the shell, and a new ADR |
-| 8 | Dependencies tracked | PASS | S-001..S-009 delivered. The D7 amendment of "kept until the page is reloaded" leaves the durable lists unchanged, and the protected scenarios start in fresh contexts. The S-008 reload e2e test is listed for amendment. S-009 DESIGN Open question 1 must be resolved first. J-10 added. `tests/protected/S-010/` follows from this plan run's protected-scenarios step |
-| 9 | Outcome KPI measurable | PASS | K1: 2 taps to the next match after a reload (e2e click counter). K2: 0 differences between continued and uninterrupted seasons (round-trip sweep plus fast-check). K3: 0 errors over 200 runs of unreadable inputs, plus blocked and full storage e2e |
+| 8 | Dependencies tracked | PASS | S-001..S-009 delivered. The D7 amendment of "kept until the page is reloaded" leaves the durable lists unchanged. Several protected specs reuse one page across visits (S-001 pick-club, S-002 squad, S-004 tactics); they pass because each visit taps the exact "New game", and the DoD runs them on the branch with the save in place. S-009's "nothing of the old season remains" holds once a club is picked (D7). The S-008 e2e reload test and the S-009 acceptance test title are listed for amendment. S-009 DESIGN Open question 1 must be resolved first. J-10 added. `tests/protected/S-010/` follows from this plan run's protected-scenarios step and is committed RED before DELIVER |
+| 9 | Outcome KPI measurable | PASS | K1, the user KPI: 2 taps to the next match after a reload (e2e tap counter). Guardrails: K2, 0 differences between continued and uninterrupted seasons (round-trip sweep plus fast-check); K3, 0 errors over 200 runs of unreadable inputs plus the 5 storage e2e; a full season under 64 KB |
 
 DoR status: PASSED (both stories). Every story has `job_id` J-10 and an Elevator Pitch.
 
 ### Wave: DISCUSS / [REF] Peer review
+`nw-product-owner-reviewer` (haiku), cycle 1: rejected_pending_revisions (3 high, 10 medium, 5 low). Revision 2 applied the orchestrator's decisions as below. Only the DISCUSS section, the journey, the slices and the S-010 roadmap entry were edited; DESIGN and DEVOPS were untouched.
+
+| Finding | How it landed |
+|---|---|
+| H-01 failed writes | D6 split: storage blocked or full at load gives no "Continue" (a readable older save is then not offered); a failed save during play removes the stored game (best effort, silently), and later taps retry. New Glossary entries "Storage full" and "Failed save". New US-2 scenario "Storage that fills up during play never offers a stale Continue". Roadmap outcome, slice 02 and the journey updated |
+| H-02 controls named exactly | The roadmap outcome names the S-004 radios "4-4-2", "4-3-3", "4-2-3-1" and the S-005 pick path (a slot's button in the list "Starting XI", then a player's button in the list "Players"), and states that every control is named exactly. No club name is pinned in the outcome; Netherwold Borough stays example data in the stories |
+| H-03 disjunctive Givens | "Every screen works as before" is replaced by checkable clauses (no button "Continue", a button "New game", every Table row at P 2, no console error). Each storage case is its own scenario with a named fixture (damaged = the seed-31 save text cut after 100 characters; incompatible = version 0; blocked; full at load; full mid-session). D5 moved to US-1 so that US-1 has 5 scenarios and US-2 has 6 |
+| M-01 protected reuse | D7 and DoR 8 now say that several protected specs (S-001 pick-club, S-002 squad, S-004 tactics) reuse one page across visits and pass because each visit taps the exact "New game"; the DoD runs S-001..S-009 protected on the branch with the save in place |
+| M-02 S-009 test title | D7 amend list adds the `tests/acceptance/S-009/existing-navigation-unchanged.test.ts` test (about line 74) that calls a title plus "New game" "a reload": its title is reworded and its assertion is unchanged |
+| M-03 "Play again" and the save | D7, the roadmap outcome and the test intents: S-009's "nothing of the old season remains" holds once a club is picked; until then a reload's "Continue" offers the finished season (e2e intent) |
+| M-04 slice release | Scope Assessment, Story map, DoD and both slices: the slices are ordered DELIVER commits of one story, shipped in one merge |
+| M-05, M-06 accepted risk and recovery | D4 records as an accepted risk (J-10's anxiety) that "New game" plus a club pick replaces the save with no confirm or undo; a reload before picking a club is the only way back to "Continue". The journey's error paths gained emotional annotations |
+| M-07 wording | D4, the roadmap outcome and the test intents: "the pick-a-club screen (no club yet) writes nothing; the club-choice tap writes" |
+| M-08 KPI kinds | K1 is the one user outcome KPI (e2e tap counter); K2 and K3 are relabelled as CI guardrails |
+| M-09 named fixtures | The storage fixtures are named under User stories (the seed-31 save text, damaged, incompatible, blocked, full at load, full mid-session; key "gaffer.save") |
+| M-10 RED pins | DoD: the pin files are committed RED on main before the first DELIVER commit (written in this plan run) |
+| L-01 peer review record | This table |
+| L-04 several tabs | Moved to Out-of-scope (one player, one phone) |
+| L-02, L-03, L-05 | The revision brief said "as the reviewer proposed" but did not include the proposals. No change was made; the orchestrator should confirm or forward them for cycle 2 |
+| Orchestrator (DESIGN alignment) | The size guardrail is relaxed from 16 KB to "a full saved season stays under 64 KB (about 1% of a 5 MB quota)", because DESIGN is asked to store the results log as-is in a plain versioned envelope |
+
+Cycle 2: pending.
 
 ## Wave: DESIGN
 
