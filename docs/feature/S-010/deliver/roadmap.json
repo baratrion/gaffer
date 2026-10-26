@@ -1,0 +1,156 @@
+{
+  "roadmap": {
+    "project_id": "S-010",
+    "created_at": "2026-10-26T08:19:35Z",
+    "total_steps": 6
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Save and continue my season",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Selection rule: a legal Starting XI for a squad and formation",
+          "criteria": [
+            "The automatic eleven of every formation is legal for its own formation, and illegal for any other formation's line-up",
+            "A wrong count, a duplicate player, an index outside 0..17, a non-integer, and a player in the wrong position for the slot are each rejected; inputs are never mutated",
+            "Every pick Sam can make from the automatic eleven (any slot, any squad player) that the game accepts is judged legal",
+            "The held-out legal-xi spec is moved into tests/acceptance/S-010/ in this step and passes; the isLegalXI scaffold marker is gone; src/domain/selection.ts keeps its no-ambient-randomness source test; ci:lint, ci:typecheck and ci:test are green"
+          ],
+          "test_file": "tests/acceptance/S-010/legal-xi.test.ts",
+          "scenario_name": "Given the automatic eleven of every formation, when checked, then it is a legal eleven for its own line-up only",
+          "files_to_modify": [
+            "src/domain/selection.ts",
+            "tests/acceptance/S-010/legal-xi.test.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: TypeScript project, so property tests use fast-check (honour FC_SEED) where the contract is a property; the held-out file already carries them. Contract shape: pure-function, return-only (assertion: deep-frozen inputs unchanged, repeat calls equal). Trim lever: if the 1200-line checkpoint trips, fold this file into save-unreadable (DISTILL open point 1)."
+        },
+        {
+          "id": "01-02",
+          "name": "Pure save format: strict versioned encode and decode, never throwing",
+          "criteria": [
+            "encodeSave of a state with a known club gives one versioned text (v 1, seed, club, formation, xi only when changed, results only when played); equal states give equal text; no club on the screen gives no text",
+            "decodeSave returns no saved game, never throws and logs nothing for the 30 rejection rows (version, seed, club, formation, XI, log order and fixtures, scores against goals, goals, root), for arbitrary text, JSON, truncations and one-character changes; unknown extra keys are ignored",
+            "A reading that fails inside fromSave is caught by decodeSave, which returns no saved game with nothing logged",
+            "saveTextFor gives the new text only when it differs from the last text and a club is picked, else nothing; src/app/seed.ts exports isInt32 for the seed rule",
+            "The held-out save-unreadable spec is moved into tests/acceptance/S-010/ in this step and passes; the committed save-inputs-pinned and names-avoid-continue guards stay green; ci:lint, ci:typecheck and ci:test are green"
+          ],
+          "test_file": "tests/acceptance/S-010/save-unreadable.test.ts",
+          "scenario_name": "Given a stored game with %s, when the title reads it, then there is no saved game and nothing is thrown or logged",
+          "files_to_modify": [
+            "src/app/save.ts",
+            "src/app/seed.ts",
+            "tests/acceptance/S-010/save-unreadable.test.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: fast-check properties (200 runs) and one table-driven rejection test (trim lever 2, already in the held-out file). Contract shape: pure-function. Split fromSave into small helpers (envelope, XI, one results entry, one goal) to stay under complexity 10. Do not re-pin the golden from output (save-golden.ts is fixed). Remove only the save.ts scaffold markers for the functions finished here; fromSave's restored state is completed in 01-03."
+        },
+        {
+          "id": "01-03",
+          "name": "Continue action: update handler table and restoring a saved game",
+          "criteria": [
+            "The seed-31 golden save text equals encodeSave of the state after two matches and decodes back to the club home of that state",
+            "For seeds 1 to 20, all 8 clubs and 0 to 14 matches played, saving and restoring keeps the formation, XI, results, table and next matchday; a finished season restores to a club home with End of season and the same summary",
+            "4-3-3 and a player of Sam's own pick are kept, and the eleven reads the same in the same order",
+            "Over 100 random sequences of formation, pick and Play match with a restore at a random point, every state equals the uninterrupted season",
+            "Continue from the title returns the saved game whatever league the title holds, and Play again after it keeps the saved seed; from any other screen Continue returns the very same state",
+            "update becomes a handler table with a compile-time-complete key set; every S-001..S-009 acceptance suite passes unedited, the five-key GameState test is untouched, and the Continue scaffold throw is gone; encoded size of a 56 x 18-goal worst case and of the seed-31 season is under 64 KB",
+            "The held-out save-round-trip spec is moved into tests/acceptance/S-010/ in this step and passes; ci:lint, ci:typecheck and ci:test are green"
+          ],
+          "test_file": "tests/acceptance/S-010/save-round-trip.test.ts",
+          "scenario_name": "Given Netherwold Borough at seed 31 after two matches, when the game is saved, then the stored text is the pinned golden and it decodes back to the club home of that state",
+          "files_to_modify": [
+            "src/app/state.ts",
+            "src/app/save.ts",
+            "tests/acceptance/S-010/save-round-trip.test.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: fast-check for the continued-equals-uninterrupted property (numRuns 100, FC_SEED); the round-trip sweep stays trimmed to seeds 1..20 (lever 1). Contract shape: update is pure return-only with universe { league, screen, formation, xi?, results? }; no new GameState key. Behaviour-preserving refactor first (handler table), then the Continue handler. The handler-table regression test is dropped in favour of the existing suites (lever 5). DELIVER checkpoint: after this commit compute the projected grand total; above about 1,000 changed lines apply levers 1 to 3 before more tests."
+        },
+        {
+          "id": "01-04",
+          "name": "Save triggers: autosave decides from the data and survives failing writes",
+          "criteria": [
+            "Play match, a formation change and a Starting XI pick each give new text to save; Squad, Player, Table, Tactics with no change, the same formation, Starting XI, Back, End of season, New game, Continue and Play again save nothing",
+            "A stored game stays until the club pick of a new game and that pick replaces it; after a finished season Play again saves nothing until a club is picked",
+            "A failed write is retried on the next tap, an earlier text included (T1 saved, T2 fails, back at T1 writes T1)",
+            "A write that throws, or a state whose encoding throws, never reaches the caller, logs nothing and is retried",
+            "createAutosave takes only the write capability and a last text; src/adapters/save-store.ts exports createAutosave with its scaffold marker gone",
+            "The held-out save-triggers spec is moved into tests/acceptance/S-010/ in this step and passes; ci:lint, ci:typecheck and ci:test are green"
+          ],
+          "test_file": "tests/acceptance/S-010/save-triggers.test.ts",
+          "scenario_name": "Given a write that fails, when the next tap comes, then the game is saved again, earlier text included (T1 saved, T2 fails, back at T1 writes T1)",
+          "files_to_modify": [
+            "src/adapters/save-store.ts",
+            "tests/acceptance/S-010/save-triggers.test.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: example tables over saveTextFor and a fake write function; the retry rule is a state-sequence example. Contract shape: bounded-change, universe = texts passed to the injected write only; the whole step sits in one silent try with no console output. Only createAutosave is built here; createSaveStore (probing) lands in 01-05."
+        },
+        {
+          "id": "01-05",
+          "name": "Probing storage adapter, Continue on the title and boot wiring",
+          "criteria": [
+            "A working store is healthy, reads the stored text and leaves no probe key behind; absent, throwing or non-text reads give nothing without throwing",
+            "Storage blocked entirely, full at load, or silently forgetting writes makes the store degraded: it offers nothing, writes nothing, never throws or logs; when the getter worked it has removed the stored game at construction and removes a reappeared one on each saving tap, swallowing a throwing removal",
+            "A write that fails during play returns false, removes the stored game (a throwing removal swallowed) and later writes work again",
+            "With a saved game the title shows h1 Gaffer (focused, the only h1), a Continue button of 44px or taller above New game; without one the markup is exactly today's; Continue lands on the focused club home",
+            "Storage names appear only in the adapter and the () => localStorage getter in main.ts; main.ts reads the saved game only through decodeSave; Continue is dispatched at one place in the title with at most two dispatch( calls; the adapter never logs, probes with its own key and imports nothing from the UI",
+            "The held-out save-store spec is moved into tests/acceptance/S-010/ in this step and passes; no __SCAFFOLD__ marker remains in src/; the render switch gains no branch; .oxlintrc.json layer rules (adapters imports, storage globals) are added and ci:lint, ci:typecheck, ci:test and ci:build are green"
+          ],
+          "test_file": "tests/acceptance/S-010/save-store.test.ts",
+          "scenario_name": "Given a readable saved game and storage that is full (every write throws), when the store is made, then it is degraded, offers nothing and has removed the stored game",
+          "files_to_modify": [
+            "src/adapters/save-store.ts",
+            "src/ui/screens/title.ts",
+            "src/ui/styles.css",
+            "src/main.ts",
+            ".oxlintrc.json",
+            "tests/acceptance/S-010/save-store.test.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: example tests over in-memory fake storages with fault injection (the lie catalogue); grep tests are the structural layer; e2e in 01-06 is the behavioural layer. Contract shape: createSaveStore bounded-change, universe = keys gaffer.save and gaffer.probe on the injected storage only. The save-source file is already folded into save-store (lever 3). Wire, probe, then use: createSaveStore probes inside the factory; degrade silently, no health.startup.refused event."
+        },
+        {
+          "id": "01-06",
+          "name": "End-to-end save and continue, amended reload tests and mutation scope",
+          "criteria": [
+            "After two matches a reload offers Continue above New game (44px, Gaffer focused); Continue lands on the focused club home with the same table and Play match reads Matchday 3 in 2 taps, equal to a browser that never reloaded",
+            "Continue ignores ?seed=abc and lands on the saved club; New game alone keeps the save and a club pick replaces it; after a finished season, Play again and a reload, Continue lands on End of season with the same lines",
+            "4-3-3 and a Starting XI pick survive a reload and Continue",
+            "A damaged save, a version-0 save and foreign text each give no Continue and no console error, and the first club pick replaces them",
+            "Blocked storage, storage full at load with a valid save inside (then writable, reload: still none) and storage full mid-session (only gaffer.save writes fail) never show a stale Continue, never interrupt play and log no console error",
+            "The held-out e2e spec is moved into tests/e2e/ and passes at a 390px phone viewport; the amend patch is applied (S-008 reload test reworded with Continue visible, S-009 test retitled, assertions unchanged); src/app/save.ts and src/adapters/**/*.ts join mutate in stryker.config.mjs with thresholds untouched and the stale header comment corrected; docs/feature/S-010/distill/pending/ is removed; ci:lint, ci:typecheck, ci:test, ci:build, ci:e2e and tests/protected S-001..S-010 pass"
+          ],
+          "test_file": "tests/e2e/S-010-save-continue.spec.ts",
+          "scenario_name": "After two matches a reload offers Continue above New game (44px, Gaffer focused), Continue lands on the focused club home with the same table, and Play match is Matchday 3 in 2 taps",
+          "files_to_modify": [
+            "tests/e2e/S-010-save-continue.spec.ts",
+            "tests/e2e/S-008-season.spec.ts",
+            "tests/acceptance/S-009/existing-navigation-unchanged.test.ts",
+            "stryker.config.mjs"
+          ],
+          "implementation_notes": "EXEMPT FROM PARADIGM: Playwright e2e verifies wiring, single-example by design; compensated by the fast-check round-trip and unreadable properties from 01-02 and 01-03. Apply `git apply docs/feature/S-010/distill/pending/amend-existing-tests.patch` in this commit; never edit an assertion to fit the implementation. The e2e imports ../acceptance/S-010/save-golden (stays put). Trim lever 4 (already one loop for the three seeded damaged cases). If the PR guard rejects the stryker edit, record an owner request in the feature-delta and ship without it. Final check: zero *.pending files and zero __SCAFFOLD__ markers; run the protected S-001..S-009 specs on the branch with the save in place."
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/"
+    ],
+    "test_directories": [
+      "tests/acceptance/S-010/",
+      "tests/e2e/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**",
+      "coverage/**",
+      "tests/protected/**",
+      "**/*.d.ts"
+    ]
+  },
+  "validation": {
+    "status": "pending",
+    "reviewer": "nw-acceptance-designer-reviewer",
+    "approved_at": "pending"
+  }
+}

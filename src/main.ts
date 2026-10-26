@@ -1,4 +1,6 @@
 import "./ui/styles.css";
+import { createAutosave, createSaveStore } from "./adapters/save-store";
+import { decodeSave } from "./app/save";
 import { parseSeed } from "./app/seed";
 import {
   currentXI,
@@ -66,13 +68,18 @@ const matchScreenView = ({ matchday, home, away, result }: MatchView): MatchScre
   }),
 });
 
+const store = createSaveStore(() => localStorage);
+const stored = store.read();
+const offer = decodeSave(stored);
+const autosave = createAutosave(store.write, stored);
+
 type Dispatch = (action: Action, focusId?: string) => void;
 
 const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void => {
   const { screen, league } = state;
   switch (screen.kind) {
     case "title":
-      renderTitle(root, dispatch);
+      renderTitle(root, { offer }, dispatch);
       break;
     case "pickClub":
       renderPickClub(root, league, dispatch);
@@ -141,6 +148,7 @@ if (root) {
     const previousScreen = state.screen;
     state = update(state, action);
     render(root, state, dispatch);
+    autosave(state);
     applyFocus(root, focusPlan(previousScreen, state.screen, focusId));
   };
   render(root, state, dispatch);

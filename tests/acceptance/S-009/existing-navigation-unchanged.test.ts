@@ -71,7 +71,7 @@ describe("@US-2 S-009 New game is the fresh game that Play again must equal", ()
     expect(fresh.league).toBe(league);
   });
 
-  it("Given a finished season with 4-3-3 and a pick, when the title is shown again and New game is tapped (a reload), then the game is the same fresh game @regression @boundary @contract-shape:bounded-change", () => {
+  it("Given a finished season with 4-3-3 and a pick, when the title is shown with a finished season in memory and New game is tapped, then the game is the same fresh game @regression @boundary @contract-shape:bounded-change", () => {
     const tuned = walk(homeOf(clubIds[0]!), [{ type: "ViewTactics" }, { type: "ChooseFormation", formation: "4-3-3" }, back, { type: "ViewStartingXI" }, { type: "ChooseSlot", slot: 7 }, { type: "PickPlayer", playerIndex: 13 }, back]);
     const over = afterMatchdays(tuned, 14);
     expect(over.formation).toBe("4-3-3");

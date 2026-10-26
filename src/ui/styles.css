@@ -49,6 +49,17 @@ button.primary {
   font-weight: 600;
 }
 
+button.secondary {
+  min-height: 48px;
+  min-width: 200px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
 h1:focus { outline: none; }
 
 .pick-club h1, .club-home h1 { font-size: 1.75rem; margin-bottom: 16px; }

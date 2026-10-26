@@ -51,3 +51,13 @@ export const pickForSlot = (
   const otherSlot = xi.indexOf(playerIndex);
   return xi.map((current, index) => (index === slot ? playerIndex : index === otherSlot ? displaced : current));
 };
+
+/** A saved eleven is legal when it is 11 different squad players, each in the position of its slot. */
+export const isLegalXI = (squad: readonly Player[], formation: FormationId, xi: readonly number[]): boolean => {
+  const slots = lineUp(formation);
+  return (
+    xi.length === SLOTS_PER_XI &&
+    new Set(xi).size === SLOTS_PER_XI &&
+    xi.every((playerIndex, slot) => isSquadIndex(playerIndex) && squad[playerIndex]?.position === slots[slot])
+  );
+};

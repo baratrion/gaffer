@@ -42,7 +42,8 @@ export type Action =
   | { readonly type: "PlayMatch" }
   | { readonly type: "ViewTable" }
   | { readonly type: "ViewSeasonEnd" }
-  | { readonly type: "Back" };
+  | { readonly type: "Back" }
+  | { readonly type: "Continue"; readonly game: GameState };
 
 type ActionOf<T extends Action["type"]> = Extract<Action, { readonly type: T }>;
 
@@ -258,33 +259,27 @@ export const seasonSummaryOf = (state: GameState, clubId: string): SeasonSummary
     : { position: row.position, topScorer: topScorer(state.results ?? [], clubIndex, squad) };
 };
 
-export const update = (state: GameState, action: Action): GameState => {
-  switch (action.type) {
-    case "NewGame":
-      return newGame(state);
-    case "ChooseClub":
-      return chooseClub(state, action);
-    case "ViewSquad":
-      return viewSquad(state);
-    case "ViewPlayer":
-      return viewPlayer(state, action);
-    case "ViewTactics":
-      return viewTactics(state);
-    case "ChooseFormation":
-      return chooseFormation(state, action);
-    case "ViewStartingXI":
-      return viewStartingXI(state);
-    case "ChooseSlot":
-      return chooseSlot(state, action);
-    case "PickPlayer":
-      return pickPlayer(state, action);
-    case "PlayMatch":
-      return playMatchAction(state);
-    case "ViewTable":
-      return viewTable(state);
-    case "ViewSeasonEnd":
-      return viewSeasonEnd(state);
-    case "Back":
-      return back(state);
-  }
+const continueGame = (state: GameState, { game }: ActionOf<"Continue">): GameState =>
+  state.screen.kind === "title" ? game : state;
+
+type Handlers = { readonly [T in Action["type"]]: (state: GameState, action: ActionOf<T>) => GameState };
+
+const HANDLERS: Handlers = {
+  NewGame: newGame,
+  ChooseClub: chooseClub,
+  ViewSquad: viewSquad,
+  ViewPlayer: viewPlayer,
+  ViewTactics: viewTactics,
+  ChooseFormation: chooseFormation,
+  ViewStartingXI: viewStartingXI,
+  ChooseSlot: chooseSlot,
+  PickPlayer: pickPlayer,
+  PlayMatch: playMatchAction,
+  ViewTable: viewTable,
+  ViewSeasonEnd: viewSeasonEnd,
+  Back: back,
+  Continue: continueGame,
 };
+
+export const update = (state: GameState, action: Action): GameState =>
+  (HANDLERS[action.type] as (state: GameState, action: Action) => GameState)(state, action);
