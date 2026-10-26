@@ -51,3 +51,8 @@ export const pickForSlot = (
   const otherSlot = xi.indexOf(playerIndex);
   return xi.map((current, index) => (index === slot ? playerIndex : index === otherSlot ? displaced : current));
 };
+
+/** __SCAFFOLD__ (S-010 DISTILL, Mandate 7): throws until DELIVER writes the rule of ADR-0016. */
+export const isLegalXI = (_squad: readonly Player[], _formation: FormationId, _xi: readonly number[]): boolean => {
+  throw new Error("__SCAFFOLD__ selection.ts isLegalXI: not implemented yet (S-010 DELIVER)");
+};

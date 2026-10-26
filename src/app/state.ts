@@ -42,7 +42,8 @@ export type Action =
   | { readonly type: "PlayMatch" }
   | { readonly type: "ViewTable" }
   | { readonly type: "ViewSeasonEnd" }
-  | { readonly type: "Back" };
+  | { readonly type: "Back" }
+  | { readonly type: "Continue"; readonly game: GameState };
 
 type ActionOf<T extends Action["type"]> = Extract<Action, { readonly type: T }>;
 
@@ -286,5 +287,7 @@ export const update = (state: GameState, action: Action): GameState => {
       return viewSeasonEnd(state);
     case "Back":
       return back(state);
+    case "Continue":
+      throw new Error("__SCAFFOLD__ state.ts Continue: not implemented yet (S-010 DELIVER)");
   }
 };

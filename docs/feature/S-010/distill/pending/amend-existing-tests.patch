@@ -1,0 +1,40 @@
+diff --git a/tests/acceptance/S-009/existing-navigation-unchanged.test.ts b/tests/acceptance/S-009/existing-navigation-unchanged.test.ts
+index 041cf50..9b0b52d 100644
+--- a/tests/acceptance/S-009/existing-navigation-unchanged.test.ts
++++ b/tests/acceptance/S-009/existing-navigation-unchanged.test.ts
+@@ -71,7 +71,7 @@ describe("@US-2 S-009 New game is the fresh game that Play again must equal", ()
+     expect(fresh.league).toBe(league);
+   });
+ 
+-  it("Given a finished season with 4-3-3 and a pick, when the title is shown again and New game is tapped (a reload), then the game is the same fresh game @regression @boundary @contract-shape:bounded-change", () => {
++  it("Given a finished season with 4-3-3 and a pick, when the title is shown with a finished season in memory and New game is tapped, then the game is the same fresh game @regression @boundary @contract-shape:bounded-change", () => {
+     const tuned = walk(homeOf(clubIds[0]!), [{ type: "ViewTactics" }, { type: "ChooseFormation", formation: "4-3-3" }, back, { type: "ViewStartingXI" }, { type: "ChooseSlot", slot: 7 }, { type: "PickPlayer", playerIndex: 13 }, back]);
+     const over = afterMatchdays(tuned, 14);
+     expect(over.formation).toBe("4-3-3");
+diff --git a/tests/e2e/S-008-season.spec.ts b/tests/e2e/S-008-season.spec.ts
+index efe3ee1..9033933 100644
+--- a/tests/e2e/S-008-season.spec.ts
++++ b/tests/e2e/S-008-season.spec.ts
+@@ -7,7 +7,7 @@
+ // shows "End of season" where "Play match" was. The expected values are the reference season of the plan run (season-reference.ts, written
+ // before any S-008 code). Covers only what tests/protected/S-008 does not: the cross-engine golden season (Chromium equals Node), focus on
+ // each heading, 44px, the picks counting forward with a real pick, the "End of season" button and the missing "Play match" button (durable, S-009 D1),
+-// "Table" after 14, determinism between fresh pages, reload loses the season, no sideways scroll and no console error.
++// "Table" after 14, determinism between fresh pages, a reload offers Continue and New game still starts fresh (S-010), no sideways scroll and no console error.
+ // Environment precondition: runs against local-preview (ci:serve, http://localhost:4173/gaffer/) or, via BASE_URL, the deployed Pages site;
+ // both serve the production build under /gaffer/. Not meant for local-dev (vite dev, :5173): waived (as S-003..S-007).
+ // Environment probes (ADR-0014 Earned Trust): (1) the browser reproduces the Node reference season (14 score lines, seed 31 and 20260);
+@@ -475,11 +475,12 @@ test.describe("@US-1 S-008 the same seed plays the same season, and a reload sta
+     await none.context().close();
+   });
+ 
+-  test("@error @boundary Reloading the page after two matches shows the title screen again; New game and the same club start at Matchday 1 with every row at P 0 (the season is lost, there is no save yet) @contract-shape:bounded-change", async ({ page }) => {
++  test("@error @boundary Reloading the page after two matches shows the title with Continue and New game; New game and the same club start at Matchday 1 with every row at P 0 (the saved game is kept, New game starts fresh) @contract-shape:bounded-change", async ({ page }) => {
+     const errors = watchErrors(page);
+     const who = await whoIs(page, "?seed=31", 0);
+     await playSeason(page, who, { from: 1, to: 2 });
+     await page.reload();
++    await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
+     await expect(page.getByRole("button", { name: "New game" })).toBeVisible();
+     await page.getByRole("button", { name: "New game" }).click();
+     await page.getByRole("list", { name: "Clubs" }).getByRole("button").nth(0).click();
