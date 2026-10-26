@@ -312,3 +312,44 @@ stories:
       lands is a rule of this version only. This version replaces S-008's "Season over" line, which
       S-008 marked as a rule of its version only; S-008's durable list is unchanged. No horizontal
       scroll at 390px and no console errors.
+
+  - id: S-010
+    week: 8
+    title: Save and continue my season
+    tags: [save, season]
+    outcome: >
+      Once a club has been picked, the game is saved in the browser automatically, with no Save
+      button, after every tap that changes it: picking the club, choosing a formation in "Tactics",
+      picking a player for a "Starting XI" slot, and "Play match". The saved game holds the league's
+      seed, the managed club, the formation, the Starting XI (including the player's own picks) and the
+      recorded results; which screen was open is not saved. When a saved game exists, the title screen
+      shows a button named exactly "Continue" (44px or taller) above the button named exactly "New
+      game"; its only top-level heading (h1) still reads "Gaffer", focused on load. On a first visit,
+      or in a fresh browser, there is no "Continue" button and the title screen is as before. Tapping
+      "Continue" shows the club home of the saved club with focus on its heading, the club's name, and
+      everything is as it was before the reload: "Table" shows the table named "League table" with the
+      same rows, the same text in every cell; "Tactics" has the saved formation checked ("4-4-2",
+      "4-3-3" or "4-2-3-1"); "Starting XI" lists the same 11 slot texts in the same order; and when N
+      matches had been played, the next "Play match" shows the match screen whose h1 reads "Matchday
+      N+1" (after two matches, "Matchday 3"). When all 14 had been played, the club home shows "End of
+      season" and no "Play match", and the End of season screen shows the same "Final position" and
+      "Top scorer" lines. "Back" works on every screen as before. Saving and continuing changes nothing
+      in the game: the rest of the season played after "Continue" gives the same match screens (the
+      score line and the "Goals" list) and the same table as the same seed, club and choices played in
+      one visit without a reload. There is one saved game: "Continue" resumes it whatever "?seed=" the
+      address holds now. "New game" still starts a fresh game from the address's seed exactly as
+      before: after picking a club the table reads P 0, W 0, D 0, L 0, GD 0 and Pts 0 on every row in A
+      to Z order, "Tactics" has "4-4-2" checked, the Starting XI is the automatic one, and the next
+      "Play match" shows "Matchday 1". Tapping "New game" or "Play again" does not by itself remove the
+      saved game; it is replaced as soon as a club is picked in the new game. A saved game that cannot
+      be read (damaged, or from an incompatible older version) is ignored: there is no "Continue" button
+      and the game plays as before. When browser storage is unavailable or full, there is no "Continue"
+      button and the game plays as before without saving; a failed save never interrupts play. This
+      version amends S-007, S-008 and S-009, which said that results are kept until the page is
+      reloaded: from this version on a reload keeps the saved game, reachable through "Continue"; their
+      durable lists are unchanged and "New game" still starts fresh. These hold in every later version
+      of the game: with a saved game the title screen offers "Continue" (exact name), and without one it
+      does not; "Continue" restores the saved club with its formation, Starting XI, recorded results and
+      next matchday; and "New game" always starts a fresh game. That "Continue" lands on the club home,
+      and that the saved game is replaced only once a club is picked in a new game, are rules of this
+      version only. No horizontal scroll at 390px and no console errors.

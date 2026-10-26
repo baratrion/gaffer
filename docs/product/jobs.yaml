@@ -142,3 +142,21 @@ jobs:
       One tap from the club home to a derived verdict (final position and top scorer from the recorded
       results) and one tap to a fresh season closes the "start to finish" loop of the north star and sets
       up save and continue, a next season and season records.
+  - id: J-10
+    name: carry-on-my-season
+    statement: >-
+      When I come back to the game after a break, I want to pick up my season where I left it, so that
+      my club and my results carry on across short sessions.
+    dimensions:
+      functional: After a reload or a closed tab, get back to my club, with its formation, Starting XI, results and next matchday unchanged, in one tap from the title screen on a phone.
+      emotional: Feel safe closing the game at any moment, and feel that my season and my decisions are kept, not wiped.
+      social: Be able to tell other football fans "I'm on matchday 9 with Netherwold, third and climbing", over days, not one sitting.
+    forces:
+      push: A 14-matchday season does not fit a 5-minute session, and a reload or a dropped tab loses every result and pick; replaying to where he was needs every choice from memory.
+      pull: The "Continue" of the management games Sam grew up with, which puts him straight back at his club, with no save chore.
+      anxiety: A continue that silently changes his team or his results; a broken save that blocks the game; tapping "New game" by mistake and losing the season.
+      habit: Playing only when there is time for a whole season, or keeping the tab open and hoping the browser does not drop it.
+    opportunity: >-
+      An automatic save after every tap that changes the game, and one "Continue" on the title that
+      restores the club, its team sheet and its results exactly, lets a season be played across many
+      five-minute sessions and sets up a next season, the inbox and season records.
