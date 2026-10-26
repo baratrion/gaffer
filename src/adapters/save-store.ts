@@ -1,5 +1,6 @@
 // __SCAFFOLD__ (S-010 DISTILL, Mandate 7): RED-ready stub at the path and with the signatures of ADR-0016. Every function throws, so an
 // acceptance test that is moved into the tree fails on missing behaviour, never on a missing import. DELIVER replaces this whole file.
+import { saveTextFor } from "../app/save";
 import type { GameState } from "../app/state";
 
 export const __SCAFFOLD__ = true;
@@ -17,4 +18,14 @@ const scaffold = (name: string): never => {
 };
 
 export const createSaveStore = (_getStorage: () => SaveStorage, _key = "gaffer.save"): SaveStore => scaffold("createSaveStore");
-export const createAutosave = (_write: (text: string) => boolean, _lastText: string | undefined): ((state: GameState) => void) => scaffold("createAutosave");
+export const createAutosave = (write: (text: string) => boolean, lastText: string | undefined): ((state: GameState) => void) => {
+  let last = lastText;
+  return (state) => {
+    try {
+      const text = saveTextFor(last, state);
+      if (text !== undefined) last = write(text) ? text : undefined;
+    } catch {
+      last = undefined; // saving must never reach the caller; the next tap retries, earlier text included
+    }
+  };
+};
