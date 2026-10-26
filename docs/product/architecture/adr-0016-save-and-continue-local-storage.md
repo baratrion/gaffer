@@ -1,6 +1,6 @@
 # ADR-0016: Save and continue in browser localStorage (S-010)
 
-- Status: Accepted (peer review: cycle 1 conditionally approved, cycle 2 conditionally approved; all findings folded in, max 2 cycles)
+- Status: Accepted (peer review: cycle 1 conditionally approved, cycle 2 conditionally approved; all findings folded in, max 2 cycles). Note (S-011, ADR-0018): the deferral of the `render` lookup in Decision 4 is taken there; `render` is a lookup table before the Inbox screen is added.
 - Date: 2026-10-26
 - Deciders: nWave solution-architect (S-010 DESIGN, `interaction_mode=propose`)
 - Related: ADR-0003 (functional core, imperative shell; its "Future persistence" note is taken here), ADR-0005 (squads derived on demand, frozen order), ADR-0006 (frozen attribute tables), ADR-0008 (focus plan), ADR-0009 (optional state fields), ADR-0010 (schedule), ADR-0011 (match model, streams, goldens), ADR-0012 (the results log; "persistence ... validates shape, a separate story with its own probe"), ADR-0014 (derived `nextMatchday`; "a future persistence story must validate shape, order and contiguity of a loaded log, with its own `probe()`"), ADR-0015 (`NewGame` from `seasonEnd`).
