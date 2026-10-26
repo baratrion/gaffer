@@ -1,16 +1,7 @@
 // @US-1 @US-2 (S-010 save and continue my season) held out until DELIVER
 // CONTRACT_SHAPE: bounded-change
-// Outcome anchor: DISCUSS Elevator Pitches: Sam plays two matches at ?seed=31 with Netherwold Borough, reloads, taps "Continue" above "New game" and
-// lands on the focused club home; "Table" shows Netherwold Borough 8th at P 2, Pts 0; "Play match" shows "Matchday 3", "Netherwold Borough 2–1
-// Oakhampton Rise Borough" (K1: 1 tap to the club home, 2 to the match). Covers what tests/protected/S-010 does not (P3 pins the team sheet at the durable level; one case here too): the 44px/above/focus details, D4's
-// replacement timing (New game, a club pick, and Play again), D5 (?seed=abc), and every storage state of the DEVOPS matrix (damaged, version 0,
-// garbage, blocked, full at load, full mid-session), each with 0 console errors. Seeding follows DEVOPS: an init script re-runs on every navigation,
-// so seeds are written once per tab (a sessionStorage marker), and a cookie flips a fault on or off between steps.
-// Environment: local-preview (ci:serve) or BASE_URL (fresh contexts; the live origin is never written for a real player). Season tests use
-// test.setTimeout(90_000). Destination: tests/e2e/S-010-save-continue.spec.ts (DELIVER: git mv from docs/feature/S-010/distill/pending/e2e/, dropping .pending).
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { DAMAGED_SAVE_TEXT, INCOMPATIBLE_SAVE_TEXT, SAVE_KEY, SEED_31_SAVE_TEXT } from "../acceptance/S-010/save-golden";
-
 const heading = (page: Page): Locator => page.getByRole("heading", { level: 1 });
 const button = (page: Page, name: string): Locator => page.getByRole("button", { name, exact: true });
 const overflow = (page: Page): Promise<number> => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -22,7 +13,6 @@ const watchErrors = (page: Page): string[] => {
   return errors;
 };
 const flag = (page: Page, name: string): Promise<void> => page.evaluate((n) => void (document.cookie = `${n}=1`), name);
-
 /** Opens `query`, taps New game and club number `clubIndex` of the "Clubs" list; returns its name. */
 const startSeason = async (page: Page, query: string, clubIndex = 0): Promise<string> => {
   await page.goto(`./${query}`);
@@ -33,7 +23,6 @@ const startSeason = async (page: Page, query: string, clubIndex = 0): Promise<st
   await expect(heading(page)).toHaveText(club);
   return club;
 };
-
 /** Taps "Play match" and "Back" `count` times from the club home; returns the Matchday heading and score line of each. */
 const playMatches = async (page: Page, club: string, count: number | readonly [number, number]): Promise<string[]> => {
   const [first, last] = typeof count === "number" ? [1, count] : count;
@@ -47,7 +36,6 @@ const playMatches = async (page: Page, club: string, count: number | readonly [n
   }
   return seen;
 };
-
 /** The League table as Sam reads it: one string per row (name, then every cell). Returns to the club home. */
 const readTable = async (page: Page, club: string): Promise<string[]> => {
   await button(page, "Table").click();
@@ -57,7 +45,6 @@ const readTable = async (page: Page, club: string): Promise<string[]> => {
   await expect(heading(page)).toHaveText(club);
   return text;
 };
-
 /** Seeds `gaffer.save` once per tab, before the game loads. */
 const seedOnce = (page: Page, text: string) =>
   page.addInitScript(([key, value]) => {
@@ -66,7 +53,6 @@ const seedOnce = (page: Page, text: string) =>
       localStorage.setItem(key!, value!);
     }
   }, [SAVE_KEY, text]);
-
 test.describe("@US-1 S-010 Continue picks the season up where it was left", () => {
   test("@walking_skeleton @driving_port After two matches a reload offers Continue above New game (44px, Gaffer focused), Continue lands on the focused club home with the same table, and Play match is Matchday 3 in 2 taps @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
@@ -98,7 +84,6 @@ test.describe("@US-1 S-010 Continue picks the season up where it was left", () =
     expect(await overflow(page)).toBeLessThanOrEqual(0);
     expect(errors).toEqual([]);
   });
-
   test("@boundary Continue ignores the address's seed: a seed-31 save opened at ?seed=abc still lands on Netherwold Borough at Matchday 3, and New game there lists the other league @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
     const club = await startSeason(page, "?seed=31");
@@ -115,7 +100,6 @@ test.describe("@US-1 S-010 Continue picks the season up where it was left", () =
     expect(errors).toEqual([]);
   });
 });
-
 test.describe("@US-1 S-010 New game and Play again replace the saved game only once a club is picked", () => {
   test("@boundary Tapping New game does not remove the save (a reload still offers Continue and the old season); picking a club replaces it (a reload resumes the new game at Matchday 1) @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
@@ -137,7 +121,6 @@ test.describe("@US-1 S-010 New game and Play again replace the saved game only o
     await expect(heading(page)).toHaveText("Matchday 1");
     expect(errors).toEqual([]);
   });
-
   test("@boundary A finished season, Play again and a reload before a club is picked: Continue still lands on the finished season's club home with End of season @contract-shape:bounded-change", async ({ page }) => {
     test.setTimeout(90_000);
     const errors = watchErrors(page);
@@ -157,7 +140,6 @@ test.describe("@US-1 S-010 New game and Play again replace the saved game only o
     expect(errors).toEqual([]);
   });
 });
-
 test.describe("@US-2 S-010 Continue keeps my team sheet", () => {
   test("@boundary Sam chooses 4-3-3 and puts a player from outside the eleven into the last midfield slot; after a reload and Continue, 4-3-3 is checked and Starting XI lists the same 11 slots in the same order @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
@@ -183,7 +165,6 @@ test.describe("@US-2 S-010 Continue keeps my team sheet", () => {
     expect(errors).toEqual([]);
   });
 });
-
 test.describe("@US-2 S-010 a bad or unavailable store never gets in the way", () => {
   for (const [what, text] of [["damaged (the first 100 characters)", DAMAGED_SAVE_TEXT], ["from version 0", INCOMPATIBLE_SAVE_TEXT], ["foreign text", "hello from another project"]] as const) {
     test(`@error A saved game ${what} is ignored: no Continue, no console error, and the first club pick replaces it @contract-shape:bounded-change`, async ({ page }) => {
@@ -201,7 +182,6 @@ test.describe("@US-2 S-010 a bad or unavailable store never gets in the way", ()
       expect(errors).toEqual([]);
     });
   }
-
   test("@error Blocked storage: no Continue, two matches play and every Table row reads P 2, a reload offers nothing, no console error @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
     await page.addInitScript(() => Object.defineProperty(window, "localStorage", { get: () => { throw new DOMException("blocked", "SecurityError"); } }));
@@ -215,7 +195,6 @@ test.describe("@US-2 S-010 a bad or unavailable store never gets in the way", ()
     await expect(button(page, "New game")).toBeVisible();
     expect(errors).toEqual([]);
   });
-
   test("@error Storage full at load with a valid save inside: no Continue, play goes on, and once writes work again a reload still offers nothing (the stored game was removed) @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
     await page.addInitScript(([key, value]) => {
@@ -240,7 +219,6 @@ test.describe("@US-2 S-010 a bad or unavailable store never gets in the way", ()
     await expect(button(page, "New game")).toBeVisible();
     expect(errors).toEqual([]);
   });
-
   test("@error Storage that fills up during play: after matchday 2 is saved only writes to the saved game fail; matchday 3 plays, and a reload offers no stale Continue (the store itself works) @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
     await page.addInitScript(() => {

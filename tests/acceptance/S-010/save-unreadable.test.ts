@@ -1,27 +1,20 @@
 // @US-2 (S-010 save and continue my season)
 // CONTRACT_SHAPE: pure-function
-// Outcome anchor: DISCUSS D6 and K3: an unreadable save (damaged, incompatible, inconsistent with its own league) is "no saved game": decodeSave never
-// throws and returns undefined, with nothing logged; a valid save with unknown extra keys still restores. One table row per rejection rule of
-// ADR-0016 Decision (the strict reading of a stored text). RED against the scaffolds. The forced throw proves the single catch in decodeSave (Earned Trust 7).
 import fc from "fast-check";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { decodeSave, encodeSave } from "../../../src/app/save";
 import { afterMatchdays, homeOf } from "./save-world";
 import { DAMAGED_SAVE_TEXT, INCOMPATIBLE_SAVE_TEXT, SEED_31_SAVE_TEXT } from "./save-golden";
-
 const forcedThrow = vi.hoisted(() => ({ on: false }));
 vi.mock("../../../src/domain/league", async (original) => {
   const real = await original<typeof import("../../../src/domain/league")>();
   return { ...real, generateLeague: (seed: number) => (forcedThrow.on ? (() => { throw new Error("forced"); })() : real.generateLeague(seed)) };
 });
-
 type Json = Record<string, any>;
 const golden = (): Json => JSON.parse(SEED_31_SAVE_TEXT);
 const edit = (change: (save: Json) => void): string => { const save = golden(); change(save); return JSON.stringify(save); };
 const fullSeason = (): string => encodeSave(afterMatchdays(homeOf(31, 0), 14))!;
-
 afterEach(() => vi.restoreAllMocks());
-
 const REJECTED: readonly (readonly [string, string])[] = [
   ["the first 100 characters (damaged)", DAMAGED_SAVE_TEXT],
   ["version 0 (incompatible)", INCOMPATIBLE_SAVE_TEXT],
@@ -54,7 +47,6 @@ const REJECTED: readonly (readonly [string, string])[] = [
   ["no text at all", ""],
   ["a half-written object", "{"],
 ];
-
 describe("@US-2 S-010 an unreadable saved game is ignored, never an error", () => {
   it.each(REJECTED)("Given a stored game with %s, when the title reads it, then there is no saved game and nothing is thrown or logged @error @boundary @contract-shape:pure-function", (_rule, text) => {
     const logged = [vi.spyOn(console, "error"), vi.spyOn(console, "warn"), vi.spyOn(console, "log")];
@@ -63,13 +55,11 @@ describe("@US-2 S-010 an unreadable saved game is ignored, never an error", () =
     expect(decodeSave(null)).toBeUndefined();
     for (const spy of logged) expect(spy).not.toHaveBeenCalled();
   });
-
   it("Given a valid saved game with unknown extra entries and no results, when read, then it comes back as the saved club's home (the extras are ignored) @boundary @contract-shape:pure-function", () => {
     const withExtras = edit((s) => { s.note = "hello"; delete s.results; });
     expect(decodeSave(withExtras)).toEqual(homeOf(31, 0));
     expect(decodeSave(JSON.stringify({ v: 1, seed: 31, clubId: "club-1", formation: "4-4-2" }))).toEqual(homeOf(31, 0));
   });
-
   it("Given any text, any JSON value, any truncation or any one-character change of a valid save, when decoded, then reading never throws, a cut-short text is never a saved game, and a changed text gives nothing or a game that saves back to itself @property @error @contract-shape:pure-function", () => {
     const FULL_SEASON = fullSeason();
     fc.assert(fc.property(fc.string(), (text) => { expect(() => decodeSave(text)).not.toThrow(); }), { numRuns: 200 });
@@ -83,7 +73,6 @@ describe("@US-2 S-010 an unreadable saved game is ignored, never an error", () =
       { numRuns: 200 },
     );
   });
-
   it("Given a reading of the stored game that fails inside on a text nobody thought of, when the title reads it, then there is no saved game and nothing is logged @error @contract-shape:pure-function", () => {
     const logged = [vi.spyOn(console, "error"), vi.spyOn(console, "warn")];
     forcedThrow.on = true;

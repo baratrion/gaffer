@@ -1,12 +1,6 @@
 // @US-1 @US-2 (S-010 save and continue my season) @regression
 // CONTRACT_SHAPE: bounded-change
-// Outcome anchor: DISCUSS D2, D4, D10 and the roadmap outcome: what S-010 must leave exactly as it was. In a fresh browser the title has the one h1
-// "Gaffer" (focused), a "New game" button 44px or taller and no "Continue"; after a reload, "New game" still starts a fresh game from the address's
-// seed (every row P 0 in A to Z order, "4-4-2" checked, "Play match" reading "Matchday 1", Netherwold Borough 1-2 Marlbrook Athletic at ?seed=31),
-// whether or not a saved game is offered; nothing scrolls sideways at 390px and nothing logs a console error. It never taps "Continue", so it passes
-// before and after DELIVER (the held-out S-010-save-continue spec covers the new behaviour). Environment: local-preview (ci:serve) or BASE_URL.
 import { expect, test, type Page } from "@playwright/test";
-
 const button = (page: Page, name: string) => page.getByRole("button", { name, exact: true });
 const heading = (page: Page) => page.getByRole("heading", { level: 1 });
 const watchErrors = (page: Page): string[] => {
@@ -15,7 +9,6 @@ const watchErrors = (page: Page): string[] => {
   page.on("pageerror", (e) => errors.push(e.message));
   return errors;
 };
-
 /** Taps New game and the first club (Netherwold Borough at ?seed=31), then reads the table: every row at zero, in A to Z order. */
 const startFresh = async (page: Page): Promise<void> => {
   await button(page, "New game").click();
@@ -34,7 +27,6 @@ const startFresh = async (page: Page): Promise<void> => {
   await expect(heading(page)).toHaveText("Matchday 1");
   await expect(page.getByText("Netherwold Borough 1–2 Marlbrook Athletic", { exact: true })).toBeVisible();
 };
-
 test.describe("@US-1 @US-2 S-010 the title and New game keep working", () => {
   test("@regression In a fresh browser the title is Gaffer, focused, with a tall New game button and no Continue; New game starts a fresh game, and after a reload it starts exactly the same fresh game @walking_skeleton @contract-shape:bounded-change", async ({ page }) => {
     const errors = watchErrors(page);
