@@ -1,7 +1,7 @@
 // @US-1 (S-011 read my club's news in the Inbox) @regression
 // CONTRACT_SHAPE: pure-function
 // Passes before and after DELIVER (D6, K3): opening the Inbox writes nothing and changes no save format. `toSave` projects any screen that carries a known clubId, so a state on an
-// `inbox` screen must encode to the very text of the club home it came from and the autosave decision (`saveTextFor`) must be "no write". Built by hand (no ViewInbox yet).
+// `inbox` screen must encode to the very text of the club home it came from and the autosave decision (`saveTextFor`) must be "no write". Built by hand (the state is constructed directly, not through the ViewInbox transition).
 import { describe, expect, it } from "vitest";
 import { SAVE_VERSION, encodeSave, saveTextFor } from "../../../src/app/save";
 import type { GameState, Screen } from "../../../src/app/state";

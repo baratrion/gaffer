@@ -40,5 +40,7 @@ export const matchdayReports = (
 ): readonly MatchdayReport[] => {
   assertClubPlace(clubIndex, clubs.length);
   const own = played.filter((entry) => involves(clubIndex, entry)).sort((a, b) => b.matchday - a.matchday);
-  return own.map((entry) => reportOf(clubs, entry, positionIn(clubs, played.filter((other) => other.matchday <= entry.matchday), clubIndex)));
+  const positionAfter = (matchday: number): number =>
+    positionIn(clubs, played.filter((other) => other.matchday <= matchday), clubIndex);
+  return own.map((entry) => reportOf(clubs, entry, positionAfter(entry.matchday)));
 };
