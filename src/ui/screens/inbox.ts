@@ -1,6 +1,7 @@
 /** The Inbox screen (ADR-0017): one message per matchday played, newest first. */
 import type { Action } from "../../app/state";
 import type { MatchdayReport } from "../../domain/inbox";
+import { formatOrdinal } from "../../domain/standings";
 import { el } from "../dom";
 import { matchdayTitle, scoreLine } from "../score-line";
 
@@ -9,7 +10,19 @@ export interface InboxView {
 }
 
 const messageItem = (report: MatchdayReport): HTMLElement =>
-  el("li", { class: "message" }, el("p", { class: "message-title" }, matchdayTitle(report.matchday)), scoreLine(report));
+  el(
+    "li",
+    { class: "message" },
+    el("p", { class: "message-title" }, matchdayTitle(report.matchday)),
+    scoreLine(report),
+    el(
+      "p",
+      { class: "message-position" },
+      el("span", { class: "message-label" }, "League position"),
+      " ",
+      el("span", { class: "message-value" }, formatOrdinal(report.position)),
+    ),
+  );
 
 export const renderInbox = (
   root: HTMLElement,

@@ -355,6 +355,7 @@ h1:focus { outline: none; }
   padding: 0;
   display: grid;
   gap: 10px;
+  min-height: 1px;
 }
 
 .message {
@@ -368,4 +369,6 @@ h1:focus { outline: none; }
 
 .message-title { margin: 0 0 6px; font-size: 0.9rem; font-weight: 700; }
 .message .score-line { margin: 0; padding: 8px 0; border: 0; background: transparent; font-size: 1.15rem; text-align: left; }
+.message-position { margin: 0; font-size: 0.9rem; }
+.message-value { font-weight: 700; }
 .message .score-goals { color: var(--pitch); }
