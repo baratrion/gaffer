@@ -1,12 +1,6 @@
-// @US-1 @US-2 (S-011 read my club's news in the Inbox) @regression
-// CONTRACT_SHAPE: bounded-change
-// Outcome anchor: DISCUSS D1, D8 and D10: the club home gains a sixth button ("Inbox", after "Table"), but "Squad", "Tactics", "Starting XI", "Play match" and
-// "Table" keep their order, names and 44px height; each still opens its screen and "Back" returns to the focused club name; the first two "Play match" taps are
-// still Matchday 1 and Matchday 2 with the golden score lines; nothing scrolls sideways at 390px and no console error appears.
-// Passes before and after DELIVER: it checks the first five buttons only (a prefix) and never taps or names the "Inbox" button; the count of club-home
-// buttons is not asserted here (the eight amended specs and S-011-inbox.spec.ts own it). Environment: local-preview or BASE_URL.
+// S-011 @regression: the club home keeps working with the sixth "Inbox" button: the first five buttons keep order, names and 44px height, each screen opens and
+// Back returns to the focused club name, Matchday 1 and 2 keep their score lines, no sideways scroll at 390px, no console error. Never taps the Inbox button.
 import { expect, test, type Page } from "@playwright/test";
-
 const button = (page: Page, name: string) => page.getByRole("button", { name, exact: true });
 const heading = (page: Page) => page.getByRole("heading", { level: 1 });
 const FIVE = ["Squad", "Tactics", "Starting XI", "Play match", "Table"];
@@ -21,14 +15,12 @@ test.describe("@US-1 @US-2 S-011 the club home keeps working", () => {
     await page.getByRole("list", { name: "Clubs" }).getByRole("button").nth(0).click();
     await expect(heading(page)).toHaveText("Netherwold Borough");
     await expect(heading(page)).toBeFocused();
-
     const known = async (): Promise<void> => {
       const buttons = page.getByRole("button");
       expect((await buttons.allInnerTexts()).map((text) => text.trim()).slice(0, 5)).toEqual(FIVE);
       for (const [index, each] of (await buttons.all()).entries()) expect((await each.boundingBox())?.height ?? 0, `club home button ${index}`).toBeGreaterThanOrEqual(44);
     };
     await known();
-
     for (const name of ["Squad", "Tactics", "Starting XI", "Table"]) {
       await button(page, name).click();
       await expect(button(page, "Back"), name).toBeVisible();
@@ -38,7 +30,6 @@ test.describe("@US-1 @US-2 S-011 the club home keeps working", () => {
       await expect(heading(page), `Back from ${name}`).toHaveText("Netherwold Borough");
       await expect(heading(page), `Back from ${name}`).toBeFocused();
     }
-
     await button(page, "Play match").click();
     await expect(heading(page)).toHaveText("Matchday 1");
     await expect(page.getByText("Netherwold Borough 1–2 Marlbrook Athletic", { exact: true })).toBeVisible();
@@ -50,7 +41,6 @@ test.describe("@US-1 @US-2 S-011 the club home keeps working", () => {
     await expect(page.getByText("Rushmoor Heath Albion 2–1 Netherwold Borough", { exact: true })).toBeVisible();
     await button(page, "Back").click();
     await known();
-
     await button(page, "Table").click();
     const rows = (await page.getByRole("table", { name: "League table", exact: true }).getByRole("row").all()).slice(1);
     expect(rows).toHaveLength(8);
