@@ -15,31 +15,14 @@ const messageItem = (report: MatchdayReport): HTMLElement =>
     { class: "message" },
     el("p", { class: "message-title" }, matchdayTitle(report.matchday)),
     scoreLine(report),
-    el(
-      "p",
-      { class: "message-position" },
-      el("span", { class: "message-label" }, "League position"),
-      " ",
-      el("span", { class: "message-value" }, formatOrdinal(report.position)),
-    ),
+    el("p", { class: "message-position" }, el("span", { class: "message-label" }, "League position"), " ", el("span", { class: "message-value" }, formatOrdinal(report.position))),
   );
 
-export const renderInbox = (
-  root: HTMLElement,
-  { messages }: InboxView,
-  dispatch: (action: Extract<Action, { readonly type: "Back" }>) => void,
-): void => {
+export const renderInbox = (root: HTMLElement, { messages }: InboxView, dispatch: (action: Extract<Action, { readonly type: "Back" }>) => void): void => {
   const back = el("button", { type: "button", class: "back-button" }, "Back");
   back.addEventListener("click", () => dispatch({ type: "Back" }));
   const empty = messages.length === 0 ? [el("p", { class: "inbox-empty" }, "No messages yet")] : [];
   root.replaceChildren(
-    el(
-      "section",
-      { class: "inbox" },
-      el("h1", { tabindex: "-1" }, "Inbox"),
-      ...empty,
-      el("ul", { role: "list", "aria-label": "Messages", class: "message-list" }, ...messages.map(messageItem)),
-      back,
-    ),
+    el("section", { class: "inbox" }, el("h1", { tabindex: "-1" }, "Inbox"), ...empty, el("ul", { role: "list", "aria-label": "Messages", class: "message-list" }, ...messages.map(messageItem)), back),
   );
 };

@@ -1,12 +1,8 @@
+import type { MatchdayReport } from "../domain/inbox";
 import { el } from "./dom";
 
 /** The one source of the match screen's score line and title, shared with the Inbox (ADR-0017). */
-export interface ScoreSide {
-  readonly name: string;
-  readonly goals: number;
-}
-
-export const scoreLine = ({ home, away }: { readonly home: ScoreSide; readonly away: ScoreSide }): HTMLElement =>
+export const scoreLine = ({ home, away }: Pick<MatchdayReport, "home" | "away">): HTMLElement =>
   el(
     "p",
     { class: "score-line" },

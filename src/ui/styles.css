@@ -348,25 +348,8 @@ h1:focus { outline: none; }
 
 .inbox h1 { font-size: 1.75rem; margin-bottom: 16px; overflow-wrap: anywhere; }
 .inbox-empty { margin: 0 0 12px; overflow-wrap: anywhere; }
-
-.message-list {
-  list-style: none;
-  margin: 0 0 16px;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-  min-height: 1px;
-}
-
-.message {
-  padding: 12px 14px;
-  border-left: 4px solid var(--accent);
-  border-radius: 0 10px 10px 0;
-  background: var(--chalk);
-  color: var(--pitch);
-  overflow-wrap: anywhere;
-}
-
+.message-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; min-height: 1px; }
+.message { padding: 12px 14px; border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; background: var(--chalk); color: var(--pitch); overflow-wrap: anywhere; }
 .message-title { margin: 0 0 6px; font-size: 0.9rem; font-weight: 700; }
 .message .score-line { margin: 0; padding: 8px 0; border: 0; background: transparent; font-size: 1.15rem; text-align: left; }
 .message-position { margin: 0; font-size: 0.9rem; }

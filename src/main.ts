@@ -83,60 +83,51 @@ const autosave = createAutosave(store.write, stored);
 
 type Dispatch = (action: Action, focusId?: string) => void;
 
-type RenderContext = { readonly root: HTMLElement; readonly state: GameState; readonly dispatch: Dispatch };
 type Screen = GameState["screen"];
-type Renderers = {
-  [K in Screen["kind"]]: (context: RenderContext, screen: Extract<Screen, { kind: K }>) => void;
-};
-
-const RENDERERS: Renderers = {
-  title: ({ root, dispatch }) => renderTitle(root, { offer }, dispatch),
-  pickClub: ({ root, state, dispatch }) => renderPickClub(root, state.league, dispatch),
-  clubHome: ({ root, state, dispatch }, screen) => {
-    const { club } = findClub(state.league, screen.clubId);
-    renderClubHome(root, { club, seasonOver: nextMatchday(state) === undefined }, dispatch);
-  },
-  squad: ({ root, state, dispatch }, screen) => {
-    const { league } = state;
-    const { club, clubIndex } = findClub(league, screen.clubId);
-    renderSquad(root, { club, squad: generateSquad(league.seed, clubIndex) }, dispatch);
-  },
-  player: ({ root, state, dispatch }, screen) => {
-    const { league } = state;
-    const { clubIndex } = findClub(league, screen.clubId);
-    const player = generateSquad(league.seed, clubIndex)[screen.playerIndex];
-    if (!player) throw new Error(`Unknown player in game state: ${screen.playerIndex}`);
-    renderPlayer(root, player, dispatch);
-  },
-  tactics: ({ root, state, dispatch }) =>
-    renderTactics(root, { formation: state.formation, lines: formationLines(state.formation) }, dispatch),
-  startingXI: ({ root, state, dispatch }, screen) => {
-    const squad = squadOrThrow(state.league, screen.clubId);
-    renderStartingXI(root, { squad, xi: currentXI(state, squad) }, dispatch);
-  },
-  choosePlayer: ({ root, state, dispatch }, screen) => {
-    const squad = squadOrThrow(state.league, screen.clubId);
-    const position = lineUp(state.formation)[screen.slot];
-    if (!position) throw new Error(`Unknown slot in game state: ${screen.slot}`);
-    const candidates = playersForPosition(squad, position);
-    renderChoosePlayer(root, { squad, position, candidates, xi: currentXI(state, squad) }, dispatch);
-  },
-  match: ({ root, state, dispatch }, screen) => {
-    const match = matchFor(state, screen.clubId);
-    if (!match) throw new Error(`Unknown club in game state: ${screen.clubId}`);
-    renderMatch(root, matchScreenView(match), dispatch);
-  },
-  table: ({ root, state, dispatch }, screen) =>
-    renderTable(root, { rows: standingsOf(state), managedClubId: screen.clubId }, dispatch),
-  seasonEnd: ({ root, state, dispatch }, screen) =>
-    renderSeasonEnd(root, seasonSummaryOrThrow(state, screen.clubId), dispatch),
-  inbox: ({ root, state, dispatch }, screen) => renderInbox(root, { messages: inboxOrThrow(state, screen.clubId) }, dispatch),
-};
+type Renderers = { [K in Screen["kind"]]: (screen: Extract<Screen, { kind: K }>) => void };
 
 const render = (root: HTMLElement, state: GameState, dispatch: Dispatch): void => {
+  const { screen, league } = state;
+  const RENDERERS: Renderers = {
+    title: () => renderTitle(root, { offer }, dispatch),
+    pickClub: () => renderPickClub(root, league, dispatch),
+    clubHome: (screen) => {
+      const { club } = findClub(league, screen.clubId);
+      renderClubHome(root, { club, seasonOver: nextMatchday(state) === undefined }, dispatch);
+    },
+    squad: (screen) => {
+      const { club, clubIndex } = findClub(league, screen.clubId);
+      renderSquad(root, { club, squad: generateSquad(league.seed, clubIndex) }, dispatch);
+    },
+    player: (screen) => {
+      const { clubIndex } = findClub(league, screen.clubId);
+      const player = generateSquad(league.seed, clubIndex)[screen.playerIndex];
+      if (!player) throw new Error(`Unknown player in game state: ${screen.playerIndex}`);
+      renderPlayer(root, player, dispatch);
+    },
+    tactics: () => renderTactics(root, { formation: state.formation, lines: formationLines(state.formation) }, dispatch),
+    startingXI: (screen) => {
+      const squad = squadOrThrow(league, screen.clubId);
+      renderStartingXI(root, { squad, xi: currentXI(state, squad) }, dispatch);
+    },
+    choosePlayer: (screen) => {
+      const squad = squadOrThrow(league, screen.clubId);
+      const position = lineUp(state.formation)[screen.slot];
+      if (!position) throw new Error(`Unknown slot in game state: ${screen.slot}`);
+      const candidates = playersForPosition(squad, position);
+      renderChoosePlayer(root, { squad, position, candidates, xi: currentXI(state, squad) }, dispatch);
+    },
+    match: (screen) => {
+      const match = matchFor(state, screen.clubId);
+      if (!match) throw new Error(`Unknown club in game state: ${screen.clubId}`);
+      renderMatch(root, matchScreenView(match), dispatch);
+    },
+    table: (screen) => renderTable(root, { rows: standingsOf(state), managedClubId: screen.clubId }, dispatch),
+    seasonEnd: (screen) => renderSeasonEnd(root, seasonSummaryOrThrow(state, screen.clubId), dispatch),
+    inbox: (screen) => renderInbox(root, { messages: inboxOrThrow(state, screen.clubId) }, dispatch),
+  };
   // TypeScript cannot correlate the union key with its entry; the mapped type guarantees each entry matches its kind.
-  const renderScreen = RENDERERS[state.screen.kind] as (context: RenderContext, screen: Screen) => void;
-  renderScreen({ root, state, dispatch }, state.screen);
+  (RENDERERS[screen.kind] as (current: Screen) => void)(screen);
 };
 
 const applyFocus = (root: HTMLElement, plan: FocusPlan): void => {

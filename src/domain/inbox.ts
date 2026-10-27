@@ -20,47 +20,19 @@ export interface MatchdayReport {
   readonly position: number;
 }
 
-const assertClubIndex = (clubIndex: number, clubCount: number): void => {
-  if (!Number.isInteger(clubIndex) || clubIndex < 0 || clubIndex >= clubCount) {
-    throw new RangeError(`Club index outside the league: ${clubIndex}`);
-  }
-};
-
-const ownMatch = (played: readonly ReportableMatch[], clubIndex: number, matchday: number): ReportableMatch | undefined =>
-  played.find((entry) => entry.matchday === matchday && (entry.home === clubIndex || entry.away === clubIndex));
-
-interface Log {
-  readonly clubs: readonly Club[];
-  readonly played: readonly ReportableMatch[];
-}
-
-const positionAfter = (log: Log, clubIndex: number, matchday: number): number => {
-  const prefix = log.played.filter((entry) => entry.matchday <= matchday);
-  const clubId = (log.clubs[clubIndex] as Club).id;
-  const row = standings(log.clubs, prefix).find((candidate) => candidate.clubId === clubId);
-  return (row as { readonly position: number }).position;
-};
-
-const reportFor = (log: Log, clubIndex: number, entry: ReportableMatch): MatchdayReport => ({
-  matchday: entry.matchday,
-  home: { name: (log.clubs[entry.home] as Club).name, goals: entry.result.homeGoals },
-  away: { name: (log.clubs[entry.away] as Club).name, goals: entry.result.awayGoals },
-  position: positionAfter(log, clubIndex, entry.matchday),
-});
-
-const distinctMatchdaysNewestFirst = (played: readonly ReportableMatch[]): readonly number[] =>
-  [...new Set(played.map((entry) => entry.matchday))].sort((a, b) => b - a);
-
 /** One report per matchday in which the club has a fixture, newest first; RangeError for a clubIndex outside the league. */
-export const matchdayReports = (
-  clubs: readonly Club[],
-  played: readonly ReportableMatch[],
-  clubIndex: number,
-): readonly MatchdayReport[] => {
-  assertClubIndex(clubIndex, clubs.length);
-  const log: Log = { clubs, played };
-  return distinctMatchdaysNewestFirst(played).flatMap((matchday) => {
-    const entry = ownMatch(played, clubIndex, matchday);
-    return entry ? [reportFor(log, clubIndex, entry)] : [];
+export const matchdayReports = (clubs: readonly Club[], played: readonly ReportableMatch[], clubIndex: number): readonly MatchdayReport[] => {
+  if (!Number.isInteger(clubIndex) || clubIndex < 0 || clubIndex >= clubs.length) throw new RangeError(`Club index outside the league: ${clubIndex}`);
+  const clubId = (clubs[clubIndex] as Club).id;
+  const sideOf = (index: number, goals: number): ReportSide => ({ name: (clubs[index] as Club).name, goals });
+  const positionAfter = (matchday: number): number => {
+    const row = standings(clubs, played.filter((entry) => entry.matchday <= matchday)).find((candidate) => candidate.clubId === clubId);
+    return (row as { readonly position: number }).position;
+  };
+  const matchdays = [...new Set(played.map((entry) => entry.matchday))].sort((a, b) => b - a);
+  return matchdays.flatMap((matchday) => {
+    const entry = played.find((candidate) => candidate.matchday === matchday && (candidate.home === clubIndex || candidate.away === clubIndex));
+    if (!entry) return [];
+    return [{ matchday, home: sideOf(entry.home, entry.result.homeGoals), away: sideOf(entry.away, entry.result.awayGoals), position: positionAfter(matchday) }];
   });
 };
