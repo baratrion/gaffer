@@ -1,15 +1,20 @@
-/** The one source of the match screen's score line and title, shared with the Inbox (ADR-0017). RED scaffold created by DISTILL. */
-export const __SCAFFOLD__ = true;
+import { el } from "./dom";
 
+/** The one source of the match screen's score line and title, shared with the Inbox (ADR-0017). */
 export interface ScoreSide {
   readonly name: string;
   readonly goals: number;
 }
 
-export const scoreLine = (_sides: { readonly home: ScoreSide; readonly away: ScoreSide }): HTMLElement => {
-  throw new Error("Not yet implemented -- RED scaffold (__SCAFFOLD__)");
-};
+export const scoreLine = ({ home, away }: { readonly home: ScoreSide; readonly away: ScoreSide }): HTMLElement =>
+  el(
+    "p",
+    { class: "score-line" },
+    el("span", { class: "score-name" }, home.name),
+    " ",
+    el("span", { class: "score-goals" }, `${home.goals}–${away.goals}`),
+    " ",
+    el("span", { class: "score-name" }, away.name),
+  );
 
-export const matchdayTitle = (_matchday: number): string => {
-  throw new Error("Not yet implemented -- RED scaffold (__SCAFFOLD__)");
-};
+export const matchdayTitle = (matchday: number): string => `Matchday ${matchday}`;

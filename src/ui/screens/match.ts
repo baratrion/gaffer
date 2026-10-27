@@ -1,5 +1,6 @@
 import type { Action } from "../../app/state";
 import { el } from "../dom";
+import { matchdayTitle, scoreLine } from "../score-line";
 
 export interface MatchGoalView {
   readonly minute: number;
@@ -30,17 +31,6 @@ const goalItem = ({ minute, scorer, club }: MatchGoalView): HTMLElement =>
     el("span", { class: "goal-club" }, `(${club})`),
   );
 
-const scoreLine = ({ home, away }: MatchScreenView): HTMLElement =>
-  el(
-    "p",
-    { class: "score-line" },
-    el("span", { class: "score-name" }, home.name),
-    " ",
-    el("span", { class: "score-goals" }, `${home.goals}–${away.goals}`),
-    " ",
-    el("span", { class: "score-name" }, away.name),
-  );
-
 export const renderMatch = (root: HTMLElement, view: MatchScreenView, dispatch: (action: Action) => void): void => {
   const back = el("button", { type: "button", class: "back-button" }, "Back");
   back.addEventListener("click", () => dispatch({ type: "Back" }));
@@ -48,7 +38,7 @@ export const renderMatch = (root: HTMLElement, view: MatchScreenView, dispatch: 
     el(
       "section",
       { class: "match" },
-      el("h1", { tabindex: "-1" }, `Matchday ${view.matchday}`),
+      el("h1", { tabindex: "-1" }, matchdayTitle(view.matchday)),
       scoreLine(view),
       el("p", { id: "goals-label", class: "goals-label" }, "Goals"),
       el("ul", { role: "list", "aria-labelledby": "goals-label", class: "goal-list" }, ...view.goals.map(goalItem)),
