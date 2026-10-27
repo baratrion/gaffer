@@ -1,0 +1,144 @@
+{
+  "roadmap": {
+    "project_id": "S-011",
+    "created_at": "2026-10-27T21:10:13Z",
+    "total_steps": 5
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Read my club's news in the Inbox",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Refactor: render becomes the RENDERERS lookup (ADR-0018, no behaviour change)",
+          "criteria": [
+            "render in src/main.ts has no switch and dispatches through a RENDERERS mapped type keyed by every Screen kind, so a missing kind is a compile error; the 11 existing screens behave exactly as before",
+            "The whole existing suite passes unedited (every S-001..S-010 acceptance and e2e spec and tests/protected S-001..S-010); ci:lint (complexity max 15, max-params 3), ci:typecheck and ci:test are green",
+            "No held-out spec moves and no inbox-source row is claimed here: the gate is the existing full suite (vitest, e2e, protected S-001..S-010) staying green; the inbox-source file and its rows are verified when it moves in step 01-04",
+            "After this step and step 01-02, project the branch diff against the 1200-line PR guard (DISTILL open point 1) and apply the trim levers before adding more tests if it would pass about 1,000"
+          ],
+          "test_file": "tests/acceptance/S-011/inbox-inputs-pinned.test.ts",
+          "scenario_name": "Given the whole existing suite (S-001..S-010 acceptance, e2e and protected, plus the committed S-011 guards), when run after the render refactor, then it stays green with no behaviour change",
+          "files_to_modify": [
+            "src/main.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: TypeScript, vitest; behaviour-preserving refactor guarded by the existing suites. Contract shape: bounded-change, universe = DOM under root plus dispatch calls via the context { root, state, dispatch } (max-params is 3); the exhaustiveness check is the mapped type, one documented cast at the call. The held-out inbox-source file (docs/feature/S-011/distill/pending/acceptance/inbox-source.test.ts.pending) stays untouched until 01-04; no row of it is claimed here. The inbox kind is NOT added in this step."
+        },
+        {
+          "id": "01-02",
+          "name": "Refactor: shared score-line and matchday title builders",
+          "criteria": [
+            "scoreLine({ home, away }) moves unchanged from src/ui/screens/match.ts to src/ui/score-line.ts with the ScoreSide type; matchdayTitle(n) reads Matchday N and is used by the match screen h1",
+            "The match screen markup is identical (p.score-line of span.score-name, a space, span.score-goals with the U+2013 dash, a space, span.score-name); every existing e2e, acceptance and protected match scenario passes unedited",
+            "The score-line.ts scaffold marker is gone; match.ts holds no private scoreLine; ci:lint, ci:typecheck and ci:test are green",
+            "The committed S-011 guards (inbox-inputs-pinned, names-avoid-inbox-phrases, club-home regression) stay green",
+            "No inbox-source row is claimed here: the gate is the existing full suite staying green; the matchdayTitle and shared-builder rows are verified when inbox-source moves in step 01-04"
+          ],
+          "test_file": "tests/acceptance/S-011/inbox-inputs-pinned.test.ts",
+          "scenario_name": "Given the whole existing suite (S-001..S-010 acceptance, e2e and protected, plus the committed S-011 guards), when run after the score-line extraction, then it stays green with no behaviour change",
+          "files_to_modify": [
+            "src/ui/score-line.ts",
+            "src/ui/screens/match.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: behaviour-preserving extraction guarded by the existing suites and the match e2e; the held-out inbox-source file is not touched here (it moves in 01-04).Contract shape: pure-function (return-only, no DOM access in matchdayTitle; scoreLine builds nodes via el() and text goes through textContent, ADR-0002). Checkpoint: recount the projected PR size after this commit (DESIGN DD9, DISTILL open point 1) and apply the trim levers in DESIGN's order if above about 1,000: merge/fold the inbox-source greps, shorten duplicated setup, drop the second two-browser e2e. Never narrow the K2 sweep (seeds 1..100 x 8 clubs x 14 matchdays) and never split the slices."
+        },
+        {
+          "id": "01-03",
+          "name": "Domain: matchdayReports with each matchday's league position",
+          "criteria": [
+            "matchdayReports(clubs, played, clubIndex) gives one report per matchday the club has a fixture in, newest first, each with the club's home and away sides as { name, goals } and its position from standings over the entries with matchday <= N; an empty log or a club without a fixture gives none",
+            "Netherwold Borough at seed 31 gives the 14 DISCUSS reports (Matchday 14 down to 1) with their score lines and positions, including the name tie-breaks 5th, 3rd and 5th after matchdays 4, 5 and 7; Oakhampton Rise Borough at seed 20260 gives Harrowgate Lane United 0–1 Oakhampton Rise Borough and 3rd",
+            "The position counts entries up to and including its own matchday (<=, not <) and an older report never takes in a later result; draws and the home and away places are kept",
+            "Six invalid club indices throw RangeError; the result is the same for any order of the log (fast-check, FC_SEED honoured) and for any seed, club and N 0..14; frozen input is untouched and calls are deterministic",
+            "Over seeds 1..300 x 8 clubs x 14 matchdays every score line and position equals the independent oracle that never calls standings (K2 floor seeds 1..100, widen never narrow)",
+            "The held-out matchday-reports spec (17 cases, 6 of them table rows) is moved into tests/acceptance/S-011/ in this step with git mv and passes",
+            "Grep gate run in this step on src/domain/inbox.ts (the inbox-source domain rows are only verified when that file moves in 01-04): no clock, locale or randomness (Date, performance.now, Math.random, toLocale*, Intl), imports only league and standings, and no __SCAFFOLD__ marker",
+            "matchdayReports is split into small functions to stay under complexity 8; ci:lint, ci:typecheck and ci:test are green"
+          ],
+          "test_file": "tests/acceptance/S-011/matchday-reports.test.ts",
+          "scenario_name": "Given Netherwold Borough's 14 recorded matchdays at seed 31, when the reports are built, then there are 14, from Matchday 14 down to 1, with the DISCUSS score lines and positions",
+          "files_to_modify": [
+            "src/domain/inbox.ts",
+            "tests/acceptance/S-011/matchday-reports.test.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: TypeScript project, so the properties use fast-check (honour FC_SEED) and the goldens come from inbox-reference.ts, which is fixed and is never re-pinned from output. Contract shape: pure-function, return-only (assertion: deep-frozen input unchanged, repeat calls deep-equal and a new array). position is in the MatchdayReport type from this commit (DD9, M6): the domain function is written once with its goldens and oracles. Reuse standings (ADR-0013) and formatOrdinal as they are; do not add a second ranking. Mutants to kill (DD7): <= vs <, newest-first order, the club-row pick, the own-entry pick. This is the DD9 commit 3 domain part, split out so the suite stays green at each commit; the held-out file goes green here because the domain needs no screen kind."
+        },
+        {
+          "id": "01-04",
+          "name": "Slice 01: Inbox screen, club-home button, navigation and the title and score line per message",
+          "criteria": [
+            "The club home gains a sixth button named Inbox after Table, 44px or taller, from the club pick, after matchday 14 and after Continue; the eight non-protected specs' five-button lists, titles, messages and header comments become the six-button list (git apply of the amend patch, replaced never weakened)",
+            "Tapping Inbox from a known club's home opens a screen whose only h1 is Inbox with focus, a list named Messages (one li.message per matchday played, newest first, each holding p.message-title Matchday N and the shared p.score-line as separate child elements, no button, link or nested list) and a Back button that returns to the club home with its heading focused; with no match played the list is empty and No messages yet is shown outside it",
+            "ViewInbox from any other screen, an unknown club or the Inbox itself changes nothing (the very same state); Back equals the state opened from with formation, xi and results the same objects; the encoded save equals the club home's and saveTextFor gives nothing; GameState keeps its five keys; focusPlan moves focus to the new heading each time, keeps the element when the same club's Inbox is shown again with a focus id, and replaces it (new heading) for another club's Inbox",
+            "inboxOf gives undefined for an unknown club and N reports after N matchdays equal to what the match screens and the Table showed right after each tap; tactics and picks never change an existing report; New game and Play again leave an empty Inbox; over 40 random actions including ViewInbox nothing throws",
+            "The held-out inbox-navigation (19 cases) and inbox-source (9 cases) specs are moved into tests/acceptance/S-011/ in this step with git mv and pass (the Screen inbox kind exists, the RENDERERS inbox entry, one dispatch and one listener and one button in the Inbox screen, shared builders); the S-011-inbox e2e stays held out because the two-line message cannot satisfy its three-line assertions",
+            "The Inbox DOM criteria above (markup, list, empty state, Back, 44px) are verified end to end by the S-011-inbox e2e moved in step 01-05 (carpaccio exception: slices 01 and 02 ship in one merge); here they are covered by the committed club-home regression, the inbox-source greps and the unit specs",
+            "The scaffold throws in state.ts (viewInbox, inboxOf) and src/ui/screens/inbox.ts are replaced by real code; ci:lint, ci:typecheck, ci:test, ci:build and ci:e2e pass with the existing club-home specs amended and tests/protected S-001..S-010 green"
+          ],
+          "test_file": "tests/acceptance/S-011/inbox-navigation.test.ts",
+          "scenario_name": "Given Netherwold Borough's club home with 3 matches played, when Sam taps Inbox, then the Inbox of his club opens and nothing but the screen changes",
+          "files_to_modify": [
+            "src/app/state.ts",
+            "src/main.ts",
+            "src/ui/screens/inbox.ts",
+            "src/ui/screens/club-home.ts",
+            "src/ui/styles.css",
+            "tests/acceptance/S-011/inbox-navigation.test.ts",
+            "tests/acceptance/S-011/inbox-source.test.ts",
+            "tests/e2e/S-005-starting-xi.spec.ts",
+            "tests/e2e/S-006-match.spec.ts",
+            "tests/e2e/S-007-table.spec.ts",
+            "tests/e2e/S-007-club-home-regression.spec.ts",
+            "tests/e2e/S-008-club-home-regression.spec.ts",
+            "tests/e2e/S-008-season.spec.ts",
+            "tests/e2e/S-009-club-home-regression.spec.ts",
+            "tests/e2e/S-009-end-of-season.spec.ts"
+          ],
+          "implementation_notes": "TEST PARADIGM: fast-check for the K3 properties (numRuns 100, FC_SEED) and the 40-action property over the real reducer; example tables for the no-op rows; inbox-source greps are the structural guard for ADR-0017/0018, not behaviour. Contract shape: update is bounded-change, pure return-only, universe { league, screen, formation, xi?, results? } with no new key and no SAVE_VERSION bump; inboxOf and matchdayReports are pure-function. Add the inbox Screen kind, ViewInbox handler (one HANDLERS entry), inbox in HOME_RETURNING_KINDS, the RENDERERS inbox entry with inboxOrThrow, renderInbox (dispatch narrowed to Back, titles are p not h2, list named by aria-label, ul always rendered, text through el()/textContent) rendering only title and score line, with position in the data but its line not rendered until 01-05. Apply `git apply docs/feature/S-011/distill/pending/amend-existing-tests.patch` in this commit (the club-home button); tests/e2e/S-010-club-home-regression.spec.ts needs no edit; never edit an assertion to fit the implementation. Move inbox-navigation and inbox-source with git mv here, when the last inbox-source row is green. Complexity: update stays 1, viewInbox 3, render 1 with entries 1 to 2, state.ts under max-lines 400; extract the nearest helper if lint counts differ. The CSS is the chalk and gold card (4px gold left border, overflow-wrap anywhere, 48px buttons), the .message .score-line rule sets no display, float, position, text-transform or content. stryker.config.mjs needs no change (DD7)."
+        },
+        {
+          "id": "01-05",
+          "name": "Slice 02: League position line and the end-to-end Inbox journeys",
+          "criteria": [
+            "Each message gains a third line p.message-position of span.message-label League position, a space and span.message-value with the ordinal 1st to 8th of the club's position right after that matchday; the newest equals the Table's Pos, Matchday 14 equals Final position (3rd at seed 31), and an older message keeps its position after the table moves (Matchday 9 stays 2nd after Matchday 10 reads 4th)",
+            "After 3 matches at seed 31 one tap on Inbox shows Matchday 3, 2 and 1 with three child elements per item (innerText equal to textContent, spans inline and lines block, no float, no positioning, no generated content), each score line equal to its match screen's and each position equal to the Pos read right after it; tapping every item and line does nothing; Back, Table and Play match (Matchday 4) show the season untouched",
+            "After each of the 14 matchdays the Inbox holds exactly N reports with the DISCUSS score lines and positions; after Play again and a club pick the Inbox is empty with No messages yet; an empty Inbox before any match, six club-home buttons with Inbox last and 44px or taller, and Back to the focused club name hold at 390px with no console error",
+            "At ?seed=abc, Oakhampton Rise Borough, one match reads Matchday 1, Harrowgate Lane United 0–1 Oakhampton Rise Borough, League position 3rd, and a fresh browser with no seed shows the same; two fresh browsers at ?seed=31 show the same Inbox",
+            "Opening the Inbox and Back write no gaffer.save (setItem counter) and leave the stored text alone; 4-3-3 and another player in the eleven never change a message; after a reload, Continue and Inbox it reads the same in 2 taps from the title; at ?seed=180 with 14 messages nothing scrolls sideways and Back is reachable and 44px or taller",
+            "The held-out S-011-inbox e2e spec (7 cases) is moved into tests/e2e/ with git mv and passes at the 390px phone viewport (it imports ../acceptance/S-011/inbox-reference, which stays put); docs/feature/S-011/distill/pending/ is deleted so no *.pending file remains; grep -r __SCAFFOLD__ src/ is empty; ci:lint, ci:typecheck, ci:test, ci:build and ci:e2e pass and tests/protected S-001..S-011 are green"
+          ],
+          "test_file": "tests/e2e/S-011-inbox.spec.ts",
+          "scenario_name": "@walking_skeleton @driving_port After 3 matches (each match screen and the Table read) one tap on Inbox shows Matchday 3, 2 and 1 with each match screen's score line and the Pos read right after it; messages are text, only Back acts; the season is untouched",
+          "files_to_modify": [
+            "src/ui/screens/inbox.ts",
+            "src/ui/styles.css",
+            "tests/e2e/S-011-inbox.spec.ts"
+          ],
+          "implementation_notes": "EXEMPT FROM PARADIGM: Playwright e2e verifies wiring and layout (single-example by design); compensated by the fast-check properties and oracle sweeps of 01-03 and 01-04. Contract shape: bounded-change, universe = the DOM under .inbox and the Inbox's non-use of localStorage. Slice 02 only adds the one position line to renderInbox (the data is already in matchdayReports); no domain or state change. Markup coupling (DESIGN DD5, DISTILL open point 4): the e2e counts 3 x (3 + 5) styled nodes for 3 items (3 inline spans in the score line, 2 in the position line); if the markup changes, amend the count with the same strictness, never loosen a check. Trim lever: if the 1200-line PR guard checkpoint trips, drop the second two-browser e2e (the seed-abc test already covers fresh browsers) and report to the owner rather than splitting slices. Final check: zero *.pending files, zero __SCAFFOLD__ markers, delete docs/feature/S-011/distill/pending/, run the protected S-001..S-010 specs and tests/protected/S-011 on the branch. Slice 01 and slice 02 ship in ONE merge (carpaccio exception)."
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/"
+    ],
+    "test_directories": [
+      "tests/acceptance/S-011/",
+      "tests/e2e/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**",
+      "coverage/**",
+      "tests/protected/**",
+      "**/*.d.ts"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-acceptance-designer-reviewer",
+    "approved_at": "2026-10-27"
+  }
+}

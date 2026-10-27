@@ -143,3 +143,11 @@ There is no storage, clock, network or vendor SDK that the Inbox itself touches 
 - Style: modular monolith, functional core, imperative shell (ADR-0003). Tool: oxlint (existing `.oxlintrc.json`): `inbox.ts` (domain) may not import `app` or `ui` or touch DOM/time globals; `max-params` 3 (`matchdayReports` has 3); `complexity` 15; `max-lines` 400. No config change. `src/domain/inbox.ts` and `inboxOf` in `state.ts` fall under the existing Stryker `mutate` globs, so no `stryker.config.mjs` edit; mutants to kill: the prefix comparison, the newest-first order, the club-row pick, the own-entry pick.
 - Grep tests (vitest has no DOM): `inbox.ts` (domain) has no `Intl`, `toLocale`, `Date`, `Math.random` and imports only `Club`, `ScoredMatch` and `standings`; `ui/screens/inbox.ts` has one `dispatch(` and one `addEventListener(`, no `.focus(` (the existing `src/ui` scan), no `innerHTML`. The layout rules of the message lines are checked by the e2e computed-style check (Earned Trust 2), not by a CSS source grep.
 - No external integrations, no contract tests, no new dependency, no library (so no Context7 lookup).
+
+## Amendment (DELIVER S-011)
+- Date: 2026-10-27
+- DELIVER finished with the intentional deviations below, forced by the 1200-line PR cap. They are presentation and type details; the accepted behaviour contracts (derivation, navigation, texts, save, determinism, Earned Trust probes) are unchanged, and the rest of this ADR stands.
+- **No `ScoreSide` type:** `src/ui/score-line.ts` declares no `ScoreSide`. `scoreLine` takes `Pick<MatchdayReport, "home" | "away">`; the match screen's `MatchSideLine` is structurally the same, so `renderMatch` and `renderInbox` still share the one builder.
+- **`.message-list` min-height:** the rule uses `min-height: 1px` instead of `1.5rem`, so Playwright treats the always-rendered empty list as present.
+- **Card style:** `li.message` is a solid chalk card with pitch-coloured text, not the 8% chalk fill described under "Markup of the screen".
+- **Reason:** the 1200-line PR cap.

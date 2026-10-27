@@ -57,3 +57,11 @@ Expected complexity (`ci:lint` confirms in DELIVER): `render` 1; every entry 1, 
 
 ### Enforcement
 - `.oxlintrc.json` unchanged (`complexity` 15, `max-params` 3, `max-lines` 400 already bite). `ci:typecheck` enforces the table's completeness. No new dependency, no external integration, no contract tests.
+
+## Amendment (DELIVER S-011)
+- Date: 2026-10-27
+- DELIVER finished with one intentional deviation from the Decision above, forced by the 1200-line PR cap. The rest of this ADR stands.
+- **Deviation:** `RENDERERS` is still a mapped type keyed by every `Screen` kind, so exhaustiveness and the single documented cast hold and there is no `switch`. But it is a local constant inside `render()` in `src/main.ts`, not a module-level constant. Its entries are `(screen) => void` closures over `{ root, state, dispatch }`, and there is no `RenderContext` type (the `(context, screen)` entry signature above is not used).
+- **Reason:** this saves about 47 diff lines under the 1200-line PR cap.
+- **Cost:** the table is rebuilt on every render. The `inbox`-source guard (the grep test) checks that `main.ts` has no `switch`, a `RENDERERS` table and an `inbox` entry in it; it does not check the entry shape.
+- **Follow-up:** moving the table to module scope with a `RenderContext` type is behaviour-neutral and may be done by any later story.
