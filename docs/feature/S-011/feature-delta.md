@@ -713,3 +713,38 @@ Step bodies are plain `it`/`test` code over production services (no step-method 
 9. **Machine gate on the DISCUSS figures**: DISTILL pins all 14 seed-31 positions (and score lines), the three name ties and the seed-20260 report as goldens in `inbox-inputs-pinned.test.ts`, committed and green, recomputed from the existing game; the DISCUSS hand-derivation is thus a machine-checked fact, not prose.
 10. **Per-season reset trace**: "Play again" or "New game" then a club gives an empty Inbox with "No messages yet": e2e (the 14-matchday test in `S-011-inbox.spec.ts.pending`, End of season, Play again, club, Inbox) and unit (`inbox-navigation`, "a new season starts with an empty Inbox", Play again and New game from the title). Not pinned in protected (D6, D9).
 11. **Inbox source greps** are an architecture guard for ADR-0017/0018 structure, not a behavioural check; the behaviour is in the e2e and `inbox-navigation`.
+
+
+## Wave: DELIVER
+
+### Wave: DELIVER / [REF] Implementation summary
+The club home has a sixth button, "Inbox", after "Table". It opens a screen with one message per matchday played, newest first. Each message shows "Matchday N", the shared score line and "League position" (ADR-0017). Everything is derived from the recorded results: `matchdayReports` (pure, `src/domain/inbox.ts`) reuses `standings` over the entries up to and including the matchday. `inboxOf` selects it in `state.ts`; `ViewInbox` and `Back` change only `screen`, so `GameState` keeps its five keys and the save text is unchanged (D6). `render` became the `RENDERERS` mapped-type lookup first (ADR-0018, the S-009 open question), and `scoreLine` and `matchdayTitle` moved to `src/ui/score-line.ts`, shared by the match screen and the Inbox.
+
+### Wave: DELIVER / [REF] Files modified
+- New: `src/domain/inbox.ts`, `src/ui/score-line.ts`, `src/ui/screens/inbox.ts`, `tests/acceptance/S-011/*` (inbox-inputs-pinned, names-avoid-inbox-phrases, matchday-reports, inbox-navigation, inbox-source, inbox-oracle, inbox-reference), `tests/e2e/S-011-inbox.spec.ts`, `tests/e2e/S-011-club-home-regression.spec.ts`.
+- Changed: `src/app/state.ts` (`ViewInbox`, `Back` from the Inbox, `inboxOf`, `inbox` screen kind), `src/main.ts` (`RENDERERS` lookup, `inbox` entry), `src/ui/screens/club-home.ts` (sixth button), `src/ui/screens/match.ts` (uses the shared builders), `src/ui/styles.css`, ADR-0017 and ADR-0018 (amended).
+- Amended without weakening (D8): the five-button lists in `tests/e2e/S-005-starting-xi`, `S-006-match`, `S-007-club-home-regression`, `S-007-table`, `S-008-club-home-regression`, `S-008-season`, `S-009-club-home-regression` and `S-009-end-of-season` became the six-button list.
+- Commits: cdc85a6 (01-01), ff44cc4 (01-02), b7a42af (01-03), e3eed3f (01-04), af02a5e (01-05), then refactor and tidy-ups 80830b4, 76bbc86, 1d3b6fd.
+
+### Wave: DELIVER / [REF] Scenarios green
+`ci:test`: 63 files, 1197 tests passed (including all `tests/acceptance/S-011/*`, the oracle sweeps over seeds 1..300 x 8 clubs x 14 matchdays, the seed-31 and seed-20260 goldens, and the fast-check properties with `FC_SEED` honoured). `ci:e2e`: 154 passed (S-011-inbox, the club-home regression and the amended S-005..S-009 specs). `tests/protected/S-011/` is run by CI on main; it was not run locally.
+
+### Wave: DELIVER / [REF] DoD check
+- Protected S-011 on main: verified by CI, not run locally. `tests/protected/S-001..S-010` untouched.
+- Selector goldens, position oracle sweep, read-only and save-unchanged properties, tactics changes, names check: met (unit and property).
+- e2e phone smoke (button and height, h1 and focus, "No messages yet", counts and order, seed-31 figures, D6 `?seed=abc`, reload and Continue with the stored `gaffer.save` text unchanged, 390px, 0 console errors): met in `S-011-inbox.spec.ts`.
+- D8 amendments replace, never weaken: met.
+- `render` is a lookup before the inbox case was added; lint complexity under 15: met.
+- No clock, locale or randomness in `src/domain/inbox.ts`: met (grep guard).
+- PR size guard (1200 lines, docs excluded): passes at 1193 lines, held by trim levers; the K2 sweep was not narrowed and the slices were not split.
+
+### Wave: DELIVER / [REF] Quality gates
+Roadmap: 5 steps, all DONE (RED SKIPPED/NOT_APPLICABLE for the two behaviour-preserving refactors 01-01 and 01-02; RED executed for 01-03..01-05); `des-verify-integrity` passed. `ci:lint`, `ci:typecheck`, `ci:test`, `ci:e2e` green.
+- Haiku review verdict: NEEDS_REVISION on evidence gaps D1-D3. Resolved as G9 parity: the S-011 test and expect counts only went up against main, and the PR guard passes at 1193 lines. Nothing was backdated or weakened.
+- ADR amendments (DELIVER, forced by the 1200-line cap; behaviour contracts D4 message lines, D6 derived only and D7 durable list are unchanged):
+  - ADR-0017: no `ScoreSide` type (`scoreLine` takes `Pick<MatchdayReport, "home" | "away">`); `.message-list` `min-height: 1px`; `li.message` is a solid chalk card.
+  - ADR-0018: `RENDERERS` is a local constant inside `render()` with `(screen) => void` closures and no `RenderContext` type. Cost: rebuilt each render. Follow-up: module scope is behaviour-neutral.
+- Mutation testing is nightly-delta; `/nw-deliver` Phase 5 skipped. Mutants to watch in the first nightly: the own-entry pick and `inboxOf`'s unknown-club branch.
+
+### Wave: DELIVER / [REF] Pre-requisites
+S-001..S-010 delivered; ADR-0001..0018 accepted; `tests/protected/S-011/` RED commit on main before the first DELIVER commit; the `render` lookup done first as S-009 required. Design rows above that mention `RenderContext`, `ScoreSide` or a module-level `RENDERERS` are superseded by the ADR amendments.
