@@ -5,6 +5,7 @@ import { automaticXI, isSlotIndex, pickForSlot, type StartingXI } from "../domai
 import { generateSquad, PLAYERS_PER_SQUAD, type Player } from "../domain/squad";
 import { MATCHDAYS } from "../domain/schedule";
 import { topScorer, type TopScorer } from "../domain/season";
+import type { MatchdayReport } from "../domain/inbox";
 import { standings, type StandingRow } from "../domain/standings";
 
 export type Screen =
@@ -42,6 +43,7 @@ export type Action =
   | { readonly type: "PlayMatch" }
   | { readonly type: "ViewTable" }
   | { readonly type: "ViewSeasonEnd" }
+  | { readonly type: "ViewInbox" }
   | { readonly type: "Back" }
   | { readonly type: "Continue"; readonly game: GameState };
 
@@ -259,6 +261,15 @@ export const seasonSummaryOf = (state: GameState, clubId: string): SeasonSummary
     : { position: row.position, topScorer: topScorer(state.results ?? [], clubIndex, squad) };
 };
 
+/** RED scaffold (DISTILL): DELIVER adds the `inbox` screen kind, this handler and `inboxOf` (ADR-0017). __SCAFFOLD__ */
+const viewInbox = (): GameState => {
+  throw new Error("Not yet implemented -- RED scaffold (__SCAFFOLD__)");
+};
+
+export const inboxOf = (_state: GameState, _clubId: string): readonly MatchdayReport[] | undefined => {
+  throw new Error("Not yet implemented -- RED scaffold (__SCAFFOLD__)");
+};
+
 const continueGame = (state: GameState, { game }: ActionOf<"Continue">): GameState =>
   state.screen.kind === "title" ? game : state;
 
@@ -277,6 +288,7 @@ const HANDLERS: Handlers = {
   PlayMatch: playMatchAction,
   ViewTable: viewTable,
   ViewSeasonEnd: viewSeasonEnd,
+  ViewInbox: viewInbox,
   Back: back,
   Continue: continueGame,
 };
