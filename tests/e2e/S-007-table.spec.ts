@@ -222,10 +222,10 @@ test.describe("@US-1 S-007 see where we stand before kick-off", () => {
     expect(await browserRoles(page), "and after matchday 1").toEqual({ table: 1, row: 9, columnheader: 8, rowheader: 8, cell: 56 });
   });
 
-  test("The club home has five buttons in the order Squad, Tactics, Starting XI, Play match, Table, all 44px or taller @contract-shape:bounded-change", async ({ page }) => {
+  test("The club home has six buttons in the order Squad, Tactics, Starting XI, Play match, Table, Inbox, all 44px or taller @contract-shape:bounded-change", async ({ page }) => {
     await openClubHome(page, "?seed=31", 0);
     const buttons = page.getByRole("button");
-    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match", "Table"]);
+    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match", "Table", "Inbox"]);
     for (const [index, each] of (await buttons.all()).entries()) expect((await each.boundingBox())?.height ?? 0, `club home button ${index}`).toBeGreaterThanOrEqual(44);
   });
 
