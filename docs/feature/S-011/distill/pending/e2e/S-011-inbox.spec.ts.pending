@@ -1,0 +1,359 @@
+// @US-1 @US-2 (S-011 read my club's news in the Inbox) held out until DELIVER
+// CONTRACT_SHAPE: bounded-change
+// Outcome anchor: DISCUSS Elevator Pitches (US-1, US-2) and D1..D7, D10: on Netherwold Borough's home Sam taps "Inbox" and reads, newest first,
+// "Matchday N / <the match screen's score line> / League position <ordinal of the Table's Pos right then>"; "Back" returns to the focused club
+// home. Covers what tests/protected/S-011 does not (it pins only the durable list): "No messages yet", exact item counts, the place of "Inbox"
+// after "Table", the seed-31 and seed-20260 goldens (Chromium must equal Node, ADR-0017 Earned Trust 1), ?seed=abc equals no seed, the empty
+// Inbox after Play again, the unchanged "gaffer.save" (an init-script setItem counter), a message is text (click-everything), the inline-flow
+// computed styles (Earned Trust 2), 390px with the longest club names the generator makes, and blocked storage (the session's messages remain).
+// Environment precondition: local-preview (ci:serve, http://localhost:4173/gaffer/) or, via BASE_URL, the deployed Pages site. Not meant for
+// local-dev. A season is 28 taps: the season tests use test.setTimeout(90_000) (DEVOPS e2e runtime note).
+// Destination: tests/e2e/S-011-inbox.spec.ts (DELIVER: git mv, dropping .pending, in the commit that adds the screen). It imports
+// ../acceptance/S-011/inbox-reference (committed data module; do not move it).
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { messageLines, NETHERWOLD_31, OAKHAMPTON_20260_FIRST } from "../acceptance/S-011/inbox-reference";
+
+// Viewport and device: the Pixel 7 profile at 390px comes from playwright.config.ts (no per-spec override).
+
+const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"] as const;
+const SIX = ["Squad", "Tactics", "Starting XI", "Play match", "Table", "Inbox"];
+// Longest names the generator makes (swept over seeds 1..5000 in DISTILL): seed 180 holds "Oakhampton Rise Wanderers" (25) and "Harrowgate Lane Wanderers" (24).
+const LONG_SEED = "?seed=180";
+const LONG_CLUB = "Oakhampton Rise Wanderers";
+
+const heading = (page: Page): Locator => page.getByRole("heading", { level: 1 });
+const button = (page: Page, name: string): Locator => page.getByRole("button", { name, exact: true });
+const messageList = (page: Page): Locator => page.getByRole("list", { name: "Messages", exact: true });
+const overflow = (page: Page): Promise<number> => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+const watchErrors = (page: Page): string[] => {
+  const errors: string[] = [];
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("pageerror", (e) => errors.push(e.message));
+  return errors;
+};
+const tall = async (target: Locator, what: string): Promise<void> => expect((await target.boundingBox())?.height ?? 0, what).toBeGreaterThanOrEqual(44);
+const installTapCounter = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __taps: number; __counting?: boolean };
+    w.__taps = 0;
+    if (!w.__counting) {
+      w.__counting = true;
+      document.addEventListener("pointerdown", () => void w.__taps++, true);
+    }
+  });
+const tapsSoFar = (page: Page): Promise<number> => page.evaluate(() => (window as unknown as { __taps: number }).__taps);
+/** Counts every setItem of the key "gaffer.save" on this page since it loaded (an init script, so it cannot touch a real player's storage). */
+const countSaveWrites = (page: Page) =>
+  page.addInitScript(() => {
+    const w = window as unknown as { __writes: number };
+    w.__writes = 0;
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key === "gaffer.save") w.__writes++;
+      return original.call(this, key, value);
+    };
+  });
+const writesSoFar = (page: Page): Promise<number> => page.evaluate(() => (window as unknown as { __writes: number }).__writes);
+
+/** New game at `query`, picks club `name` (or the first), returns the club's name once its home is on screen. */
+const openClubHome = async (page: Page, query: string, name?: string): Promise<string> => {
+  await page.goto(`./${query}`);
+  await button(page, "New game").click();
+  const clubs = page.getByRole("list", { name: "Clubs" }).getByRole("button");
+  const target = name === undefined ? clubs.nth(0) : clubs.filter({ hasText: name }).first();
+  await target.click();
+  const club = (await heading(page).innerText()).trim();
+  if (name !== undefined) expect(club).toBe(name);
+  await expect(heading(page)).toBeFocused();
+  return club;
+};
+
+/** The club's Pos on the Table screen right now (Back returns to the club home). */
+const tablePos = async (page: Page, club: string): Promise<number> => {
+  await button(page, "Table").click();
+  await expect(heading(page)).toHaveText("League table");
+  const rows = (await page.getByRole("table", { name: "League table", exact: true }).getByRole("row").all()).slice(1);
+  let pos = 0;
+  for (const row of rows) if ((await row.getByRole("rowheader").innerText()).trim() === club) pos = Number((await row.getByRole("cell").first().innerText()).trim());
+  await button(page, "Back").click();
+  await expect(heading(page)).toHaveText(club);
+  return pos;
+};
+
+/** Taps "Play match", reads the match screen's h1 and score line, taps "Back". Optionally reads the Table's Pos right after. */
+const playOne = async (page: Page, club: string, withPos = false): Promise<{ title: string; line: string; pos: number }> => {
+  await button(page, "Play match").click();
+  const title = (await heading(page).innerText()).trim();
+  await expect(heading(page)).toBeFocused();
+  const line = page.locator(".score-line");
+  await expect(line).toHaveCount(1);
+  const text = await line.innerText();
+  await button(page, "Back").click();
+  await expect(heading(page)).toHaveText(club);
+  return { title, line: text, pos: withPos ? await tablePos(page, club) : 0 };
+};
+
+interface Message {
+  readonly tag: string;
+  readonly lines: readonly string[];
+  readonly texts: readonly string[];
+  readonly controls: number;
+}
+
+/** Every item of the list "Messages" as Sam reads it: its tag, its child elements' innerText and textContent, and how many controls it holds. */
+const readMessages = (page: Page): Promise<readonly Message[]> =>
+  messageList(page).evaluate((list) =>
+    [...list.children].map((item) => ({
+      tag: item.tagName,
+      lines: [...item.children].map((child) => (child as HTMLElement).innerText),
+      texts: [...item.children].map((child) => child.textContent ?? ""),
+      controls: item.querySelectorAll("button, a, ul, ol, input, select, textarea, [role=button], [role=link], [role=list], [tabindex]").length,
+    })),
+  );
+
+/** Asserts the Inbox holds exactly these messages (three lines each, newest first), every line one child element with innerText equal to textContent, and nothing clickable. */
+const expectMessages = async (page: Page, expected: readonly (readonly string[])[]): Promise<void> => {
+  const messages = await readMessages(page);
+  expect(messages.map((m) => m.lines)).toEqual(expected);
+  for (const message of messages) {
+    expect(message.tag).toBe("LI");
+    expect(message.texts, "innerText equals textContent for every line").toEqual(message.lines);
+    expect(message.controls, "no button, link or nested list in a message").toBe(0);
+  }
+  await expect(page.getByRole("listitem")).toHaveCount(expected.length);
+};
+
+const openInbox = async (page: Page): Promise<void> => {
+  await button(page, "Inbox").click();
+  await expect(heading(page)).toHaveText("Inbox");
+  await expect(heading(page)).toBeFocused();
+};
+const closeInbox = async (page: Page, club: string): Promise<void> => {
+  await button(page, "Back").click();
+  await expect(heading(page)).toHaveText(club);
+  await expect(heading(page)).toBeFocused();
+};
+const goldenLines = (matchdays: number): readonly (readonly string[])[] => NETHERWOLD_31.slice(0, matchdays).map(messageLines).reverse();
+
+test.describe("@US-1 @US-2 S-011 the Inbox", () => {
+  test("The club home offers Inbox sixth, after Table, 44px or taller; before any match the Inbox is an empty list with the line No messages yet outside it; Back returns to the focused club home @walking_skeleton @driving_port @boundary @contract-shape:bounded-change", async ({ page }) => {
+    const errors = watchErrors(page);
+    const club = await openClubHome(page, "?seed=31");
+    expect(club).toBe("Netherwold Borough");
+    const buttons = page.getByRole("button");
+    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(SIX);
+    for (const [index, each] of (await buttons.all()).entries()) await tall(each, `club home button ${index}`);
+    await installTapCounter(page);
+    await openInbox(page);
+    expect(await tapsSoFar(page), "1 tap from the club home to the Inbox").toBe(1);
+    await expect(page.getByRole("heading")).toHaveCount(1);
+    await expect(messageList(page)).toBeVisible();
+    await expect(messageList(page).getByRole("listitem")).toHaveCount(0);
+    await expect(page.getByText("No messages yet", { exact: true })).toBeVisible();
+    await expect(messageList(page).getByText("No messages yet")).toHaveCount(0);
+    await expect(page.getByRole("button")).toHaveCount(1);
+    await tall(button(page, "Back"), "Back");
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await closeInbox(page, club);
+    expect(errors).toEqual([]);
+  });
+
+  test("After 3 matches the Inbox holds 3 messages, newest first, each with the match screen's score line and the ordinal of the Table's Pos read right after it; No messages yet is gone @driving_port @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(60_000);
+    const errors = watchErrors(page);
+    const club = await openClubHome(page, "?seed=31");
+    const played: { title: string; line: string; pos: number }[] = [];
+    for (let n = 1; n <= 3; n++) played.push(await playOne(page, club, true));
+    expect(played.map((p) => p.title)).toEqual(["Matchday 1", "Matchday 2", "Matchday 3"]);
+    await openInbox(page);
+    await expectMessages(page, [...played].reverse().map((p) => [p.title, p.line, `League position ${ORDINALS[p.pos - 1]}`]));
+    await expectMessages(page, goldenLines(3));
+    await expect(page.getByText("No messages yet")).toHaveCount(0);
+    await closeInbox(page, club);
+    expect(errors).toEqual([]);
+  });
+
+  test("Opening the Inbox changes nothing: the Table reads the same cell for cell, the next match is Matchday 4, and no save is written @boundary @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(60_000);
+    await countSaveWrites(page);
+    const club = await openClubHome(page, "?seed=31");
+    for (let n = 1; n <= 3; n++) await playOne(page, club);
+    const readTable = async (): Promise<string[]> => {
+      await button(page, "Table").click();
+      const rows = await page.getByRole("table", { name: "League table", exact: true }).getByRole("row").allInnerTexts();
+      await button(page, "Back").click();
+      return rows;
+    };
+    const before = await readTable();
+    const stored = await page.evaluate(() => localStorage.getItem("gaffer.save"));
+    expect(stored).not.toBeNull();
+    const writes = await writesSoFar(page);
+    await openInbox(page);
+    await closeInbox(page, club);
+    expect(await readTable()).toEqual(before);
+    expect(await writesSoFar(page), "opening the Inbox and Back wrote no gaffer.save").toBe(writes);
+    expect(await page.evaluate(() => localStorage.getItem("gaffer.save"))).toBe(stored);
+    await button(page, "Play match").click();
+    await expect(heading(page)).toHaveText("Matchday 4");
+  });
+
+  test("A team change after 2 matches never rewrites a message, and after a reload, Continue and Inbox (2 taps from the title) the messages read the same @walking_skeleton @boundary @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(60_000);
+    const club = await openClubHome(page, "?seed=31");
+    for (let n = 1; n <= 2; n++) await playOne(page, club);
+    await openInbox(page);
+    const first = (await readMessages(page)).map((m) => m.lines);
+    expect(first).toEqual(goldenLines(2));
+    await closeInbox(page, club);
+    await button(page, "Tactics").click();
+    await page.getByRole("radio", { name: "4-3-3", exact: true }).check();
+    await button(page, "Back").click();
+    await openInbox(page);
+    await expectMessages(page, first);
+    await closeInbox(page, club);
+    await page.reload();
+    await installTapCounter(page);
+    await button(page, "Continue").click();
+    await expect(heading(page)).toHaveText(club);
+    await openInbox(page);
+    expect(await tapsSoFar(page), "2 taps from the title: Continue, Inbox").toBe(2);
+    await expectMessages(page, first);
+  });
+
+  test("Seed 31 over 14 matches: Matchday 14 down to Matchday 1 with the 14 golden lines; the newest position is Final position; Inbox is still offered after matchday 14; Play again and a club give an empty Inbox; no sideways scroll @walking_skeleton @boundary @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(90_000);
+    const errors = watchErrors(page);
+    const club = await openClubHome(page, "?seed=31");
+    for (let n = 1; n <= 14; n++) await playOne(page, club);
+    expect((await page.getByRole("button").allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "End of season", "Table", "Inbox"]);
+    await openInbox(page);
+    await expectMessages(page, goldenLines(14));
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await closeInbox(page, club);
+    await button(page, "End of season").click();
+    const final = (await page.getByText(/^Final position /).innerText()).trim();
+    expect(final).toBe("Final position 3rd");
+    await button(page, "Back").click();
+    await openInbox(page);
+    expect((await readMessages(page))[0]!.lines[2]).toBe(final.replace("Final position", "League position"));
+    await closeInbox(page, club);
+    await button(page, "End of season").click();
+    await button(page, "Play again").click();
+    await page.getByRole("list", { name: "Clubs" }).getByRole("button").nth(0).click();
+    await expect(heading(page)).toHaveText(club);
+    await openInbox(page);
+    await expect(messageList(page).getByRole("listitem")).toHaveCount(0);
+    await expect(page.getByText("No messages yet", { exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("An older message keeps the position it had: after 9 matches Matchday 9 reads 2nd; after the 10th the newest reads 4th and Matchday 9 still reads 2nd @boundary @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(90_000);
+    const club = await openClubHome(page, "?seed=31");
+    for (let n = 1; n <= 9; n++) await playOne(page, club);
+    await openInbox(page);
+    const nine = await readMessages(page);
+    expect(nine[0]!.lines).toEqual(["Matchday 9", "Netherwold Borough 3–1 Rushmoor Heath Albion", "League position 2nd"]);
+    await closeInbox(page, club);
+    await playOne(page, club);
+    expect(await tablePos(page, club)).toBe(4);
+    await openInbox(page);
+    const ten = await readMessages(page);
+    expect(ten[0]!.lines).toEqual(["Matchday 10", "Oakhampton Rise Borough 1–1 Netherwold Borough", "League position 4th"]);
+    expect(ten[1]!.lines).toEqual(nine[0]!.lines);
+    expect(ten.slice(1).map((m) => m.lines)).toEqual(nine.map((m) => m.lines));
+  });
+
+  test("?seed=abc and no seed give the same one message, in this browser and in a second fresh one @boundary @contract-shape:bounded-change", async ({ page, browser }, testInfo) => {
+    test.setTimeout(60_000);
+    const expected = [messageLines(OAKHAMPTON_20260_FIRST)];
+    const club = await openClubHome(page, "?seed=abc", "Oakhampton Rise Borough");
+    await playOne(page, club);
+    await openInbox(page);
+    await expectMessages(page, expected);
+    const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL ?? "http://localhost:4173/gaffer/", viewport: { width: 390, height: 844 } });
+    try {
+      const second = await context.newPage();
+      const again = await openClubHome(second, "", "Oakhampton Rise Borough");
+      await playOne(second, again);
+      await openInbox(second);
+      await expectMessages(second, expected);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("A message is text: tapping the messages and every line does nothing, and Back is the only control on the screen @error @boundary @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(60_000);
+    const errors = watchErrors(page);
+    const club = await openClubHome(page, "?seed=31");
+    for (let n = 1; n <= 3; n++) await playOne(page, club);
+    await openInbox(page);
+    const before = await readMessages(page);
+    for (const target of await page.locator("li").all()) {
+      await target.click();
+      for (const line of await target.locator("> *").all()) await line.click();
+    }
+    await expect(heading(page)).toHaveText("Inbox");
+    await expect(page.locator("button, a, [role=button], [role=link], input, select, textarea")).toHaveCount(1);
+    await expect(button(page, "Back")).toBeVisible();
+    await expectMessages(page, before.map((m) => m.lines));
+    expect(errors).toEqual([]);
+  });
+
+  test("Environment probe: each message line keeps inline flow: the lines are blocks, their words are inline, nothing floats or is positioned, and innerText equals textContent @environment-probe @boundary @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(60_000);
+    const club = await openClubHome(page, "?seed=31");
+    for (let n = 1; n <= 2; n++) await playOne(page, club);
+    await openInbox(page);
+    const styles = await messageList(page).evaluate((list) =>
+      [...list.querySelectorAll("li")].flatMap((item) =>
+        [...item.children].map((line) => ({
+          line: { display: getComputedStyle(line).display, float: getComputedStyle(line).cssFloat, position: getComputedStyle(line).position, content: getComputedStyle(line, "::before").content + getComputedStyle(line, "::after").content },
+          words: [...line.children].map((word) => ({ display: getComputedStyle(word).display, float: getComputedStyle(word).cssFloat, position: getComputedStyle(word).position })),
+        })),
+      ),
+    );
+    expect(styles).toHaveLength(6);
+    for (const { line, words } of styles) {
+      expect(line.display).toBe("block");
+      expect(line.float).toBe("none");
+      expect(line.position).toBe("static");
+      expect(["normal", "none", '""', "normalnormal", "nonenone"]).toContain(line.content);
+      for (const word of words) expect(word).toEqual({ display: "inline", float: "none", position: "static" });
+    }
+    await expectMessages(page, goldenLines(2));
+  });
+
+  test("With the longest club names the generator makes, 14 messages wrap inside 390px: no sideways scroll on the Inbox or the club home, no console error @boundary @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(90_000);
+    const errors = watchErrors(page);
+    const club = await openClubHome(page, LONG_SEED, LONG_CLUB);
+    for (let n = 1; n <= 14; n++) await playOne(page, club);
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await openInbox(page);
+    const messages = await readMessages(page);
+    expect(messages).toHaveLength(14);
+    expect(Math.max(...messages.map((m) => m.lines[1]!.length)), "a score line of two long names").toBeGreaterThanOrEqual(40);
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await tall(button(page, "Back"), "Back");
+    expect(errors).toEqual([]);
+  });
+
+  test("Storage blocked: the game plays as always, the Inbox still shows the session's messages, no Continue and no console error @error @real-io @contract-shape:bounded-change", async ({ page }) => {
+    test.setTimeout(60_000);
+    const errors = watchErrors(page);
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "localStorage", {
+        get() {
+          throw new DOMException("blocked", "SecurityError");
+        },
+      });
+    });
+    const club = await openClubHome(page, "?seed=31");
+    for (let n = 1; n <= 2; n++) await playOne(page, club);
+    await openInbox(page);
+    await expectMessages(page, goldenLines(2));
+    expect(errors).toEqual([]);
+  });
+});
