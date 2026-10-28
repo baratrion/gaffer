@@ -142,10 +142,10 @@ test.describe("@US-1 @US-2 S-006 send my team out and see the result", () => {
     expect(errors).toEqual([]);
   });
 
-  test("Play match is the fourth of five club home buttons, after Squad, Tactics and Starting XI and before Table, and all five are 44px or taller @contract-shape:bounded-change", async ({ page }) => {
+  test("Play match is the fourth of six club home buttons, after Squad, Tactics and Starting XI and before Table and Inbox, and all six are 44px or taller @contract-shape:bounded-change", async ({ page }) => {
     await openClubHome(page, "?seed=31", 0);
     const buttons = page.getByRole("button");
-    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match", "Table"]);
+    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match", "Table", "Inbox"]);
     for (const [index, item] of (await buttons.all()).entries()) expect((await item.boundingBox())?.height ?? 0, `club home button ${index}`).toBeGreaterThanOrEqual(44);
     expect(await overflow(page), "no sideways scroll on the club home").toBeLessThanOrEqual(0);
   });
