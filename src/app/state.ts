@@ -1,4 +1,5 @@
 import { DEFAULT_FORMATION, isFormationId, type FormationId } from "../domain/formation";
+import { matchdayReports, type MatchdayReport } from "../domain/inbox";
 import type { Club, League } from "../domain/league";
 import { playMatchday, type MatchResult, type MatchSide, type PlayedMatch } from "../domain/match";
 import { automaticXI, isSlotIndex, pickForSlot, type StartingXI } from "../domain/selection";
@@ -18,6 +19,7 @@ export type Screen =
   | { readonly kind: "choosePlayer"; readonly clubId: string; readonly slot: number }
   | { readonly kind: "match"; readonly clubId: string }
   | { readonly kind: "table"; readonly clubId: string }
+  | { readonly kind: "inbox"; readonly clubId: string }
   | { readonly kind: "seasonEnd"; readonly clubId: string };
 
 export interface GameState {
@@ -42,6 +44,7 @@ export type Action =
   | { readonly type: "PlayMatch" }
   | { readonly type: "ViewTable" }
   | { readonly type: "ViewSeasonEnd" }
+  | { readonly type: "ViewInbox" }
   | { readonly type: "Back" }
   | { readonly type: "Continue"; readonly game: GameState };
 
@@ -180,7 +183,12 @@ const viewSeasonEnd = (state: GameState): GameState =>
     ? toScreen(state, { kind: "seasonEnd", clubId: state.screen.clubId })
     : state;
 
-const HOME_RETURNING_KINDS: ReadonlySet<Screen["kind"]> = new Set(["squad", "match", "tactics", "startingXI", "table", "seasonEnd"]);
+const viewInbox = (state: GameState): GameState =>
+  state.screen.kind === "clubHome" && isKnownClub(state.league, state.screen.clubId)
+    ? toScreen(state, { kind: "inbox", clubId: state.screen.clubId })
+    : state;
+
+const HOME_RETURNING_KINDS: ReadonlySet<Screen["kind"]> = new Set(["squad", "match", "tactics", "startingXI", "table", "seasonEnd", "inbox"]);
 
 const back = (state: GameState): GameState => {
   const { screen, league } = state;
@@ -259,6 +267,12 @@ export const seasonSummaryOf = (state: GameState, clubId: string): SeasonSummary
     : { position: row.position, topScorer: topScorer(state.results ?? [], clubIndex, squad) };
 };
 
+/** The club's matchday reports, newest first, derived from the recorded results; undefined for a club not in the league. */
+export const inboxOf = (state: GameState, clubId: string): readonly MatchdayReport[] | undefined => {
+  const clubIndex = state.league.clubs.findIndex((club) => club.id === clubId);
+  return clubIndex < 0 ? undefined : matchdayReports(state.league.clubs, state.results ?? [], clubIndex);
+};
+
 const continueGame = (state: GameState, { game }: ActionOf<"Continue">): GameState =>
   state.screen.kind === "title" ? game : state;
 
@@ -277,6 +291,7 @@ const HANDLERS: Handlers = {
   PlayMatch: playMatchAction,
   ViewTable: viewTable,
   ViewSeasonEnd: viewSeasonEnd,
+  ViewInbox: viewInbox,
   Back: back,
   Continue: continueGame,
 };
