@@ -1,6 +1,6 @@
 // @US-1 @US-2 (S-009 see how my season ended) @regression
 // CONTRACT_SHAPE: bounded-change
-// Outcome anchor: DISCUSS D1, D8 and DoD: before matchday 14 is played the club home is the one Sam knows: five buttons, "Play match" among them
+// Outcome anchor: DISCUSS D1, D8 and DoD: before matchday 14 is played the club home is the one Sam knows: six buttons, "Play match" among them
 // (all 44px or taller), no "End of season" button and no "Final position" or "Top scorer" text anywhere. At ?seed=31 after 13 matches the
 // 14th "Play match" still opens "Matchday 14" (Tarnbeck Borough 2–1 Netherwold Borough, the reference season's last score line) with the heading
 // focused, "Back" returns to the focused club name, "Table" reads P 13 before it and P 14 after it on every row, and nothing scrolls sideways
@@ -43,7 +43,7 @@ test.describe("@US-1 @US-2 S-009 the club home before the season ends keeps work
     }
 
     const buttons = page.getByRole("button");
-    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match", "Table"]);
+    expect((await buttons.allInnerTexts()).map((text) => text.trim())).toEqual(["Squad", "Tactics", "Starting XI", "Play match", "Table", "Inbox"]);
     for (const [index, each] of (await buttons.all()).entries()) expect((await each.boundingBox())?.height ?? 0, `club home button ${index}`).toBeGreaterThanOrEqual(44);
     await expect(button(page, "End of season"), "no way to end the season before matchday 14 is played").toHaveCount(0);
     await expect(page.getByRole("button", { name: /end of season/i })).toHaveCount(0);
